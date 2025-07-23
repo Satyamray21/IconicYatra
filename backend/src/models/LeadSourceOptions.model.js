@@ -1,4 +1,3 @@
-// models/LeadSourceOption.js
 import mongoose from "mongoose";
 
 const leadSourceOptionSchema = new mongoose.Schema({

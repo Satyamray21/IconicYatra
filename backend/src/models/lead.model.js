@@ -100,7 +100,12 @@ businessType: {
     type: String,
     required: true,
   },
-}
+},
+leadId: {
+    type: String,
+    unique: true,
+  },
+
 
 
 },{timestamps:true})

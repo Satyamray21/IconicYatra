@@ -28,4 +28,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(cookieParser());
 
+import leadRouter from "./src/routers/lead.router.js"
+app.use('/api/v1/lead',leadRouter);
 export {app};
