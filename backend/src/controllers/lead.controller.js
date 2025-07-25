@@ -69,19 +69,98 @@ export const viewAllLeads = asyncHandler(async (req,res)=>{
         
     }
 })
+//update Lead
+export const updateLead = asyncHandler(async (req, res) => {
+  const { leadId } = req.params;
+  const { personalDetails, location, address, officialDetail } = req.body;
 
-//delete lead
-export const deleteLead = asyncHandler(async (req,res)=>{
-    const {leadId} = req.body;
-    try{
-        const lead = await Lead.findOneAndDelete({leadId});
-        res.status(200)
-        .json(new ApiResponse(201,{},"Lead Deleted Successfully"));
-    }
-    catch(err)
-    {
-        console.log("Error",err.message);
-        new ApiError(404,"Lead not found");
+  if (!leadId) {
+    throw new ApiError(400, "leadId is required");
+  }
+
+  console.log("➡️ Updating lead with ID:", leadId);
+
+  const existingLead = await Lead.findOne({ leadId });
+
+  if (!existingLead) {
+    throw new ApiError(404, "Lead not found");
+  }
+
+  // Source default fallback
+  let sourceToSave = officialDetail?.source || existingLead.officialDetail.source;
+
+  // Handle new source creation
+  if (officialDetail?.sourceType === 'addMore' && officialDetail?.newSource) {
+    console.log("🆕 Adding new source:", officialDetail.newSource);
+
+    const existingSource = await LeadSourceOption.findOne({
+      businessType: officialDetail.businessType,
+      sourceName: officialDetail.newSource,
+    });
+
+    if (!existingSource) {
+      await LeadSourceOption.create({
+        businessType: officialDetail.businessType,
+        sourceName: officialDetail.newSource,
+      });
+
+      console.log("✅ New source created in LeadSourceOption");
     }
 
-})
+    sourceToSave = officialDetail.newSource;
+  }
+
+  // Update sections safely
+  if (personalDetails) {
+    console.log("✏️ Updating personalDetails");
+    Object.assign(existingLead.personalDetails, personalDetails);
+  }
+
+  if (location) {
+    console.log("📍 Updating location");
+    Object.assign(existingLead.location, location);
+  }
+
+  if (address) {
+    console.log("🏠 Updating address");
+    Object.assign(existingLead.address, address);
+  }
+
+  if (officialDetail) {
+    console.log("🗂️ Updating officialDetail");
+
+    existingLead.officialDetail = {
+      ...existingLead.officialDetail,
+      ...officialDetail,
+      source: sourceToSave, // override with correct source
+    };
+  }
+
+  try {
+    await existingLead.save();
+    console.log("✅ Lead updated and saved successfully");
+    res.status(200).json(new ApiResponse(200, existingLead, "Lead updated successfully"));
+  } catch (error) {
+    console.error("❌ Error saving lead:", error);
+    throw new ApiError(500, error.message || "Failed to update lead");
+  }
+});
+
+
+
+// Delete Lead
+export const deleteLead = asyncHandler(async (req, res) => {
+  const { leadId } = req.body;
+
+  if (!leadId) {
+    throw new ApiError(400, "leadId is required");
+  }
+
+  const deletedLead = await Lead.findOneAndDelete({ leadId });
+
+  if (!deletedLead) {
+    throw new ApiError(404, "Lead not found");
+  }
+
+  res.status(200).json(new ApiResponse(200, {}, "Lead deleted successfully"));
+});
