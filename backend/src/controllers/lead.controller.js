@@ -7,11 +7,59 @@ import {ApiError} from '../utils/ApiError.js';
 // create Lead
 export const createLead = asyncHandler(async (req, res) => {
   const {
-    personalDetails,
-    location,
-    address,
-    officialDetail,
-  } = req.body;
+  fullName,
+  mobile,
+  alternateNumber,
+  email,
+  title,
+  dob,
+  source,
+  assignedTo,
+  businessType,
+  priority,
+  note,
+  city,
+  country,
+  state,
+  pincode,
+  address1,
+  address2,
+  address3,
+  referralBy,
+  agentName,
+} = req.body;
+
+// Restructure to match schema
+const personalDetails = {
+  fullName,
+  mobile,
+  alternateNumber,
+  emailId: email,
+  title,
+  dateOfBirth: dob,
+};
+
+const location = {
+  country,
+  state,
+  city,
+};
+
+const address = {
+  addressLine1: address1,
+  addressLine2: address2,
+  addressLine3: address3,
+  pincode,
+};
+
+const officialDetail = {
+  businessType,
+  priority,
+  source,
+  agentName,
+  referredBy: referralBy,
+  assignedTo: assignedTo,
+};
 
   if (!personalDetails || !officialDetail) {
     throw new ApiError(400, "Missing required personal or official details");

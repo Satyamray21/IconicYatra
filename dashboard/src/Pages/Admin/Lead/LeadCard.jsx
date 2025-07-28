@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -16,6 +16,8 @@ import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { useSelector, useDispatch } from "react-redux";
+import { getAllLeads } from "../../../features/leads/leadSlice";
 
 const stats = [
   { title: "Today's", active: 0, confirmed: 0, cancelled: 0 },
@@ -25,82 +27,78 @@ const stats = [
   { title: "Last 12 Months", active: 15, confirmed: 0, cancelled: 0 },
 ];
 
-const initialLeads = [
-  {
-    id: 1,
-    leadId: 31,
-    status: "New",
-    source: "Direct",
-    name: "Jfhghj",
-    mobile: "9878786778",
-    email: "hghgj@gmail.com",
-    destination: "",
-    arrivalDate: "2025-08-01",
-    priority: "High",
-    assignTo: "Agent A",
-  },
-  {
-    id: 2,
-    leadId: 30,
-    status: "New",
-    source: "Direct",
-    name: "Andnnfn",
-    mobile: "8987565753",
-    email: "ajfjf@gmail.com",
-    destination: "",
-    arrivalDate: "2025-08-02",
-    priority: "Medium",
-    assignTo: "Agent B",
-  },
-];
-
 const LeadDashboard = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  const [leadList, setLeadList] = React.useState(initialLeads);
+  const { list: leadList = [], status, error } = useSelector(
+    (state) => state.leads
+  );
+
+  useEffect(() => {
+    dispatch(getAllLeads());
+  }, [dispatch]);
 
   const handleAddClick = () => {
     navigate("/leadform");
   };
 
-  const handleEditClick = (row) => {
-    navigate("/lead/leadeditform", { state: { leadData: row } });
+  const handleEditClick = (originalLead) => {
+    navigate("/lead/leadeditform", { state: { leadData: originalLead } });
   };
 
   const handleDeleteClick = (id) => {
-    const updatedLeads = leadList.filter((lead) => lead.id !== id);
-    setLeadList(updatedLeads);
+    // Add your delete dispatch here, or update Redux store
+    console.log("Delete lead with id", id);
   };
+
+  const mappedLeads = leadList.map((lead, index) => ({
+    id: index + 1,
+    leadId: lead.leadId || "-",
+    status: lead.status || "New",
+    source: lead.officialDetail?.source || "-",
+    name: lead.personalDetails?.fullName || "-",
+    mobile: lead.personalDetails?.mobile || "-",
+    email: lead.personalDetails?.emailId || "-",
+    destination: lead.location?.city || "-",
+    arrivalDate: lead.arrivalDate || "-",
+    priority: lead.officialDetail?.priority || "-",
+    assignTo:
+      lead.officialDetail?.assignedTo ||
+      lead.officialDetail?.assinedTo || // fallback for typo
+      "-",
+    originalData: lead,
+  }));
 
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
-    { field: "leadId", headerName: "Lead Id", width: 65 },
-    { field: "status", headerName: "Status", width: 70 },
-    { field: "source", headerName: "Source", width: 70 },
+    { field: "leadId", headerName: "Lead Id", width: 90 },
+    { field: "status", headerName: "Status", width: 90 },
+    { field: "source", headerName: "Source", width: 90 },
     { field: "name", headerName: "Name", width: 150 },
-    { field: "mobile", headerName: "Mobile", width: 100 },
-    { field: "email", headerName: "Email", width: 150 },
-    { field: "destination", headerName: "Destination", width: 90 },
-    { field: "arrivalDate", headerName: "Arrival Date", width: 100 },
-    { field: "priority", headerName: "Priority", width: 80 },
-    { field: "assignTo", headerName: "Assign To", width: 90 },
+    { field: "mobile", headerName: "Mobile", width: 120 },
+    { field: "email", headerName: "Email", width: 180 },
+    { field: "destination", headerName: "Destination", width: 110 },
+    { field: "arrivalDate", headerName: "Arrival Date", width: 110 },
+    { field: "priority", headerName: "Priority", width: 100 },
+    { field: "assignTo", headerName: "Assign To", width: 120 },
     {
       field: "action",
       headerName: "Action",
-      width: 80,
+      width: 100,
       renderCell: (params) => (
         <Box display="flex" gap={1}>
           <IconButton
             color="primary"
             size="small"
-            onClick={() => handleEditClick(params.row)}
+            onClick={() => handleEditClick(params.row.originalData)}
           >
             <EditIcon fontSize="small" />
           </IconButton>
           <IconButton
             color="error"
             size="small"
-            onClick={() => handleDeleteClick(params.row.id)}
+            onClick={() => handleDeleteClick(params.row.originalData._id)}
           >
             <DeleteIcon fontSize="small" />
           </IconButton>
@@ -115,7 +113,7 @@ const LeadDashboard = () => {
         {/* Stat Cards */}
         <Grid container spacing={2}>
           {stats.map((item, index) => (
-            <Grid size={{xs:12, sm:6, md:4, lg:2.4}} key={index}>
+            <Grid item xs={12} sm={6} md={4} lg={2.4} key={index}>
               <Card
                 sx={{
                   backgroundColor: "#e91e63",
@@ -180,7 +178,7 @@ const LeadDashboard = () => {
         <Box sx={{ width: "100%", overflowX: "auto" }}>
           <Box sx={{ minWidth: "600px" }}>
             <DataGrid
-              rows={leadList}
+              rows={mappedLeads}
               columns={columns}
               pageSize={7}
               rowsPerPageOptions={[7, 25, 50, 100]}

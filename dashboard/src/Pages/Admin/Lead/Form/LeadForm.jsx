@@ -20,7 +20,8 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-
+import {useDispatch,useSelector} from "react-redux";
+import {createLead} from "../../../../features/leads/leadSlice"
 const validationSchema = Yup.object({
   fullName: Yup.string().required("Name is required"),
   source: Yup.string().required("Source is required"),
@@ -32,7 +33,7 @@ const CustomerDetailForm = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newValue, setNewValue] = useState("");
   const [activeField, setActiveField] = useState("");
-
+  const dispatch = useDispatch();
   const [dropdownOptions, setDropdownOptions] = useState({
     title: ["Mr", "Ms", "Mrs"],
     source: ["Direct", "Referral", "Agent's"],
@@ -68,6 +69,7 @@ const CustomerDetailForm = () => {
     validationSchema,
     onSubmit: (values) => {
       console.log("Submitted values:", values);
+      dispatch(createLead(values)).unwrap();
     },
   });
 

@@ -96,7 +96,7 @@ businessType: {
       }
     },
 
-  assinedTo: {
+  assignedTo: {
     type: String,
     required: true,
   },
