@@ -17,7 +17,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useSelector, useDispatch } from "react-redux";
-import { getAllLeads } from "../../../features/leads/leadSlice";
+import { getAllLeads,fetchLeadsReports } from "../../../features/leads/leadSlice";
 
 const stats = [
   { title: "Today's", active: 0, confirmed: 0, cancelled: 0 },
@@ -34,9 +34,14 @@ const LeadDashboard = () => {
   const { list: leadList = [], status, error } = useSelector(
     (state) => state.leads
   );
+  const { reports: stats = [], loading: statsLoading, error: statsError } = useSelector(
+  (state) => state.leads
+);
+
 
   useEffect(() => {
     dispatch(getAllLeads());
+    dispatch(fetchLeadsReports());
   }, [dispatch]);
 
   const handleAddClick = () => {
@@ -125,12 +130,12 @@ const LeadDashboard = () => {
                   <Typography variant="h6">
                     {item.title}: {item.active}
                   </Typography>
-                  <Typography variant="body2">Active: {item.active}</Typography>
+                  <Typography variant="body2">Active: {item.Active}</Typography>
                   <Typography variant="body2">
-                    Confirmed: {item.confirmed}
+                    Confirmed: {item.Confirmed}
                   </Typography>
                   <Typography variant="body2">
-                    Cancelled: {item.cancelled}
+                    Cancelled: {item.Cancelled}
                   </Typography>
                 </CardContent>
               </Card>

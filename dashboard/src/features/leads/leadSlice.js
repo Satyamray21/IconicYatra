@@ -30,6 +30,17 @@ export const getAllLeads = createAsyncThunk(
   }
 );
 
+export const fetchLeadsReports = createAsyncThunk(
+  "leadsReport/fetchLeadsReports",
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await axios.get("/lead/get-Count");
+      return data.data; 
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Failed to fetch lead reports");
+    }
+  }
+);
 
 const initialState = {
     list:[],
@@ -109,6 +120,18 @@ export const leadSlice = createSlice({
                 state.status = 'failed';
                 state.error = action.payload;
         })
+        .addCase(fetchLeadsReports.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchLeadsReports.fulfilled, (state, action) => {
+        state.loading = false;
+        state.reports = action.payload;
+      })
+      .addCase(fetchLeadsReports.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
 
     }
 
