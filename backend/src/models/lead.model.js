@@ -105,7 +105,11 @@ leadId: {
     type: String,
     unique: true,
   },
-
+status:{
+  type:String,
+  enum:['Active','Cancelled','Confirmed'],
+  default:'Active',
+}
 
 
 },{timestamps:true})

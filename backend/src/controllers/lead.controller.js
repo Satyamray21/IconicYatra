@@ -3,7 +3,7 @@ import { Lead } from '../models/lead.model.js';
 import  LeadSourceOption from '../models/LeadSourceOptions.model.js';
 import {ApiResponse} from '../utils/ApiResponse.js';
 import {ApiError} from '../utils/ApiError.js';
-
+import { startOfDay, startOfMonth, subMonths } from "date-fns";
 // create Lead
 export const createLead = asyncHandler(async (req, res) => {
   const {
@@ -96,6 +96,7 @@ const officialDetail = {
       source: sourceToSave,
     },
     leadId,
+    status: 'Active',
   });
 
   return res.status(201).json(
@@ -194,6 +195,71 @@ export const updateLead = asyncHandler(async (req, res) => {
   }
 });
 
+//view Data wise 
+export const viewAllLeadsReports = asyncHandler(async (req, res) => {
+  try {
+    const leads = await Lead.find();
+
+    const now = new Date();
+
+    // Define date ranges
+    const todayStart = startOfDay(now);
+    const monthStart = startOfMonth(now);
+    const last3Months = subMonths(now, 3);
+    const last6Months = subMonths(now, 6);
+    const last12Months = subMonths(now, 12);
+
+    // Helper to count by status in a given date range
+    const getStatusCounts = async (fromDate) => {
+      const result = await Lead.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: fromDate },
+          },
+        },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+
+      const counts = {
+        Active: 0,
+        Confirmed: 0,
+        Cancelled: 0,
+      };
+
+      result.forEach((item) => {
+        counts[item._id] = item.count;
+      });
+
+      return counts;
+    };
+
+    const today = await getStatusCounts(todayStart);
+    const thisMonth = await getStatusCounts(monthStart);
+    const last3 = await getStatusCounts(last3Months);
+    const last6 = await getStatusCounts(last6Months);
+    const last12 = await getStatusCounts(last12Months);
+
+    const stats = [
+      { title: "Today's", ...today },
+      { title: "This Month", ...thisMonth },
+      { title: "Last 3 Months", ...last3 },
+      { title: "Last 6 Months", ...last6 },
+      { title: "Last 12 Months", ...last12 },
+    ];
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, stats, "All leads fetched successfully"));
+  } catch (err) {
+    console.log("Error", err.message);
+    throw new ApiError(404, {}, "No lead found");
+  }
+});
 
 
 // Delete Lead
@@ -212,3 +278,5 @@ export const deleteLead = asyncHandler(async (req, res) => {
 
   res.status(200).json(new ApiResponse(200, {}, "Lead deleted successfully"));
 });
+
+//
