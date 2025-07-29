@@ -279,4 +279,64 @@ export const deleteLead = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, {}, "Lead deleted successfully"));
 });
 
-//
+//view by LeadId 
+export const viewByLeadId = asyncHandler(async (req,res)=>{
+  const {leadId} = req.params;
+  try{
+    const lead = await Lead.findOne({leadId});
+    if(!lead)
+    {
+      throw new ApiError(404,"Lead not found");
+    }
+    res.status(200)
+    .json(new ApiResponse(201,lead,"Lead fetched Successfully By given Id"));
+    
+  }
+  catch(err)
+  {
+    console.log("Error",err.message);
+  }
+})
+//change in Status
+export const changeLeadStatus = asyncHandler(async (req, res) => {
+  const { leadId } = req.params;
+  const { status } = req.body;
+
+  const allowedStatuses = ['Active', 'Cancelled', 'Confirmed'];
+
+  if (!leadId) {
+    throw new ApiError(400, "leadId is required");
+  }
+
+  if (!status || !allowedStatuses.includes(status)) {
+    throw new ApiError(400, "Valid status is required (Active, Cancelled, Confirmed)");
+  }
+
+  const lead = await Lead.findOne({ leadId });
+
+  if (!lead) {
+    throw new ApiError(404, "Lead not found");
+  }
+
+  const currentStatus = lead.status;
+
+
+  if (currentStatus === 'Cancelled') {
+    throw new ApiError(400, "Cancelled lead cannot be changed to another status");
+  }
+
+  if (currentStatus === 'Confirmed' && status === 'Active') {
+    throw new ApiError(400, "Confirmed lead cannot be changed back to Active");
+  }
+
+  if (currentStatus === status) {
+    return res.status(200).json(new ApiResponse(200, lead, `Status is already ${status}`));
+  }
+
+  lead.status = status;
+  await lead.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, lead, `Lead status updated from ${currentStatus} to ${status}`));
+});
