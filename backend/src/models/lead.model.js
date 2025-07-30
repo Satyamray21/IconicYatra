@@ -22,7 +22,8 @@ personalDetails:{
     },
     title:{
         type:String,
-        enum:['Mr','Mrs','Ms']
+        enum:['Mr','Mrs','Ms'],
+        default:"Mr"
     },
     dateOfBirth:{
         type:String,
@@ -75,7 +76,7 @@ businessType: {
   },
   source: {
     type: String,
-    required: true,
+    
   },
  agentName: {
       type: String,
@@ -109,7 +110,37 @@ status:{
   type:String,
   enum:['Active','Cancelled','Confirmed'],
   default:'Active',
+},
+tourDetails: {
+  tourType: String,
+  tourDestination: String,
+  servicesRequired: [String],
+  members: {
+    adults: Number,
+    children: Number,
+    kidsWithoutMattress: Number,
+    infants: Number,
+  },
+  pickupDrop: {
+    arrivalDate: Date,
+    arrivalCity: String,
+    arrivalLocation: String,
+    departureDate: Date,
+    departureCity: String,
+    departureLocation: String,
+  },
+  accommodation: {
+    hotelType: [String],
+    mealPlan: String,
+    transport: Boolean,
+    sharingType: String,
+    noOfRooms: Number,
+    noOfMattress: Number,
+    noOfNights: Number,
+    requirementNote: String,
+  }
 }
+
 
 
 },{timestamps:true})
