@@ -4,105 +4,167 @@ import  LeadSourceOption from '../models/LeadSourceOptions.model.js';
 import {ApiResponse} from '../utils/ApiResponse.js';
 import {ApiError} from '../utils/ApiError.js';
 import { startOfDay, startOfMonth, subMonths } from "date-fns";
-// create Lead
+import { getNextLeadId } from "../utils/getNextLeadId.js";
+
+//  Helper for single-value fields
+const handleAddMoreValue = (valueObj) => {
+  if (valueObj?.value === "addMore" && valueObj?.newValue) {
+    return valueObj.newValue;
+  }
+  return valueObj?.value || "";
+};
+
+//  Helper for array fields
+const handleAddMoreArray = (arr = []) => {
+  if (!Array.isArray(arr)) {
+    arr = [arr]; // convert single value to array
+  }
+  return arr.map((item) => handleAddMoreValue(item));
+};
+
+//createLead
 export const createLead = asyncHandler(async (req, res) => {
+  console.log("Req",req.files);
   const {
-  fullName,
-  mobile,
-  alternateNumber,
-  email,
-  title,
-  dob,
-  source,
-  assignedTo,
-  businessType,
-  priority,
-  note,
-  city,
-  country,
-  state,
-  pincode,
-  address1,
-  address2,
-  address3,
-  referralBy,
-  agentName,
-} = req.body;
+    // Personal & Official
+    fullName,
+    mobile,
+    alternateNumber,
+    email,
+    title,
+    dob,
+    source,
+    assignedTo,
+    businessType,
+    priority,
+    note,
+    city,
+    country,
+    state,
+    pincode,
+    address1,
+    address2,
+    address3,
+    referralBy,
+    agentName,
 
-// Restructure to match schema
-const personalDetails = {
-  fullName,
-  mobile,
-  alternateNumber,
-  emailId: email,
-  title,
-  dateOfBirth: dob,
-};
+    // Tour
+    tourType,
+    tourDestination,
+    servicesRequired,
+    adults,
+    children,
+    kidsWithoutMattress,
+    infants,
+    arrivalDate,
+    arrivalCity,
+    arrivalLocation,
+    departureDate,
+    departureCity,
+    departureLocation,
+    hotelType,
+    mealPlan,
+    transport,
+    sharingType,
+    noOfRooms,
+    noOfMattress,
+    noOfNights,
+    requirementNote,
+  } = req.body;
 
-const location = {
-  country,
-  state,
-  city,
-};
+  // ✅ Handle addMore for single values
+  const sourceToSave = handleAddMoreValue(source);
+  const agentNameToSave = handleAddMoreValue(agentName);
+  const referredByToSave = handleAddMoreValue(referralBy);
+  const arrivalCityToSave = handleAddMoreValue(arrivalCity);
+  const arrivalLocationToSave = handleAddMoreValue(arrivalLocation);
+  const departureCityToSave = handleAddMoreValue(departureCity);
+  const departureLocationToSave = handleAddMoreValue(departureLocation);
 
-const address = {
-  addressLine1: address1,
-  addressLine2: address2,
-  addressLine3: address3,
-  pincode,
-};
+  // ✅ Handle addMore for arrays
+  const servicesRequiredToSave = handleAddMoreArray(servicesRequired);
+  const hotelTypeToSave = handleAddMoreArray(hotelType);
 
-const officialDetail = {
-  businessType,
-  priority,
-  source,
-  agentName,
-  referredBy: referralBy,
-  assignedTo: assignedTo,
-};
+  // ✅ Build schema fields
+  const personalDetails = {
+    fullName,
+    mobile,
+    alternateNumber,
+    emailId: email,
+    title,
+    dateOfBirth: dob,
+  };
 
-  if (!personalDetails || !officialDetail) {
-    throw new ApiError(400, "Missing required personal or official details");
-  }
+  const location = { country, state, city };
 
-  let sourceToSave = officialDetail.source;
+  const address = {
+    addressLine1: address1,
+    addressLine2: address2,
+    addressLine3: address3,
+    pincode,
+  };
 
-  if (officialDetail?.sourceType === 'addMore' && officialDetail?.newSource) {
-    const existing = await LeadSourceOption.findOne({
-      businessType: officialDetail.businessType,
-      sourceName: officialDetail.newSource,
-    });
+  const officialDetail = {
+    businessType,
+    priority,
+    source: sourceToSave,
+    agentName: agentNameToSave,
+    referredBy: referredByToSave,
+    assignedTo,
+  };
 
-    if (!existing) {
-      await SourceOption.create({
-        businessType: officialDetail.businessType,
-        sourceName: officialDetail.newSource,
-      });
-    }
+  const tourDetails = {
+    tourType,
+    tourDestination,
+    servicesRequired: servicesRequiredToSave,
+    members: {
+      adults,
+      children,
+      kidsWithoutMattress,
+      infants,
+    },
+    pickupDrop: {
+      arrivalDate,
+      arrivalCity: arrivalCityToSave,
+      arrivalLocation: arrivalLocationToSave,
+      departureDate,
+      departureCity: departureCityToSave,
+      departureLocation: departureLocationToSave,
+    },
+    accommodation: {
+      hotelType: hotelTypeToSave,
+      mealPlan,
+      transport,
+      sharingType,
+      noOfRooms,
+      noOfMattress,
+      noOfNights,
+      requirementNote,
+    },
+  };
 
-    sourceToSave = officialDetail.newSource;
-  }
+  
   const totalLeads = await Lead.countDocuments();
-
   const nextIdNumber = totalLeads + 1;
-  const leadId = `ICYR_${nextIdNumber.toString().padStart(4, '0')}`; 
+  const leadId = await getNextLeadId(); // ✅ Guaranteed unique
 
+
+  
   const newLead = await Lead.create({
     personalDetails,
     location,
     address,
-    officialDetail: {
-      ...officialDetail,
-      source: sourceToSave,
-    },
+    officialDetail,
+    tourDetails,
     leadId,
-    status: 'Active',
+    status: "Active",
   });
 
-  return res.status(201).json(
-    new ApiResponse(201, newLead, "Lead created successfully")
-  );
+  return res
+    .status(201)
+    .json(new ApiResponse(201, newLead, "Lead created successfully"));
 });
+
 
 // view Lead
 export const viewAllLeads = asyncHandler(async (req,res)=>{

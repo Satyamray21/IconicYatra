@@ -5,6 +5,8 @@ import Dashboard from '../Pages/Admin/Dashboard';
 import DashboardLayout from '../Layout/DashboardLayout';
 import LeadCard from '../Pages/Admin/Lead/LeadCard';
 import LeadForm from '../Pages/Admin/Lead/Form/LeadForm';
+import LeadTourForm from "../Pages/Admin/Lead/Form/LeadTourForm";
+import LeadCreationFlow  from "../Pages/Admin/Lead/Form/LeadCreationFlow"
 import LeadEditForm from '../Pages/Admin/Lead/Form/LeadEditForm'
 import HotelCard from '../Pages/Admin/Hotel/HotelCard'
 import HotelForm from '../Pages/Admin/Hotel/Form/HotelForm';
@@ -26,7 +28,7 @@ const MainRoute = () => {
 
                {/* Lead Routing */}
                <Route path="/lead" element={<LeadCard/>} />
-               <Route path="/leadform" element={<LeadForm/>} />
+                <Route path="/lead/leadtourform" element={<LeadCreationFlow />} />
                <Route path="/lead/leadeditform" element={<LeadEditForm/>} />
 
                {/*Hotel Routing */}

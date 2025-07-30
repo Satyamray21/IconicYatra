@@ -77,7 +77,7 @@ const LeadDashboard = () => {
 
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
-    { field: "leadId", headerName: "Lead Id", width: 90 },
+    { field: "leadId", headerName: "Lead Id", width: 100 },
     { field: "status", headerName: "Status", width: 90 },
     { field: "source", headerName: "Source", width: 90 },
     { field: "name", headerName: "Name", width: 150 },
@@ -118,7 +118,7 @@ const LeadDashboard = () => {
         {/* Stat Cards */}
         <Grid container spacing={2}>
           {stats.map((item, index) => (
-            <Grid item xs={12} sm={6} md={4} lg={2.4} key={index}>
+            <Grid size={{xs:12, sm:6, md:4, lg:2.4}} key={index}>
               <Card
                 sx={{
                   backgroundColor: "#e91e63",
