@@ -45,7 +45,7 @@ const LeadDashboard = () => {
   }, [dispatch]);
 
   const handleAddClick = () => {
-    navigate("/leadform");
+    navigate("/lead/leadtourform");
   };
 
   const handleEditClick = (originalLead) => {
