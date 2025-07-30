@@ -41,7 +41,19 @@ export const fetchLeadsReports = createAsyncThunk(
     }
   }
 );
-
+export const changeLeadStatus = createAsyncThunk(
+  'leads/changeLeadStatus',
+  async ({ leadId, status }, { rejectWithValue }) => {
+    try {
+      const response = await axios.patch(`/lead/change-status/${leadId}`, { status });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to update lead status'
+      );
+    }
+  }
+);
 const initialState = {
     list:[],
     form:{
@@ -67,7 +79,12 @@ const initialState = {
               note: "",
     },
     status: 'idle',
+    
+    loading: false,
+    success: false,
     error: null,
+    updatedLead: null,
+    message: '',
     viewedLead:null,
 
 };
@@ -92,6 +109,13 @@ export const leadSlice = createSlice({
                     clearViewedLeads:(state)=>{
                       state.viewedDriver=null
                     },
+                    resetLeadStatus(state) {
+      state.loading = false;
+      state.success = false;
+      state.error = null;
+      state.updatedLead = null;
+      state.message = '';
+    },
         },
 
     extraReducers:(builder)=>{
@@ -131,11 +155,30 @@ export const leadSlice = createSlice({
       .addCase(fetchLeadsReports.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase(changeLeadStatus.pending, (state) => {
+        state.loading = true;
+        state.success = false;
+        state.error = null;
+        state.message = '';
+      })
+      .addCase(changeLeadStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        state.updatedLead = action.payload.data;
+        state.message = action.payload.message;
+      })
+      .addCase(changeLeadStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.success = false;
+        state.error = action.payload;
+        state.message = '';
       });
+
 
     }
 
 })
- export const { setFormField, resetForm, addLeads , setLeads,clearViewedLeads} = leadSlice.actions;
+ export const { setFormField, resetForm, addLeads , setLeads,clearViewedLeads,resetLeadStatus} = leadSlice.actions;
 
  export default leadSlice.reducer;

@@ -364,7 +364,7 @@ export const changeLeadStatus = asyncHandler(async (req, res) => {
   const { leadId } = req.params;
   const { status } = req.body;
 
-  const allowedStatuses = ['Active', 'Cancelled', 'Confirmed'];
+  const allowedStatuses = ['Active', 'Cancelled', 'Confirm'];
 
   if (!leadId) {
     throw new ApiError(400, "leadId is required");

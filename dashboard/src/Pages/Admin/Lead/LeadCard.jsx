@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React ,{useEffect}from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -11,13 +11,20 @@ import {
   InputAdornment,
   IconButton,
   Container,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useSelector, useDispatch } from "react-redux";
-import { getAllLeads,fetchLeadsReports } from "../../../features/leads/leadSlice";
+import {
+  getAllLeads,
+  fetchLeadsReports,
+  changeLeadStatus,
+} from "../../../features/leads/leadSlice";
 
 const stats = [
   { title: "Today's", active: 0, confirmed: 0, cancelled: 0 },
@@ -27,17 +34,25 @@ const stats = [
   { title: "Last 12 Months", active: 15, confirmed: 0, cancelled: 0 },
 ];
 
-const LeadDashboard = () => {
+
+
+const LeadCard = () => {
   const navigate = useNavigate();
+ 
+  const [anchorEls, setAnchorEls] = React.useState({});
+
   const dispatch = useDispatch();
 
-  const { list: leadList = [], status, error } = useSelector(
-    (state) => state.leads
-  );
-  const { reports: stats = [], loading: statsLoading, error: statsError } = useSelector(
-  (state) => state.leads
-);
-
+  const {
+    list: leadList = [],
+    status,
+    error,
+  } = useSelector((state) => state.leads);
+  const {
+    reports: stats = [],
+    loading: statsLoading,
+    error: statsError,
+  } = useSelector((state) => state.leads);
 
   useEffect(() => {
     dispatch(getAllLeads());
@@ -48,14 +63,43 @@ const LeadDashboard = () => {
     navigate("/lead/leadtourform");
   };
 
-  const handleEditClick = (originalLead) => {
-    navigate("/lead/leadeditform", { state: { leadData: originalLead } });
+  const handleEditClick = (row) => {
+    navigate("/lead/leadeditform", { state: { leadData: row } });
   };
 
   const handleDeleteClick = (id) => {
-    // Add your delete dispatch here, or update Redux store
-    console.log("Delete lead with id", id);
+    const updatedLeads = leadList.filter((lead) => lead.id !== id);
+    setLeadList(updatedLeads);
   };
+
+  const handleMenuClick = (event, id) => {
+    setAnchorEls((prev) => ({ ...prev, [id]: event.currentTarget }));
+  };
+
+  const handleMenuClose = (id) => {
+    setAnchorEls((prev) => ({ ...prev, [id]: null }));
+  };
+
+  const handleStatusChange = (rowId, newStatus) => {
+  const lead = mappedLeads.find((item) => item.id === rowId);
+
+  if (!lead || lead.leadId === "-") {
+    console.error("Invalid lead ID");
+    return;
+  }
+
+  dispatch(changeLeadStatus({ leadId: lead.leadId, status: newStatus }))
+    .unwrap()
+    .then(() => {
+      dispatch(getAllLeads()); // Refresh list after update
+    })
+    .catch((err) => {
+      console.error("Failed to update lead status:", err);
+    });
+
+  handleMenuClose(rowId);
+};
+
 
   const mappedLeads = leadList.map((lead, index) => ({
     id: index + 1,
@@ -78,37 +122,58 @@ const LeadDashboard = () => {
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
     { field: "leadId", headerName: "Lead Id", width: 100 },
-    { field: "status", headerName: "Status", width: 90 },
-    { field: "source", headerName: "Source", width: 90 },
+    { field: "status", headerName: "Status", width: 100 },
+    { field: "source", headerName: "Source", width: 80 },
     { field: "name", headerName: "Name", width: 150 },
-    { field: "mobile", headerName: "Mobile", width: 120 },
-    { field: "email", headerName: "Email", width: 180 },
-    { field: "destination", headerName: "Destination", width: 110 },
-    { field: "arrivalDate", headerName: "Arrival Date", width: 110 },
-    { field: "priority", headerName: "Priority", width: 100 },
-    { field: "assignTo", headerName: "Assign To", width: 120 },
+    { field: "mobile", headerName: "Mobile", width: 100 },
+    { field: "email", headerName: "Email", width: 150 },
+    { field: "destination", headerName: "Destination", width: 100 },
+    { field: "arrivalDate", headerName: "Arrival Date", width: 100 },
+    { field: "priority", headerName: "Priority", width: 80 },
+    { field: "assignTo", headerName: "Assign To", width: 100 },
     {
       field: "action",
       headerName: "Action",
-      width: 100,
-      renderCell: (params) => (
-        <Box display="flex" gap={1}>
-          <IconButton
-            color="primary"
-            size="small"
-            onClick={() => handleEditClick(params.row.originalData)}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            color="error"
-            size="small"
-            onClick={() => handleDeleteClick(params.row.originalData._id)}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
+      width: 120,
+      renderCell: (params) => {
+        const rowId = params.row.id;
+        return (
+          <Box display="flex" gap={1} alignItems="center">
+            <IconButton
+              color="primary"
+              size="small"
+              onClick={() => handleEditClick(params.row)}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              color="error"
+              size="small"
+              onClick={() => handleDeleteClick(params.row.id)}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+            <IconButton size="small" onClick={(e) => handleMenuClick(e, rowId)}>
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEls[rowId]}
+              open={Boolean(anchorEls[rowId])}
+              onClose={() => handleMenuClose(rowId)}
+            >
+              <MenuItem onClick={() => handleStatusChange(rowId, "Active")}>
+                Active
+              </MenuItem>
+              <MenuItem onClick={() => handleStatusChange(rowId, "Confirmed")}>
+                Confirm
+              </MenuItem>
+              <MenuItem onClick={() => handleStatusChange(rowId, "Cancelled")}>
+                Cancel
+              </MenuItem>
+            </Menu>
+          </Box>
+        );
+      },
     },
   ];
 
@@ -118,7 +183,7 @@ const LeadDashboard = () => {
         {/* Stat Cards */}
         <Grid container spacing={2}>
           {stats.map((item, index) => (
-            <Grid size={{xs:12, sm:6, md:4, lg:2.4}} key={index}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }} key={index}>
               <Card
                 sx={{
                   backgroundColor: "#e91e63",
@@ -183,7 +248,7 @@ const LeadDashboard = () => {
         <Box sx={{ width: "100%", overflowX: "auto" }}>
           <Box sx={{ minWidth: "600px" }}>
             <DataGrid
-              rows={mappedLeads}
+              rows={mappedLeads} 
               columns={columns}
               pageSize={7}
               rowsPerPageOptions={[7, 25, 50, 100]}
@@ -197,4 +262,4 @@ const LeadDashboard = () => {
   );
 };
 
-export default LeadDashboard;
+export default LeadCard;
