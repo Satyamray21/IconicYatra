@@ -1,0 +1,316 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Iconic Yatra",
+    "description": "Auto-generated Swagger docs",
+    "version": "1.0.0"
+  },
+  "host": "localhost:4000",
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
+  "securityDefinitions": {
+    "bearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Enter your JWT token in the format: Bearer <token>"
+    }
+  },
+  "consumes": [
+    "application/json",
+    "multipart/form-data"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/lead/create": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fullName": {
+                  "example": "any"
+                },
+                "mobile": {
+                  "example": "any"
+                },
+                "alternateNumber": {
+                  "example": "any"
+                },
+                "email": {
+                  "example": "any"
+                },
+                "title": {
+                  "example": "any"
+                },
+                "dob": {
+                  "example": "any"
+                },
+                "source": {
+                  "example": "any"
+                },
+                "assignedTo": {
+                  "example": "any"
+                },
+                "businessType": {
+                  "example": "any"
+                },
+                "priority": {
+                  "example": "any"
+                },
+                "note": {
+                  "example": "any"
+                },
+                "city": {
+                  "example": "any"
+                },
+                "country": {
+                  "example": "any"
+                },
+                "state": {
+                  "example": "any"
+                },
+                "pincode": {
+                  "example": "any"
+                },
+                "address1": {
+                  "example": "any"
+                },
+                "address2": {
+                  "example": "any"
+                },
+                "address3": {
+                  "example": "any"
+                },
+                "referralBy": {
+                  "example": "any"
+                },
+                "agentName": {
+                  "example": "any"
+                },
+                "tourType": {
+                  "example": "any"
+                },
+                "tourDestination": {
+                  "example": "any"
+                },
+                "servicesRequired": {
+                  "example": "any"
+                },
+                "adults": {
+                  "example": "any"
+                },
+                "children": {
+                  "example": "any"
+                },
+                "kidsWithoutMattress": {
+                  "example": "any"
+                },
+                "infants": {
+                  "example": "any"
+                },
+                "arrivalDate": {
+                  "example": "any"
+                },
+                "arrivalCity": {
+                  "example": "any"
+                },
+                "arrivalLocation": {
+                  "example": "any"
+                },
+                "departureDate": {
+                  "example": "any"
+                },
+                "departureCity": {
+                  "example": "any"
+                },
+                "departureLocation": {
+                  "example": "any"
+                },
+                "hotelType": {
+                  "example": "any"
+                },
+                "mealPlan": {
+                  "example": "any"
+                },
+                "transport": {
+                  "example": "any"
+                },
+                "sharingType": {
+                  "example": "any"
+                },
+                "noOfRooms": {
+                  "example": "any"
+                },
+                "noOfMattress": {
+                  "example": "any"
+                },
+                "noOfNights": {
+                  "example": "any"
+                },
+                "requirementNote": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/api/v1/lead/getAllLead": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/lead/get-Count": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/lead/viewLeadById/{leadId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "leadId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/lead/update-Lead/{leadId}": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "leadId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "personalDetails": {
+                  "example": "any"
+                },
+                "location": {
+                  "example": "any"
+                },
+                "address": {
+                  "example": "any"
+                },
+                "officialDetail": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/lead/delete-Lead/{leadId}": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "leadId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "leadId": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/lead/change-status/{leadId}": {
+      "patch": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "leadId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}
