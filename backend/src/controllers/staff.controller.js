@@ -1,7 +1,10 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { Staff } from "../models/staff.model.js"; // adjust path
+import { Staff } from "../models/staff.model.js"; 
+import { Country } from "../models/country.model.js";
+import {State} from "../models/state.model.js";
+import {City} from "../models/city.model.js"
 import mongoose from "mongoose";
 
 // CREATE Staff
