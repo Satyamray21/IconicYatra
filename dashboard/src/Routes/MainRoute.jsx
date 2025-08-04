@@ -17,7 +17,8 @@ import PackageEditForm from '../Pages/Admin/TourPackage/Form/PackagrEditForm';
 import AssociatesCard from '../Pages/Admin/Associates/AssociatesCard';
 import AssociatesForm from '../Pages/Admin/Associates/Form/AssociatesForm';
 import AssociatesEditFrom from '../Pages/Admin/Associates/Form/AssociatesEditFrom';
-
+import StaffCard from "../Pages/Admin/Staff/StaffCard";
+import StaffForm from "../Pages/Admin/Staff/Form/StaffForm";
 const MainRoute = () => {
     const isAuthenticated = true; 
 
@@ -47,8 +48,10 @@ const MainRoute = () => {
                <Route path='/associatesform' element={<AssociatesForm />}/>
                <Route path='/associates/associateseditform' element={<AssociatesEditFrom />}/>
 
-
-
+                {/* Staff Routes */}
+                
+                <Route path="/staff" element={<StaffCard />} />
+                <Route path="/staffform" element={<StaffForm />} />
             </Routes>
         </DashboardLayout>
     ) : (
