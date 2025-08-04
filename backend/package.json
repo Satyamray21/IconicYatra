@@ -1,8 +1,8 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "type": "module",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "nodemon -r dotenv/config --experimental-json-modules index.js",
     "swagger-gen": "node swagger.js"
@@ -12,24 +12,24 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
-    "dotenv": "^17.2.0",
-    "dotnet": "^1.1.4",
+    "dotenv": "^17.0.0",
     "express": "^5.1.0",
+    "express-oas-generator": "^1.0.48",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.16.4",
-    "multer": "^2.0.2",
-    "nodemailer": "^7.0.5",
+    "mongoose": "^8.16.1",
+    "multer": "^2.0.1",
+    "nodemailer": "^7.0.4",
     "nodemon": "^3.1.10",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "express-oas-generator": "^1.0.48",
     "swagger-autogen": "^2.23.7"
   }
 }
