@@ -1,7 +1,7 @@
 import mongoose from "mongoose"
-import { addressSchema } from "../common/address.common";
-import { firmSchema } from "../common/firm.common";
-import { bankSchema } from "../common/bankDetails.common";
+import { addressSchema } from "../common/address.common.js";
+import { firmSchema } from "../common/firm.common.js";
+import { bankSchema } from "../common/bankDetails.common.js";
 const staffSchema = new mongoose.Schema({
     personalDetails :{
         firstName:{
@@ -27,7 +27,7 @@ const staffSchema = new mongoose.Schema({
         },
         userRole:{
             type:String,
-            enum:[Superadmin,Admin,executive],
+            enum:['Superadmin','Admin','executive'],
             required:true
         }
 
@@ -53,4 +53,5 @@ address:addressSchema,
 firm:firmSchema,
 bank:bankSchema,
 },{timestamps:true});        
-export const Staff = new mongoose.model(Staff,"staffSchema");
+
+export const Staff = new mongoose.model("Staff",staffSchema);
