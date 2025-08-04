@@ -12,6 +12,7 @@ const doc = {
   schemes: ['http'],
   consumes: ['application/json', 'multipart/form-data'],
   produces: ['application/json'],
+  definitions: {},
   securityDefinitions: {
     bearerAuth: {
       type: 'apiKey',
