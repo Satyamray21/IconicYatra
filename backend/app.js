@@ -26,7 +26,7 @@ app.use('/upload', express.static(path.join(__dirname, '/upload')));
 import leadRouter from "./src/routers/lead.router.js"
 app.use('/api/v1/lead',leadRouter);
 import staffRouter from "./src/routers/staff.router.js"
-app.use('/api/v1/staffs',staffRouter);
+app.use('/api/v1/staff',staffRouter);
 
 // ✅ Fix: Load JSON without import
 const swaggerDocument = JSON.parse(fs.readFileSync("./swagger-output.json", "utf-8"));

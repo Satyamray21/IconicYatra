@@ -4,14 +4,12 @@ import { firmSchema } from "../common/firm.common.js";
 import { bankSchema } from "../common/bankDetails.common.js";
 const staffSchema = new mongoose.Schema({
     personalDetails :{
-        firstName:{
+        fullName:{
             type:String,
             required:true
         },
-        lastName:{
-            type:String,
-            required:true
-        },
+        
+       
         mobileNumber:{
             type:String,
             required:true,
@@ -32,23 +30,21 @@ const staffSchema = new mongoose.Schema({
         }
 
     },
-    staffLocation:{
-    country: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Country",
-      required: true
-    },
-    state: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "State",
-      required: true
-    },
-    city: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "City",
-      required: true
-    }
+  staffLocation: {
+  country: {
+    type: String,
+    required: true
+  },
+  state: {
+    type: String,
+    required: true
+  },
+  city: {
+    type: String,
+    required: true
+  }
 },
+
 address:addressSchema,
 firm:firmSchema,
 bank:bankSchema,

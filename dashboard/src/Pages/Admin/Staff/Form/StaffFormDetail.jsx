@@ -31,13 +31,13 @@ const validationSchema = Yup.object({
   address2: Yup.string(),
   address3: Yup.string(),
   bankName: Yup.string(),
-  branchName: Yup.string(),
+  nameOfBranch: Yup.string(),
   accountHolderName: Yup.string(),
   accountNumber: Yup.string(),
   ifscCode: Yup.string(),
 });
 
-const StaffFirmForm = () => {
+const StaffFirmForm = ({formik}) => {
   const [firmTypes, setFirmTypes] = useState([
     "Proprietorship",
     "Partnership",
@@ -48,35 +48,10 @@ const StaffFirmForm = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newFirmType, setNewFirmType] = useState("");
 
-  const formik = useFormik({
-    initialValues: {
-      firmType: "",
-      gstin: "",
-      cin: "",
-      pan: "",
-      turnover: "",
-      firmName: "",
-      firmDescription: "",
-      sameAsContact: false,
-      address1: "",
-      address2: "",
-      address3: "",
-      supportingDocs: null,
-      bankName: "",
-      branchName: "",
-      accountHolderName: "",
-      accountNumber: "",
-      ifscCode: "",
-    },
-    validationSchema,
-    onSubmit: (values) => {
-      console.log("Submitted values:", values);
-    },
-  });
 
   return (
     <Box p={3}>
-      <form onSubmit={formik.handleSubmit}>
+      <>
         <Box border={1} borderRadius={2} p={2} mb={3}>
           <Typography variant="subtitle1" gutterBottom>
             Firm Details
@@ -249,8 +224,8 @@ const StaffFirmForm = () => {
               <TextField
                 fullWidth
                 label="Branch Name"
-                name="branchName"
-                value={formik.values.branchName}
+                name="nameOfBranch"
+                value={formik.values.nameOfBranch}
                 onChange={formik.handleChange}
               />
             </Grid>
@@ -285,11 +260,11 @@ const StaffFirmForm = () => {
         </Box>
 
         <Box display="flex" justifyContent="center">
-          <Button type="submit" variant="contained" color="primary">
+          <Button type="submit" variant="contained" color="primary" onClick={formik.handleSubmit}>
             Submit
           </Button>
         </Box>
-      </form>
+      </>
 
       {/* Add New Firm Type Dialog */}
       <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)}>

@@ -17,7 +17,8 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import dayjs from "dayjs";
 import StaffFormDetail from "./StaffFormDetail";
-
+import { useDispatch } from "react-redux";
+import { createStaff } from "../../../../features/staff/staffSlice" // Adjust path
 const titles = ["Mr", "Mrs", "Ms", "Dr"];
 const roles = ["Admin", "Manager", "Executive"];
 const countries = ["India", "USA"];
@@ -55,34 +56,175 @@ const validationSchema = Yup.object().shape({
 const StaffForm = () => {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
+ const dispatch = useDispatch();
 
+const handleFinalSubmit = () => {
+  const formattedData = {
+    personalDetails: {
+      title: values.title,
+      firstName: values.fullName.split(" ")[0] || "",
+      lastName: values.fullName.split(" ").slice(1).join(" ") || "",
+      mobileNumber: values.mobile,
+      alternateContact: values.alternateContact,
+      designation: values.designation,
+      userRole: values.userRole,
+      email: values.email,
+      dob: values.dob,
+    },
+    staffLocation: {
+      country: values.country,
+      state: values.state,
+      city: values.city,
+    },
+    address: {
+      address1: values.address1,
+      address2: values.address2,
+      address3: values.address3,
+      pincode: values.pincode,
+    },
+    firm: {
+  firmType: values.firmType,
+  gstin: values.gstin,
+  cin: values.cin,
+  pan: values.pan,
+  turnover: values.turnover,
+  firmName: values.firmName,
+  firmDescription: values.firmDescription,
+  sameAsContact: values.sameAsContact,
+  address1: values.firmAddress1,
+  address2: values.firmAddress2,
+  address3: values.firmAddress3,
+  supportingDocs: values.supportingDocs,
+},
+
+    bank: {
+  bankName: values.bankName,
+  branchName: values.branchName,
+  nameOfBranch: values.nameOfBranch,
+  accountHolderName: values.accountHolderName,
+  accountNumber: values.accountNumber,
+  ifscCode: values.ifscCode,
+}
+
+  };
+
+  dispatch(createStaff(formattedData))
+    .unwrap()
+    .then(() => {
+      navigate("/staff"); // or wherever you want
+    })
+    .catch((err) => {
+      console.error("Staff creation failed:", err);
+    });
+};
   const formik = useFormik({
-    initialValues: {
-      fullName: "",
-      mobile: "",
-      alternateContact: "",
-      designation: "",
-      userRole: "",
-      email: "",
-      title: "",
-      dob: null,
-      country: "",
-      state: "",
-      city: "",
-      address1: "",
-      address2: "",
-      address3: "",
-      pincode: "",
-    },
+   initialValues: {
+  fullName: "",
+  mobile: "",
+  alternateContact: "",
+  designation: "",
+  userRole: "",
+  email: "",
+  title: "",
+  dob: null,
+
+  // Staff Address
+  address1: "",
+  address2: "",
+  address3: "",
+  pincode: "",
+  country: "",
+  state: "",
+  city: "",
+
+  // Firm
+  firmType: "",
+  gstin: "",
+  cin: "",
+  pan: "",
+  turnover: "",
+  firmName: "",
+  firmDescription: "",
+  sameAsContact: false,
+  supportingDocs: null,
+  firmAddress1: "",  // 👈 rename
+  firmAddress2: "",
+  firmAddress3: "",
+
+  // Bank
+  bankName: "",
+  branchName: "",
+  accountHolderName: "",
+  accountNumber: "",
+  ifscCode: "",
+  nameOfBranch: "",
+},
+
     validationSchema,
-    onSubmit: (values) => {
-      if (step === 1) {
-        setStep(2);
-      } else {
-        console.log("Form Data:", values);
-        navigate("/staffform");
-      }
-    },
+ onSubmit: (values) => {
+  if (step === 1) {
+    setStep(2);
+  } else {
+    const formattedData = {
+      personalDetails: {
+        fullName: values.fullName,
+        title: values.title,
+        firstName: values.fullName.split(" ")[0] || "",
+        lastName: values.fullName.split(" ").slice(1).join(" ") || "",
+        mobileNumber: values.mobile,
+        alternateContact: values.alternateContact,
+        designation: values.designation,
+        userRole: values.userRole,
+        email: values.email,
+        dob: values.dob,
+      },
+      staffLocation: {
+        country: values.country,
+        state: values.state,
+        city: values.city,
+      },
+      address: {
+        addressLine1: values.address1,
+        addressLine2: values.address2,
+        addressLine3: values.address3,
+        pincode: values.pincode,
+      },
+      firm: {
+        firmType: values.firmType,
+        gstin: values.gstin,
+        cin: values.cin,
+        pan: values.pan,
+        turnover: values.turnover,
+        firmName: values.firmName,
+        firmDescription: values.firmDescription,
+        sameAsContact: values.sameAsContact,
+        address1: values.address1,
+        address2: values.address2,
+        address3: values.address3,
+        supportingDocs: values.supportingDocs,
+      },
+      bank: {
+        bankName: values.bankName,
+        branchName: values.nameOfBranch,
+        accountHolderName: values.accountHolderName,
+        accountNumber: values.accountNumber,
+        ifscCode: values.ifscCode,
+      },
+    };
+
+    dispatch(createStaff(formattedData))
+      .unwrap()
+      .then(() => {
+        navigate("/staff");
+      })
+      .catch((err) => {
+        console.error("Staff creation failed:", err);
+      });
+  }
+}
+
+
+    ,
   });
 
   const {
@@ -94,6 +236,8 @@ const StaffForm = () => {
     setFieldValue,
     resetForm,
   } = formik;
+ 
+
 
   return (
     <Box p={3}>
@@ -331,11 +475,25 @@ const StaffForm = () => {
           </>
         )}
 
-        {step === 2 && (
-          <>
-            <StaffFormDetail formik={formik} />
-          </>
-        )}
+       {step === 2 && (
+  <>
+    <StaffFormDetail formik={formik} />
+
+    <Box display="flex" gap={2} justifyContent="center" mt={3}>
+      <Button
+        variant="contained"
+        color="secondary"
+        onClick={() => setStep(1)}
+      >
+        Back
+      </Button>
+      <Button type="submit" variant="contained" color="primary">
+        Submit Final
+      </Button>
+    </Box>
+  </>
+)}
+
 
         <Box display="flex" gap={2} justifyContent="center" mt={3}>
           {step === 1 && (

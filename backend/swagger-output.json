@@ -307,7 +307,7 @@
         }
       }
     },
-    "/api/v1/staffs/": {
+    "/api/v1/staff/": {
       "post": {
         "description": "",
         "parameters": [
@@ -351,7 +351,7 @@
         }
       }
     },
-    "/api/v1/staffs/{id}": {
+    "/api/v1/staff/{id}": {
       "get": {
         "description": "",
         "parameters": [
