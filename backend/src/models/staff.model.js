@@ -25,8 +25,13 @@ const staffSchema = new mongoose.Schema({
         },
         userRole:{
             type:String,
-            enum:['Superadmin','Admin','executive'],
+            enum:['Superadmin','Admin','Executive'],
             required:true
+        },
+        email:{
+          type:String,
+          required:true,
+          unique:true
         }
 
     },
