@@ -57,7 +57,7 @@ const mappedAssociatefList = associateList.map((associate, index) => ({
   mobile: associate.personalDetails?.mobileNumber || "",
   email: associate.personalDetails?.email || "",
   city: associate.staffLocation?.city || "",
-  designation: associate.personalDetails?.designation || "",
+  firm: associate.firm?.firmName || "",
 }));
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
@@ -67,7 +67,7 @@ const mappedAssociatefList = associateList.map((associate, index) => ({
     { field: "mobile", headerName: "Mobile", width: 100 },
     { field: "email", headerName: "Email", width: 180 },
     { field: "city", headerName: "City", width: 90 },
-    { field: "from", headerName: "From", width: 100 },
+    { field: "firm", headerName: "Firm", width: 100 },
     {
       field: "action",
       headerName: "Action",
