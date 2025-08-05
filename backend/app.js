@@ -28,6 +28,9 @@ app.use('/api/v1/lead',leadRouter);
 import staffRouter from "./src/routers/staff.router.js"
 app.use('/api/v1/staff',staffRouter);
 
+import associateRouter from "./src/routers/associate.router.js"
+app.use('/api/v1/associate',associateRouter);
+
 // ✅ Fix: Load JSON without import
 const swaggerDocument = JSON.parse(fs.readFileSync("./swagger-output.json", "utf-8"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));

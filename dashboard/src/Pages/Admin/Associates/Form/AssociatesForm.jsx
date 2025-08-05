@@ -1,329 +1,450 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
-  Button,
   Grid,
-  MenuItem,
   TextField,
+  MenuItem,
+  Button,
   Typography,
-  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import { useFormik } from "formik";
-import * as Yup from "yup";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import dayjs from "dayjs";
+import AssociateFirmForm from "./AssociateFirmForm";
+import { useDispatch } from "react-redux";
+import {createAssociate} from "../../../../features/associate/associateSlice"
+const titles = ["Mr", "Mrs", "Ms", "Dr"];
+const roles = ["B2B Vendor", "Hotel Vendor", "Referral Partner", "Staff", "Sub Agent", "Vehicle Vendor"];
+const countries = ["India", "USA"];
+const states = {
+  India: ["Maharashtra", "Delhi", "Karnataka"],
+  USA: ["California", "New York", "Texas"],
+};
+const cities = {
+  Maharashtra: ["Mumbai", "Pune"],
+  Delhi: ["New Delhi"],
+  Karnataka: ["Bangalore"],
+  California: ["Los Angeles", "San Francisco"],
+  "New York": ["New York City"],
+  Texas: ["Houston"],
+};
 
-const countries = ["Albania", "India", "USA", "Canada"];
-const states = ["State 1", "State 2"];
-const cities = ["City 1", "City 2"];
-const titles = ["Mr.", "Ms.", "Mrs.", "Dr."];
-const associateTypes = ["Type A", "Type B"];
-
-const validationSchema = Yup.object({
-  firstName: Yup.string().required("Required"),
-  lastName: Yup.string().required("Required"),
-  email: Yup.string().email("Invalid email").required("Required"),
-  dob: Yup.date().nullable(),
+const validationSchema = Yup.object().shape({
+  fullName: Yup.string().required("Required"),
+  mobile: Yup.string().required("Required"),
+  alternateContact: Yup.string(),
   associateType: Yup.string().required("Required"),
+  email: Yup.string().email("Invalid email"),
+  title: Yup.string(),
+  dob: Yup.date().nullable(),
   country: Yup.string().required("Required"),
   state: Yup.string().required("Required"),
   city: Yup.string().required("Required"),
+  address1: Yup.string(),
+  address2: Yup.string(),
+  address3: Yup.string(),
+  pincode: Yup.string(),
 });
 
-const AssociateDetailForm = () => {
+const AssociatesForm = () => {
+  const [step, setStep] = useState(1);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+
+const handleFinalSubmit = (values) => {
+  const formattedData = {
+    personalDetails: {
+      fullName: `${values.fullName.split(" ")[0] || ""} ${values.fullName.split(" ").slice(1).join(" ") || ""}`.trim(),
+      mobileNumber: values.mobile,
+      alternateContact: values.alternateContact,
+      associateType: values.associateType,
+      email: values.email,
+      title: values.title,
+      dob: values.dob,
+    },
+    staffLocation: {  // Changed from associateLocation to staffLocation
+      country: values.country,
+      state: values.state,
+      city: values.city,
+    },
+    address: {
+      addressLine1: values.address1,
+      addressLine2: values.address2,
+      addressLine3: values.address3,
+      pincode: values.pincode,
+    },
+    firm: {
+      firmType: values.firmType,
+      gstIn: values.gstin,  // Changed from gstin to gstIn
+      cin: values.cin,
+      pan: values.pan,
+      existingTurnOver: values.turnover,  // Changed from turnover to existingTurnOver
+      firmName: values.firmName,
+      firmDescription: values.firmDescription,
+      sameAsContact: values.sameAsContact,
+      address1: values.firmAddress1,
+      address2: values.firmAddress2,
+      address3: values.firmAddress3,
+      supportingDocs: values.supportingDocs,
+    },
+    bank: {
+      bankName: values.bankName,
+      branchName: values.branchName,
+      nameOfBranch: values.nameOfBranch,
+      accountHolderName: values.accountHolderName,
+      accountNumber: values.accountNumber,
+      ifscCode: values.ifscCode,
+    },
+  };
+
+  dispatch(createAssociate(formattedData))
+    .unwrap()
+    .then(() => {
+      navigate("/associates");
+    })
+    .catch((err) => {
+      console.error("Associates creation failed:", err);
+    });
+};
+
   const formik = useFormik({
-    initialValues: {
-      firstName: "",
-      lastName: "",
-      mobile: "",
-      alternateContact: "",
-      associateType: "",
-      email: "",
-      title: "",
-      dob: null,
-      country: "Albania",
-      state: "",
-      city: "",
-      address1: "",
-      address2: "",
-      address3: "",
-      pincode: "",
-    },
+   initialValues: {
+  fullName: "",
+  mobile: "",
+  alternateContact: "",
+  associateType: "",
+  email: "",
+  title: "",
+  dob: null,
+
+  // Associates Address
+  address1: "",
+  address2: "",
+  address3: "",
+  pincode: "",
+  country: "",
+  state: "",
+  city: "",
+
+  // Firm
+  firmType: "",
+  gstin: "",
+  cin: "",
+  pan: "",
+  turnover: "",
+  firmName: "",
+  firmDescription: "",
+  sameAsContact: false,
+  supportingDocs: null,
+  firmAddress1: "",  // 👈 rename
+  firmAddress2: "",
+  firmAddress3: "",
+
+  // Bank
+  bankName: "",
+  branchName: "",
+  accountHolderName: "",
+  accountNumber: "",
+  ifscCode: "",
+  nameOfBranch: "",
+},
+
     validationSchema,
-    onSubmit: (values) => {
-      console.log("Form Submitted", values);
-    },
-    onReset: () => {
-      formik.resetForm();
-    },
+onSubmit: (values) => {
+    if (step === 1) {
+      setStep(2);
+    } else {
+      handleFinalSubmit(values); // This will dispatch the action
+    }
+  }
+
+
+    ,
   });
 
+  const {
+    values,
+    errors,
+    touched,
+    handleChange,
+    handleSubmit,
+    setFieldValue,
+    resetForm,
+  } = formik;
+ 
+
+
   return (
-    <Box p={2} border="1px solid #ccc" borderRadius={2} position="relative">
-      <IconButton
-        size="small"
-        sx={{ position: "absolute", top: 8, right: 8 }}
-        onClick={() => console.log("Close form")}
-      >
-        <CloseIcon />
-      </IconButton>
-
+    <Box p={3}>
       <Typography variant="h6" gutterBottom>
-        Associate Detail Form
+        Associates Detail Form
       </Typography>
+      <form onSubmit={handleSubmit}>
+        {step === 1 && (
+          <>
+            {/* Personal Details */}
+            <Box border={1} borderColor="divider" borderRadius={2} p={2} mb={3}>
+              <Typography variant="subtitle1" gutterBottom>
+                Associate's Personal Details
+              </Typography>
+              <Grid container spacing={2}>
+                 <Grid size={{ xs: 3 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Title</InputLabel>
+                    <Select
+                      name="title"
+                      value={values.title}
+                      onChange={handleChange}
+                    >
+                      {titles.map((title) => (
+                        <MenuItem key={title} value={title}>
+                          {title}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <TextField
+                    name="fullName"
+                    label="Full Name"
+                    fullWidth
+                    required
+                    value={values.fullName}
+                    onChange={handleChange}
+                    error={touched.fullName && Boolean(errors.fullName)}
+                    helperText={touched.fullName && errors.fullName}
+                  />
+                </Grid>
+               
+                <Grid size={{ xs: 3 }}>
+                  <TextField
+                    name="mobile"
+                    label="Mobile Number"
+                    fullWidth
+                    value={values.mobile}
+                    onChange={handleChange}
+                    error={touched.mobile && Boolean(errors.mobile)}
+                    helperText={touched.mobile && errors.mobile}
+                  />
+                </Grid>
+                <Grid size={{ xs: 3 }}>
+                  <TextField
+                    name="alternateContact"
+                    label="Alternate Contact"
+                    fullWidth
+                    value={values.alternateContact}
+                    onChange={handleChange}
+                  />
+                </Grid>
+                
+                <Grid size={{ xs: 3 }}>
+                  <FormControl
+                    fullWidth
+                    required
+                    error={touched.associateType && Boolean(errors.associateType)}
+                  >
+                    <InputLabel>Associate Type</InputLabel>
+                    <Select
+                      name="associateType"
+                      value={values.associateType}
+                      onChange={handleChange}
+                    >
+                      {roles.map((role) => (
+                        <MenuItem key={role} value={role}>
+                          {role}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 3 }}>
+                  <TextField
+                    name="email"
+                    label="Email Id"
+                    fullWidth
+                    value={values.email}
+                    onChange={handleChange}
+                  />
+                </Grid>
+               
+                <Grid size={{ xs: 3 }}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="Date of Birth"
+                      value={values.dob ? dayjs(values.dob) : null}
+                      onChange={(date) => setFieldValue("dob", date)}
+                      format="DD-MM-YYYY"
+                      slotProps={{ textField: { fullWidth: true } }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+              </Grid>
+            </Box>
 
-      <form onSubmit={formik.handleSubmit} onReset={formik.handleReset}>
-        {/* Personal Details */}
-        <Box mb={2}>
-          <Typography fontWeight="bold" mb={1}>
-            Associate’s Personal Details
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <TextField
-                label="First Name"
-                name="firstName"
-                fullWidth
-                size="small"
-                value={formik.values.firstName}
-                onChange={formik.handleChange}
-                error={
-                  formik.touched.firstName && Boolean(formik.errors.firstName)
-                }
-                helperText={formik.touched.firstName && formik.errors.firstName}
-              />
-            </Grid>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <TextField
-                label="Last Name"
-                name="lastName"
-                fullWidth
-                size="small"
-                value={formik.values.lastName}
-                onChange={formik.handleChange}
-                error={
-                  formik.touched.lastName && Boolean(formik.errors.lastName)
-                }
-                helperText={formik.touched.lastName && formik.errors.lastName}
-              />
-            </Grid>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <TextField
-                label="Mobile Number"
-                name="mobile"
-                fullWidth
-                size="small"
-                value={formik.values.mobile}
-                onChange={formik.handleChange}
-              />
-            </Grid>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <TextField
-                label="Alternate Contact"
-                name="alternateContact"
-                fullWidth
-                size="small"
-                value={formik.values.alternateContact}
-                onChange={formik.handleChange}
-              />
-            </Grid>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <TextField
-                label="Associate Type"
-                name="associateType"
-                select
-                fullWidth
-                size="small"
-                value={formik.values.associateType}
-                onChange={formik.handleChange}
-                error={
-                  formik.touched.associateType &&
-                  Boolean(formik.errors.associateType)
-                }
-                helperText={
-                  formik.touched.associateType && formik.errors.associateType
-                }
-              >
-                {associateTypes.map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {type}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <TextField
-                label="Email Id"
-                name="email"
-                fullWidth
-                size="small"
-                value={formik.values.email}
-                onChange={formik.handleChange}
-                error={formik.touched.email && Boolean(formik.errors.email)}
-                helperText={formik.touched.email && formik.errors.email}
-              />
-            </Grid>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <TextField
-                label="Title"
-                name="title"
-                select
-                fullWidth
-                size="small"
-                value={formik.values.title}
-                onChange={formik.handleChange}
-              >
-                {titles.map((title) => (
-                  <MenuItem key={title} value={title}>
-                    {title}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid size={{xs:12, sm:6, md:3}}>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="Date of Birth"
-                  value={formik.values.dob}
-                  onChange={(value) => formik.setFieldValue("dob", value)}
-                  renderInput={(params) => (
-                    <TextField {...params} fullWidth size="small" name="dob" />
-                  )}
-                />
-              </LocalizationProvider>
-            </Grid>
-          </Grid>
-        </Box>
+            {/* Location */}
+            <Box border={1} borderColor="divider" borderRadius={2} p={2} mb={3}>
+              <Typography variant="subtitle1" gutterBottom>
+                Associate's Location
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 4 }}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Country</InputLabel>
+                    <Select
+                      name="country"
+                      value={values.country}
+                      onChange={(e) => {
+                        handleChange(e);
+                        setFieldValue("state", "");
+                        setFieldValue("city", "");
+                      }}
+                    >
+                      {countries.map((c) => (
+                        <MenuItem key={c} value={c}>
+                          {c}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 4 }}>
+                  <FormControl fullWidth required>
+                    <InputLabel>State</InputLabel>
+                    <Select
+                      name="state"
+                      value={values.state}
+                      onChange={(e) => {
+                        handleChange(e);
+                        setFieldValue("city", "");
+                      }}
+                      disabled={!values.country}
+                    >
+                      {(states[values.country] || []).map((s) => (
+                        <MenuItem key={s} value={s}>
+                          {s}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 4 }}>
+                  <FormControl fullWidth required>
+                    <InputLabel>City</InputLabel>
+                    <Select
+                      name="city"
+                      value={values.city}
+                      onChange={handleChange}
+                      disabled={!values.state}
+                    >
+                      {(cities[values.state] || []).map((c) => (
+                        <MenuItem key={c} value={c}>
+                          {c}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </Box>
 
-        {/* Location */}
-        <Box mb={2}>
-          <Typography fontWeight="bold" mb={1}>
-            Associate’s Location
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid size={{xs:12, sm:4}}>
-              <TextField
-                label="Country"
-                name="country"
-                select
-                fullWidth
-                size="small"
-                value={formik.values.country}
-                onChange={formik.handleChange}
-                error={formik.touched.country && Boolean(formik.errors.country)}
-                helperText={formik.touched.country && formik.errors.country}
-              >
-                {countries.map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid size={{xs:12, sm:4}}>
-              <TextField
-                label="State"
-                name="state"
-                select
-                fullWidth
-                size="small"
-                value={formik.values.state}
-                onChange={formik.handleChange}
-                error={formik.touched.state && Boolean(formik.errors.state)}
-                helperText={formik.touched.state && formik.errors.state}
-              >
-                {states.map((s) => (
-                  <MenuItem key={s} value={s}>
-                    {s}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid size={{xs:12, sm:4}}>
-              <TextField
-                label="City"
-                name="city"
-                select
-                fullWidth
-                size="small"
-                value={formik.values.city}
-                onChange={formik.handleChange}
-                error={formik.touched.city && Boolean(formik.errors.city)}
-                helperText={formik.touched.city && formik.errors.city}
-              >
-                {cities.map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-          </Grid>
-        </Box>
+            {/* Address Section */}
+            <Box border={1} borderColor="divider" borderRadius={2} p={2} mb={3}>
+              <Typography variant="subtitle1" gutterBottom>
+                Address
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    name="address1"
+                    label="Address Line 1"
+                    placeholder="Address Line1"
+                    fullWidth
+                    value={values.address1}
+                    onChange={handleChange}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    name="address2"
+                    label="Address Line 2"
+                    placeholder="Address Line2"
+                    fullWidth
+                    value={values.address2}
+                    onChange={handleChange}
+                  />
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <TextField
+                    name="address3"
+                    label="Address Line 3"
+                    placeholder="Address Line3"
+                    fullWidth
+                    value={values.address3}
+                    onChange={handleChange}
+                  />
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <TextField
+                    name="pincode"
+                    label="Pincode"
+                    placeholder="Pincode"
+                    fullWidth
+                    value={values.pincode}
+                    onChange={handleChange}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          </>
+        )}
 
-        {/* Address */}
-        <Box mb={2}>
-          <Typography fontWeight="bold" mb={1}>
-            Address
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid size={{xs:12, sm:6}}>
-              <TextField
-                label="Address Line 1"
-                name="address1"
-                fullWidth
-                size="small"
-                value={formik.values.address1}
-                onChange={formik.handleChange}
-              />
-            </Grid>
-            <Grid size={{xs:12, sm:6}}>
-              <TextField
-                label="Address Line 2"
-                name="address2"
-                fullWidth
-                size="small"
-                value={formik.values.address2}
-                onChange={formik.handleChange}
-              />
-            </Grid>
-            <Grid size={{xs:12, sm:6}}>
-              <TextField
-                label="Address Line 3"
-                name="address3"
-                fullWidth
-                size="small"
-                value={formik.values.address3}
-                onChange={formik.handleChange}
-              />
-            </Grid>
-            <Grid size={{xs:12, sm:6}}>
-              <TextField
-                label="Pincode"
-                name="pincode"
-                fullWidth
-                size="small"
-                value={formik.values.pincode}
-                onChange={formik.handleChange}
-              />
-            </Grid>
-          </Grid>
-        </Box>
+       {step === 2 && (
+  <>
+    <AssociateFirmForm formik={formik} />
 
-        {/* Actions */}
-        <Box display="flex" justifyContent="center" gap={2} mt={3}>
-          <Button type="reset" variant="contained" color="info">
-            Clear
-          </Button>
-          <Button type="submit" variant="contained" color="primary">
-            Save & Continue
-          </Button>
+    <Box display="flex" gap={2} justifyContent="center" mt={3}>
+      <Button
+        variant="contained"
+        color="secondary"
+        onClick={() => setStep(1)}
+      >
+        Back
+      </Button>
+      <Button type="submit" variant="contained" color="primary">
+        Submit Final
+      </Button>
+    </Box>
+  </>
+)}
+
+
+        <Box display="flex" gap={2} justifyContent="center" mt={3}>
+          {step === 1 && (
+            <>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={() => resetForm()}
+              >
+                Clear
+              </Button>
+              <Button variant="contained" type="submit">
+                Save & Continue
+              </Button>
+            </>
+          )}
         </Box>
       </form>
     </Box>
   );
 };
 
-export default AssociateDetailForm;
+export default AssociatesForm;

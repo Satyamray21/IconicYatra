@@ -26,26 +26,7 @@ const stats = [
   { title: "Last 12 Months", active: 15, lead: 0, quotation: 0 },
 ];
 
-const initialStaffList = [
-  {
-    id: 1,
-    staffId: 30,
-    staffName: "Ketan Bhikhu",
-    mobile: "7852031254",
-    email: "ketan@gmail.com",
-    city: "Delhi",
-    designation: "Noida",
-  },
-  {
-    id: 2,
-    staffId: 32,
-    staffName: "Raj Kumar",
-    mobile: "7245891254",
-    email: "raj@gmail.com",
-    city: "Mumbai",
-    designation: "Delhi",
-  },
-];
+
 
 const StaffCard = () => {
   const navigate = useNavigate();

@@ -24,7 +24,7 @@ const handleAddMoreArray = (arr = []) => {
 
 //createLead
 export const createLead = asyncHandler(async (req, res) => {
-  console.log("Req",req.files);
+  
   const {
     // Personal & Official
     fullName,

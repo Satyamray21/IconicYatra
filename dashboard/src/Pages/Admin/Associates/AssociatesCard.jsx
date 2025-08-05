@@ -1,4 +1,4 @@
-import React from "react";
+import React ,{useEffect}from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -16,7 +16,8 @@ import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-
+import {useDispatch,useSelector} from "react-redux";
+import {fetchAllAssociates} from "../../../features/associate/associateSlice";
 const stats = [
   { title: "Today's", active: 0, confirmed: 0, cancelled: 0 },
   { title: "This Month", active: 0, confirmed: 0, cancelled: 0 },
@@ -25,33 +26,16 @@ const stats = [
   { title: "Last 12 Months", active: 15, confirmed: 0, cancelled: 0 },
 ];
 
-const initialAssociates = [
-  {
-    id: 1,
-    associateId: 30,
-    associateType: "Vehicle Vendor",
-    associateName: "Ketan Bhikhu",
-    mobile: "7852031254",
-    email: "ketan@gmail.com",
-    city: "Delhi",
-    from: "Noida",
-  },
-  {
-     id: 1,
-    associateId: 32,
-    associateType: "Sub Agent",
-    associateName: "Raj Kumar",
-    mobile: "7245891254",
-    email: "raj@gmail.com",
-    city: "Mumbai",
-    from: "Delhi",
-  },
-];
+
 
 const AssociateDashboard = () => {
   const navigate = useNavigate();
 
-  const [associateList, setAssociateList] = React.useState(initialAssociates);
+  const dispatch = useDispatch();
+  const{list:associateList=[]}=useSelector((state)=>(state.associate))
+  useEffect(()=>{
+    dispatch(fetchAllAssociates())
+  },[dispatch])
 
   const handleAddClick = () => {
     navigate("/associatesform");
@@ -65,7 +49,16 @@ const AssociateDashboard = () => {
     const updatedAssociates = associateList.filter((associate) => associate.id !== id);
     setAssociateList(updatedAssociates);
   };
-
+const mappedAssociatefList = associateList.map((associate, index) => ({
+  id: index + 1, // Required by DataGrid
+  associateId: associate.associateId,
+  associateType:associate.personalDetails?.associateType,
+  associateName: associate.personalDetails?.fullName || "",
+  mobile: associate.personalDetails?.mobileNumber || "",
+  email: associate.personalDetails?.email || "",
+  city: associate.staffLocation?.city || "",
+  designation: associate.personalDetails?.designation || "",
+}));
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
     { field: "associateId", headerName: "Associate Id", width: 100 },
@@ -171,7 +164,7 @@ const AssociateDashboard = () => {
         <Box sx={{ width: "100%", overflowX: "auto" }}>
           <Box sx={{ minWidth: "600px" }}>
             <DataGrid
-              rows={associateList}
+              rows={mappedAssociatefList}
               columns={columns}
               pageSize={7}
               rowsPerPageOptions={[7, 25, 50, 100]}
