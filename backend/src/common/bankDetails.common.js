@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 export const bankSchema= mongoose.Schema({
-    nameOfBranch:{
+    bankName:{
         type:String,
         required:true,
     },
