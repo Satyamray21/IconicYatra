@@ -31,7 +31,7 @@ const validationSchema = Yup.object({
   address2: Yup.string(),
   address3: Yup.string(),
   bankName: Yup.string(),
-  nameOfBranch: Yup.string(),
+  branchName: Yup.string(),
   accountHolderName: Yup.string(),
   accountNumber: Yup.string(),
   ifscCode: Yup.string(),
@@ -224,8 +224,8 @@ const StaffFirmForm = ({formik}) => {
               <TextField
                 fullWidth
                 label="Branch Name"
-                name="nameOfBranch"
-                value={formik.values.nameOfBranch}
+                name="branchName"
+                value={formik.values.branchName}
                 onChange={formik.handleChange}
               />
             </Grid>

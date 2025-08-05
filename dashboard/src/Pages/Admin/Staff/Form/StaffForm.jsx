@@ -98,7 +98,7 @@ const handleFinalSubmit = () => {
 },
 
     bank: {
-  bankName: values.bankName,
+ bankName: values.bankName,
   branchName: values.branchName,
   nameOfBranch: values.nameOfBranch,
   accountHolderName: values.accountHolderName,
