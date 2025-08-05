@@ -5,6 +5,7 @@ import { Staff } from "../models/staff.model.js";
 import { Country } from "../models/country.model.js";
 import {State} from "../models/state.model.js";
 import {City} from "../models/city.model.js"
+import {Counter} from "../models/Counter.js"
 import mongoose from "mongoose";
 
 // CREATE Staff
@@ -22,8 +23,12 @@ export const createStaff = asyncHandler(async (req, res) => {
   if (existing) {
     throw new ApiError(409, "Staff with this mobile number already exists");
   }
+  const staffCount = await Staff.countDocuments();
+const staffId = `ICYR_ST${String(staffCount + 1).padStart(4, "0")}`;
+
 
   const staff = await Staff.create({
+    staffId,
     personalDetails,
     staffLocation,
     address,

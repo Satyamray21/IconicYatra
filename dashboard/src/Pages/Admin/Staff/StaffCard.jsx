@@ -71,7 +71,7 @@ const StaffCard = () => {
   };
 const mappedStaffList = staffList.map((staff, index) => ({
   id: index + 1, // Required by DataGrid
-  staffId: staff._id,
+  staffId: staff.staffId,
   staffName: staff.personalDetails?.fullName || "",
   mobile: staff.personalDetails?.mobileNumber || "",
   email: staff.personalDetails?.email || "",

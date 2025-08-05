@@ -32,9 +32,15 @@ const staffSchema = new mongoose.Schema({
           type:String,
           required:true,
           unique:true
-        }
+        },
+        
 
     },
+    staffId:{
+          type:String,
+          required:true,
+          unique:true
+        },
   staffLocation: {
   country: {
     type: String,
