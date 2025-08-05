@@ -1,4 +1,4 @@
-import React from "react";
+import React,{useState,useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -16,7 +16,8 @@ import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {useDispatch,useSelector} from ".."
+import {useDispatch,useSelector} from "react-redux";
+import {fetchAllStaff} from "../../../features/staff/staffSlice"
 const stats = [
   { title: "Today's", active: 0, lead: 0, quotation: 0 },
   { title: "This Month", active: 0, lead: 0, quotation: 0 },
@@ -49,8 +50,11 @@ const initialStaffList = [
 const StaffCard = () => {
   const navigate = useNavigate();
 
-  const [staffList, setStaffList] = React.useState(initialStaffList);
-
+  const {list:staffList=[]} =useSelector((state) => state.staffs)
+  const dispatch = useDispatch();
+  useEffect((()=>{
+    dispatch(fetchAllStaff())
+  }),[dispatch])
   const handleAddClick = () => {
     navigate("/staffform");
   };
@@ -65,6 +69,15 @@ const StaffCard = () => {
     const updatedList = staffList.filter((staff) => staff.id !== id);
     setStaffList(updatedList);
   };
+const mappedStaffList = staffList.map((staff, index) => ({
+  id: index + 1, // Required by DataGrid
+  staffId: staff._id,
+  staffName: staff.personalDetails?.fullName || "",
+  mobile: staff.personalDetails?.mobileNumber || "",
+  email: staff.personalDetails?.email || "",
+  city: staff.staffLocation?.city || "",
+  designation: staff.personalDetails?.designation || "",
+}));
 
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
@@ -98,7 +111,7 @@ const StaffCard = () => {
       ),
     },
   ];
-
+console.log("Staff",staffList);
   return (
     <Container maxWidth="xl">
       <Box py={3}>
@@ -170,7 +183,7 @@ const StaffCard = () => {
         <Box sx={{ width: "100%", overflowX: "auto" }}>
           <Box sx={{ minWidth: "600px" }}>
             <DataGrid
-              rows={staffList}
+              rows={mappedStaffList}
               columns={columns}
               pageSize={7}
               rowsPerPageOptions={[7, 25, 50, 100]}

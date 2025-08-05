@@ -100,7 +100,7 @@ const handleFinalSubmit = () => {
     bank: {
  bankName: values.bankName,
   branchName: values.branchName,
-  nameOfBranch: values.nameOfBranch,
+  //nameOfBranch: values.nameOfBranch,
   accountHolderName: values.accountHolderName,
   accountNumber: values.accountNumber,
   ifscCode: values.ifscCode,
@@ -205,7 +205,7 @@ const handleFinalSubmit = () => {
       },
       bank: {
         bankName: values.bankName,
-        branchName: values.nameOfBranch,
+        branchName: values.branchName,
         accountHolderName: values.accountHolderName,
         accountNumber: values.accountNumber,
         ifscCode: values.ifscCode,
