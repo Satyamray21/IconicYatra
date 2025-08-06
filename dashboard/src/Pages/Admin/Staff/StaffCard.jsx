@@ -62,7 +62,7 @@ const mappedStaffList = staffList.map((staff, index) => ({
 
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
-    { field: "staffId", headerName: "Staff Id", width: 100 },
+    { field: "staffId", headerName: "Staff Id", width: 120 },
     { field: "staffName", headerName: "Staff Name", width: 200 },
     { field: "mobile", headerName: "Mobile", width: 120 },
     { field: "email", headerName: "Email", width: 220 },

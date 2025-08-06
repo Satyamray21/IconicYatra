@@ -92,6 +92,14 @@ const LeadForm = ({ onSaveAndContinue }) => {
         const formattedValues = {
           ...values,
           dob: values.dob ? dayjs(values.dob).format("YYYY-MM-DD") : null,
+          officialDetail: {
+        businessType: values.businessType,
+        priority: values.priority,
+        source: values.source,        // ✅ Fixes source not being saved
+        agentName: values.agentName,
+        referredBy: values.referralBy,
+        assignedTo: values.assignedTo,
+      },
         };
         console.log("✅ LeadForm submitted values:", formattedValues);
         if (typeof onSaveAndContinue === "function") {

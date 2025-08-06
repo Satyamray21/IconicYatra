@@ -61,13 +61,13 @@ const mappedAssociatefList = associateList.map((associate, index) => ({
 }));
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
-    { field: "associateId", headerName: "Associate Id", width: 100 },
+    { field: "associateId", headerName: "Associate Id", width: 150 },
     { field: "associateType", headerName: "Associate Type", width: 150 },
     { field: "associateName", headerName: "Associate Name", width: 180 },
-    { field: "mobile", headerName: "Mobile", width: 100 },
-    { field: "email", headerName: "Email", width: 180 },
+    { field: "mobile", headerName: "Mobile", width: 120 },
+    { field: "email", headerName: "Email", width: 200 },
     { field: "city", headerName: "City", width: 90 },
-    { field: "firm", headerName: "Firm", width: 100 },
+    { field: "firm", headerName: "Firm", width: 150 },
     {
       field: "action",
       headerName: "Action",

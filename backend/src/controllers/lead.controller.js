@@ -8,11 +8,13 @@ import { getNextLeadId } from "../utils/getNextLeadId.js";
 
 //  Helper for single-value fields
 const handleAddMoreValue = (valueObj) => {
+  if (typeof valueObj === "string") return valueObj;
   if (valueObj?.value === "addMore" && valueObj?.newValue) {
     return valueObj.newValue;
   }
   return valueObj?.value || "";
 };
+
 
 //  Helper for array fields
 const handleAddMoreArray = (arr = []) => {
