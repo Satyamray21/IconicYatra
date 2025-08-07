@@ -17,14 +17,14 @@ export const sidebarItems = [
     { label: 'Quotation', route: '/quotation', icon: <FormatQuoteIcon /> },
     { label: 'Hotel', route: '/hotel', icon: <HotelIcon /> },
     { label: 'Package', route: '/tourpackage', icon: <Inventory2Icon /> },
-    { label: 'Payments', route: '/payment', icon: <PaymentsIcon /> },
+    { label: 'Payments', route: '/payments', icon: <PaymentsIcon /> },
     { label: 'Invoice', route: '/invoice', icon: <ReceiptIcon /> },
     { label: 'Associates', route: '/associates', icon: <PersonIcon /> },
     { label: 'Staff', route: '/staff', icon: <Diversity3Icon /> },
 
     { divider: true },
-   
-    {label: 'Setting', route:'/setting', icon:<SettingsIcon/> },
-    {label: 'Profile', route:'/profile', icon:<AccountCircleIcon/> },
-   
+
+    { label: 'Setting', route: '/setting', icon: <SettingsIcon /> },
+    { label: 'Profile', route: '/profile', icon: <AccountCircleIcon /> },
+
 ];
