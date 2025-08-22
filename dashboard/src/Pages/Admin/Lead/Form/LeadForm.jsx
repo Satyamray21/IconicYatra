@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import {
   Box,
   Grid,
@@ -25,6 +25,8 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import AssociateDetailForm from "../../Associates/Form/AssociatesForm";
+import {fetchAllAssociates} from "../../../../features/associate/associateSlice";
+import { useDispatch, useSelector } from "react-redux";
 
 const validationSchema = Yup.object({
   fullName: Yup.string().required("Name is required"),
@@ -49,6 +51,8 @@ const LeadForm = ({ onSaveAndContinue }) => {
   });
 
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+const { list: associates = [], loading } = useSelector((state) => state.associate);
 
   const [dropdownOptions, setDropdownOptions] = useState({
     title: ["Mr", "Ms", "Mrs"],
@@ -127,7 +131,11 @@ const LeadForm = ({ onSaveAndContinue }) => {
       setDialogOpen(true);
     }
   };
-
+useEffect(() => {
+  if (formik.values.source === "Referral") {
+    dispatch(fetchAllAssociates());
+  }
+}, [formik.values.source, dispatch]);
   const handleAddNewValue = () => {
     if (newValue.trim() !== "") {
       setDropdownOptions((prev) => ({
@@ -321,12 +329,15 @@ const LeadForm = ({ onSaveAndContinue }) => {
             {renderSelectField("Source *", "source", dropdownOptions.source)}
 
             {formik.values.businessType === "B2B" &&
-              formik.values.source === "Referral" &&
-              renderSelectField(
-                "Referral By",
-                "referralBy",
-                dropdownOptions.referralBy
-              )}
+  formik.values.source === "Referral" &&
+  renderSelectField(
+    "Referral By",
+    "referralBy",
+    loading
+      ? [] // Empty while loading
+      : associates.map((a) => a.personalDetails.fullName) // ✅ Use correct field from API
+  )}
+
 
             {formik.values.businessType === "B2B" &&
               formik.values.source === "Agent's" &&
