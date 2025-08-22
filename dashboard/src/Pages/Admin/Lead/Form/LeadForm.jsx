@@ -26,6 +26,8 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import AssociateDetailForm from "../../Associates/Form/AssociatesForm";
 import {fetchAllAssociates} from "../../../../features/associate/associateSlice";
+import {fetchAllStaff} from "../../../../features/staff/staffSlice"
+
 import { useDispatch, useSelector } from "react-redux";
 
 const validationSchema = Yup.object({
@@ -52,14 +54,20 @@ const LeadForm = ({ onSaveAndContinue }) => {
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-const { list: associates = [], loading } = useSelector((state) => state.associate);
+  const { list: associates = [], loading: associatesLoading } = useSelector(
+  (state) => state.associate
+);
+
+const { list: staffList = [], loading: staffLoading } = useSelector(
+  (state) => state.staffs
+);
 
   const [dropdownOptions, setDropdownOptions] = useState({
     title: ["Mr", "Ms", "Mrs"],
     source: ["Direct", "Referral", "Agent's"],
     referralBy: [],
     agentName: [],
-    assignedTo: ["Staff A", "Staff B"],
+    assignedTo: [],
     priority: ["High", "Medium", "Low"],
     country: ["India", "USA", "Canada"],
     state: ["Karnataka", "Maharashtra"],
@@ -136,6 +144,10 @@ useEffect(() => {
     dispatch(fetchAllAssociates());
   }
 }, [formik.values.source, dispatch]);
+useEffect(() => {
+  dispatch(fetchAllStaff());
+}, [dispatch]);
+
   const handleAddNewValue = () => {
     if (newValue.trim() !== "") {
       setDropdownOptions((prev) => ({
@@ -190,12 +202,29 @@ useEffect(() => {
       error={formik.touched[name] && Boolean(formik.errors[name])}
       helperText={formik.touched[name] && formik.errors[name]}
       sx={{ mb: 2 }}
+      disabled={
+      (name === "referralBy" && associatesLoading) ||
+      (name === "assignedTo" && staffLoading)
+    }
     >
-      {options.map((opt) => (
+      {name === "referralBy" && associatesLoading && (
+      <MenuItem disabled>Loading associates...</MenuItem>
+    )}
+
+    {/* Show loading message for assignedTo */}
+    {name === "assignedTo" && staffLoading && (
+      <MenuItem disabled>Loading staff...</MenuItem>
+    )}
+
+    {/* Show normal options when not loading */}
+    {!associatesLoading &&
+      !staffLoading &&
+      options.map((opt) => (
         <MenuItem key={opt} value={opt}>
           {opt}
         </MenuItem>
       ))}
+
       {name !== "priority" && (
         <MenuItem value="__add_new__">➕ Add New</MenuItem>
       )}
@@ -333,8 +362,8 @@ useEffect(() => {
   renderSelectField(
     "Referral By",
     "referralBy",
-    loading
-      ? [] // Empty while loading
+    associatesLoading
+      ? ["Loading associates..."] // Empty while loading
       : associates.map((a) => a.personalDetails.fullName) // ✅ Use correct field from API
   )}
 
@@ -347,11 +376,14 @@ useEffect(() => {
                 dropdownOptions.agentName
               )}
 
-            {renderSelectField(
-              "Assigned To *",
-              "assignedTo",
-              dropdownOptions.assignedTo
-            )}
+         {renderSelectField(
+  "Assigned To *",
+  "assignedTo",
+  staffLoading
+    ? []
+    : staffList.map((staff) => staff.personalDetails?.fullName || staff.name)
+)}
+
           </Box>
         </Grid>
       </Grid>
