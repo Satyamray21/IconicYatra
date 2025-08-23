@@ -20,7 +20,8 @@ import {
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
-
+import {useDispatch,useSelector} from 'react-redux';
+import { createVoucher } from '../../../../features/payment/paymentSlice';
 const accountTypes = ['Savings', 'Current', 'Credit'];
 const partyNames = ['Party A', 'Party B', 'Party C'];
 const paymentModes = ['Cash', 'Cheque', 'UPI', 'Bank Transfer'];
@@ -39,7 +40,7 @@ const PaymentsForm = () => {
             accountType: '',
             partyName: '',
             paymentMode: '',
-            reference: '',
+            referenceNumber: '',
             particulars: '',
             amount: '',
         },
@@ -49,7 +50,7 @@ const PaymentsForm = () => {
             accountType: Yup.string().required('Select account type'),
             partyName: Yup.string().required('Select party name'),
             paymentMode: Yup.string().required('Select payment mode'),
-            reference: Yup.string().required('Reference is required'),
+            referenceNumber: Yup.string().required('referenceNumber is required'),
             particulars: Yup.string().required('Particulars required'),
             amount: Yup.number().typeError('Amount must be a number').required('Enter amount'),
         }),
@@ -63,27 +64,14 @@ const PaymentsForm = () => {
                 invoice: getNextInvoiceNumber()
             };
 
-            // Save to localStorage
-            const existingPayments = JSON.parse(localStorage.getItem('payments')) || [];
-            localStorage.setItem('payments', JSON.stringify([...existingPayments, formData]));
-
             // Navigate with state (optional)
             navigate('/payments', { state: { newPayment: formData } });
         }
 
     });
 
-    const getNextReceiptNumber = () => {
-        const current = parseInt(localStorage.getItem('receiptCounter') || '0', 10) + 1;
-        localStorage.setItem('receiptCounter', current);
-        return `RCPT-${String(current).padStart(3, '0')}`;
-    };
+   
 
-    const getNextInvoiceNumber = () => {
-        const current = parseInt(localStorage.getItem('invoiceCounter') || '0', 10) + 1;
-        localStorage.setItem('invoiceCounter', current);
-        return `INV-${String(current).padStart(3, '0')}`;
-    };
 
     return (
         <Paper elevation={5} sx={{ p: 4, borderRadius: 4, maxWidth: 900, mx: 'auto', mt: 5, bgcolor: '#f5f7fb' }}>
@@ -221,12 +209,12 @@ const PaymentsForm = () => {
                         <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
                                 fullWidth
-                                label="Reference / Cash / Cheque"
-                                name="reference"
-                                value={formik.values.reference}
+                                label="referenceNumber / Cash / Cheque"
+                                name="referenceNumber"
+                                value={formik.values.referenceNumber}
                                 onChange={formik.handleChange}
-                                error={formik.touched.reference && Boolean(formik.errors.reference)}
-                                helperText={formik.touched.reference && formik.errors.reference}
+                                error={formik.touched.referenceNumber && Boolean(formik.errors.referenceNumber)}
+                                helperText={formik.touched.referenceNumber && formik.errors.referenceNumber}
                                 sx={{ bgcolor: 'white' }}
                             />
                         </Grid>

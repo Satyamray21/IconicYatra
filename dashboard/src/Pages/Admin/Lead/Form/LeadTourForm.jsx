@@ -1,4 +1,4 @@
-import React from "react";
+import React,{useEffect} from "react";
 import {
   Box,
   Grid,
@@ -24,11 +24,16 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
+import { useDispatch, useSelector } from "react-redux";
+import { getLeadOptions,addLeadOption } from "../../../../features/leads/leadSlice"
 
 const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     console.log("✅ LeadTourForm props:", { onComplete, leadData, isSubmitting });
 
   const location = useLocation();
+   const dispatch = useDispatch();
+     const { options, loading: optionsLoading, error } = useSelector((state) => state.leads);
+
   const [openDialog, setOpenDialog] = React.useState(false);
   const [currentField, setCurrentField] = React.useState("");
   const [addMore, setNewItem] = React.useState("");
@@ -49,6 +54,9 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     message: "",
     severity: "success",
   });
+ useEffect(() => {
+    dispatch(getLeadOptions());
+  }, [dispatch]);
 
   // Get leadData from props or location state
   const initialData = leadData || location.state?.leadData || {};
@@ -146,46 +154,68 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     setNewItem("");
   };
 
-  const handleAddNewItem = () => {
-    if (addMore.trim()) {
-      setCustomItems((prev) => ({
-        ...prev,
-        [currentField]: [...prev[currentField], addMore.trim()],
-      }));
-      setFieldValue(currentField, addMore.trim());
-      handleCloseDialog();
-      setSnackbar({
-        open: true,
-        message: `New ${currentField} added successfully`,
-        severity: "success",
-      });
-    }
-  };
+const handleAddNewItem = async () => {
+  if (!addMore.trim()) return;
 
-  const getOptionsForField = (fieldName) => {
-    const defaultOptions = {
-      country: ["France", "USA", "Japan"],
-      destination: ["Delhi", "Paris"],
-      services: ["Hotel", "Transport"],
-      arrivalCity: ["Mumbai", "Delhi"],
-      arrivalLocation: ["Airport"],
-      departureCity: ["Delhi"],
-      departureLocation: ["Hotel"],
-      hotelType: ["3 Star", "5 Star"],
-      mealPlan: ["Breakfast"],
-      sharingType: ["Twin"],
-    };
+  try {
+    const newValue = addMore.trim();
+    const backendField = currentField; // use correct DB field
 
-    const options = [
-      ...(defaultOptions[fieldName] || []),
-      ...(customItems[fieldName] || []),
-    ];
+    // Dispatch Redux thunk to save in DB + refresh options
+    await dispatch(addLeadOption({ fieldName: backendField, value: newValue })).unwrap();
 
-    return [
-      ...options.map((option) => ({ value: option, label: option })),
-      { value: "__add_new", label: "+ Add New" },
-    ];
-  };
+    // Set the selected value instantly
+    setFieldValue(currentField, newValue);
+
+    // Show success message
+    setSnackbar({
+      open: true,
+      message: `New ${currentField} added successfully`,
+      severity: "success",
+    });
+
+    handleCloseDialog();
+  } catch (error) {
+    setSnackbar({
+      open: true,
+      message: "Failed to add new option",
+      severity: "error",
+    });
+  }
+};
+
+
+
+
+const fieldMapping = {
+  destination: "tourDestination",
+  services: "servicesRequired",
+  hotelType: "hotelType",
+  mealPlan: "mealPlan",
+  sharingType: "sharingType",
+  arrivalCity: "arrivalCity",
+  arrivalLocation: "arrivalLocation",
+  departureCity: "departureCity",
+  departureLocation: "departureLocation",
+  country: "country",
+};
+
+const getOptionsForField = (fieldName) => {
+  const filteredOptions = options
+    ?.filter((opt) => opt.fieldName === fieldName)
+    .map((opt) => ({ value: opt.value, label: opt.value }));
+
+  return [
+    ...(filteredOptions || []),
+    ...(customItems[fieldName] || []).map((opt) => ({
+      value: opt,
+      label: opt,
+    })),
+    { value: "__add_new", label: "+ Add New" },
+  ];
+};
+
+
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
@@ -237,6 +267,17 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
           <Typography variant="subtitle1" gutterBottom>
             Basic Tour Details
           </Typography>
+          {optionsLoading && (
+          <Box my={2} display="flex" justifyContent="center">
+            <CircularProgress size={24} />
+          </Box>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ my: 2 }}>
+            Failed to load lead options: {error}
+          </Alert>
+        )}
           <Grid container spacing={2}>
             <Grid size={{xs:12, md:6}}>
               <FormControl>

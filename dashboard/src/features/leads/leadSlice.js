@@ -54,8 +54,42 @@ export const changeLeadStatus = createAsyncThunk(
     }
   }
 );
+export const getLeadOptions = createAsyncThunk(
+  "lead/getLeadOptions",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await axios.get("/lead/options");
+      return res.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch lead options"
+      );
+    }
+  }
+);
+export const addLeadOption = createAsyncThunk(
+  "lead/addLeadOption",
+  async ({ fieldName, value }, { rejectWithValue, dispatch }) => {
+    try {
+      // Save new option in DB
+      const res = await axios.post("/lead/options/add", { fieldName, value });
+
+      // After adding successfully → fetch latest options again
+      dispatch(getLeadOptions());
+
+      return res.data.data; // response contains {fieldName, value}
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to add new option"
+      );
+    }
+  }
+);
+
+
 const initialState = {
     list:[],
+     options: [], 
     form:{
          fullName: "",
               mobile: "",
@@ -173,7 +207,38 @@ export const leadSlice = createSlice({
         state.success = false;
         state.error = action.payload;
         state.message = '';
-      });
+      })
+      .addCase(getLeadOptions.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getLeadOptions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.options = action.payload; // <-- Save dropdown options
+      })
+      .addCase(getLeadOptions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+            .addCase(addLeadOption.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addLeadOption.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+
+        // Update state.options immediately
+        if (action.payload) {
+          state.options = [...state.options, action.payload];
+        }
+      })
+      .addCase(addLeadOption.rejected, (state, action) => {
+        state.loading = false;
+        state.success = false;
+        state.error = action.payload;
+      })
+;
 
 
     }

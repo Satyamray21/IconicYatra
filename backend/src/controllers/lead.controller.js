@@ -5,6 +5,7 @@ import {ApiResponse} from '../utils/ApiResponse.js';
 import {ApiError} from '../utils/ApiError.js';
 import { startOfDay, startOfMonth, subMonths } from "date-fns";
 import { getNextLeadId } from "../utils/getNextLeadId.js";
+import {LeadOptions} from  "../models/leadOptions.model.js"
 
 //  Helper for single-value fields
 const handleAddMoreValue = (valueObj) => {
@@ -23,6 +24,30 @@ const handleAddMoreArray = (arr = []) => {
   }
   return arr.map((item) => handleAddMoreValue(item));
 };
+const saveAddMoreValue = async (fieldName, value) => {
+  if (!value || (Array.isArray(value) && value.length === 0)) return;
+
+  // If value is an object from Add More, extract actual value
+  if (typeof value === "object" && value.value === "addMore") {
+    value = value.newValue;
+  }
+
+  if (Array.isArray(value)) {
+    for (const v of value) {
+      const exists = await LeadOptions.findOne({ fieldName, value: v.trim() });
+      if (!exists) {
+        await LeadOptions.create({ fieldName, value: v.trim() });
+      }
+    }
+  } else {
+    const exists = await LeadOptions.findOne({ fieldName, value: value.trim() });
+    if (!exists) {
+      await LeadOptions.create({ fieldName, value: value.trim() });
+    }
+  }
+};
+
+
 
 //createLead
 export const createLead = asyncHandler(async (req, res) => {
@@ -86,6 +111,21 @@ export const createLead = asyncHandler(async (req, res) => {
   // ✅ Handle addMore for arrays
   const servicesRequiredToSave = handleAddMoreArray(servicesRequired);
   const hotelTypeToSave = handleAddMoreArray(hotelType);
+ await Promise.all([
+    saveAddMoreValue("source", sourceToSave),
+    saveAddMoreValue("agentName", agentNameToSave),
+    saveAddMoreValue("referredBy", referredByToSave),
+    saveAddMoreValue("tourDestination", tourDestination),
+    saveAddMoreValue("servicesRequired", servicesRequiredToSave),
+    saveAddMoreValue("arrivalCity", arrivalCityToSave),
+    saveAddMoreValue("arrivalLocation", arrivalLocationToSave),
+    saveAddMoreValue("departureCity", departureCityToSave),
+    saveAddMoreValue("departureLocation", departureLocationToSave),
+    saveAddMoreValue("hotelType", hotelTypeToSave),
+    saveAddMoreValue("mealPlan", mealPlan),
+    saveAddMoreValue("sharingType", sharingType),
+    saveAddMoreValue("country", country),
+]);
 
   // ✅ Build schema fields
   const personalDetails = {
@@ -118,7 +158,7 @@ export const createLead = asyncHandler(async (req, res) => {
   const tourDetails = {
     tourType,
     tourDestination,
-    servicesRequired: servicesRequiredToSave,
+    servicesRequired: Array.isArray(servicesRequired) ? servicesRequired : [servicesRequired],
     members: {
       adults,
       children,
@@ -134,7 +174,7 @@ export const createLead = asyncHandler(async (req, res) => {
       departureLocation: departureLocationToSave,
     },
     accommodation: {
-      hotelType: hotelTypeToSave,
+      hotelType: Array.isArray(hotelType) ? hotelType : [hotelType],
       mealPlan,
       transport,
       sharingType,
@@ -404,3 +444,29 @@ export const changeLeadStatus = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, lead, `Lead status updated from ${currentStatus} to ${status}`));
 });
+
+export const getLeadOptions = asyncHandler(async (req, res) => {
+  const options = await LeadOptions.find().sort({ fieldName: 1, value: 1 });
+
+  return res.status(200).json(
+    new ApiResponse(200, options, "Lead options fetched successfully")
+  );
+});
+export const addLeadOption = asyncHandler(async (req, res) => {
+  const { fieldName, value } = req.body;
+
+  if (!fieldName || !value) {
+    throw new ApiError(400, "fieldName and value are required");
+  }
+
+  const exists = await LeadOptions.findOne({ fieldName, value });
+
+  if (!exists) {
+    await LeadOptions.create({ fieldName, value });
+  }
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, { fieldName, value }, "Option added successfully"));
+});
+
