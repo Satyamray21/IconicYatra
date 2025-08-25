@@ -6,7 +6,7 @@ import {ApiError} from '../utils/ApiError.js';
 import { startOfDay, startOfMonth, subMonths } from "date-fns";
 import { getNextLeadId } from "../utils/getNextLeadId.js";
 import {LeadOptions} from  "../models/leadOptions.model.js"
-
+import {calculateAccommodation} from "../utils/calculateAccommodation.js"
 //  Helper for single-value fields
 const handleAddMoreValue = (valueObj) => {
   if (typeof valueObj === "string") return valueObj;
@@ -50,8 +50,8 @@ const saveAddMoreValue = async (fieldName, value) => {
 
 
 //createLead
+
 export const createLead = asyncHandler(async (req, res) => {
-  
   const {
     // Personal & Official
     fullName,
@@ -93,7 +93,7 @@ export const createLead = asyncHandler(async (req, res) => {
     mealPlan,
     transport,
     sharingType,
-    noOfRooms,
+    noOfRooms = 0,
     noOfMattress,
     noOfNights,
     requirementNote,
@@ -111,7 +111,8 @@ export const createLead = asyncHandler(async (req, res) => {
   // ✅ Handle addMore for arrays
   const servicesRequiredToSave = handleAddMoreArray(servicesRequired);
   const hotelTypeToSave = handleAddMoreArray(hotelType);
- await Promise.all([
+
+  await Promise.all([
     saveAddMoreValue("source", sourceToSave),
     saveAddMoreValue("agentName", agentNameToSave),
     saveAddMoreValue("referredBy", referredByToSave),
@@ -125,7 +126,34 @@ export const createLead = asyncHandler(async (req, res) => {
     saveAddMoreValue("mealPlan", mealPlan),
     saveAddMoreValue("sharingType", sharingType),
     saveAddMoreValue("country", country),
-]);
+  ]);
+
+  // ✅ Prepare members & accommodation objects
+  const members = {
+    adults,
+    children,
+    kidsWithoutMattress,
+    infants,
+  };
+
+  const accommodation = {
+    hotelType: Array.isArray(hotelType) ? hotelType : [hotelType],
+    mealPlan,
+    transport,
+    sharingType,
+    noOfRooms,
+    noOfMattress,
+    noOfNights,
+    requirementNote,
+  };
+
+  // ✅ Auto-calculate rooms & mattresses
+  const { autoCalculatedRooms, extraMattress } = calculateAccommodation(
+    members,
+    accommodation
+  );
+  accommodation.noOfRooms = autoCalculatedRooms;
+  accommodation.noOfMattress = extraMattress;
 
   // ✅ Build schema fields
   const personalDetails = {
@@ -158,13 +186,10 @@ export const createLead = asyncHandler(async (req, res) => {
   const tourDetails = {
     tourType,
     tourDestination,
-    servicesRequired: Array.isArray(servicesRequired) ? servicesRequired : [servicesRequired],
-    members: {
-      adults,
-      children,
-      kidsWithoutMattress,
-      infants,
-    },
+    servicesRequired: Array.isArray(servicesRequired)
+      ? servicesRequired
+      : [servicesRequired],
+    members,
     pickupDrop: {
       arrivalDate,
       arrivalCity: arrivalCityToSave,
@@ -173,25 +198,14 @@ export const createLead = asyncHandler(async (req, res) => {
       departureCity: departureCityToSave,
       departureLocation: departureLocationToSave,
     },
-    accommodation: {
-      hotelType: Array.isArray(hotelType) ? hotelType : [hotelType],
-      mealPlan,
-      transport,
-      sharingType,
-      noOfRooms,
-      noOfMattress,
-      noOfNights,
-      requirementNote,
-    },
+    accommodation,
   };
 
-  
+  // ✅ Generate lead ID
   const totalLeads = await Lead.countDocuments();
-  const nextIdNumber = totalLeads + 1;
-  const leadId = await getNextLeadId(); // ✅ Guaranteed unique
+  const leadId = await getNextLeadId();
 
-
-  
+  // ✅ Create lead
   const newLead = await Lead.create({
     personalDetails,
     location,
@@ -206,6 +220,7 @@ export const createLead = asyncHandler(async (req, res) => {
     .status(201)
     .json(new ApiResponse(201, newLead, "Lead created successfully"));
 });
+
 
 
 // view Lead

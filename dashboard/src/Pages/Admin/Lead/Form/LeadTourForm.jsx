@@ -26,13 +26,14 @@ import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
 import { getLeadOptions,addLeadOption } from "../../../../features/leads/leadSlice"
-
+import axios from "../../../../utils/axios"
 const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     console.log("✅ LeadTourForm props:", { onComplete, leadData, isSubmitting });
 
   const location = useLocation();
    const dispatch = useDispatch();
      const { options, loading: optionsLoading, error } = useSelector((state) => state.leads);
+     
 
   const [openDialog, setOpenDialog] = React.useState(false);
   const [currentField, setCurrentField] = React.useState("");
@@ -143,6 +144,45 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
   });
 
   const { values, handleChange, setFieldValue, touched, errors } = formik;
+const calculateAccommodation = async () => {
+  try {
+    const members = {
+      adults: values.adults,
+      children: values.children,
+      kidsWithoutMattress: values.kidsWithoutMattress,
+      infants: values.infants,
+    };
+
+    const accommodation = {
+      sharingType: values.sharingType,
+      noOfRooms: values.noOfRooms,
+    };
+
+    const { data } = await axios.post(
+      "/accommodation/calculate-accommodation",
+      { members, accommodation }
+    );
+
+    if (data.success) {
+      setFieldValue("noOfRooms", data.data.autoCalculatedRooms);
+      setFieldValue("noOfMattress", data.data.extraMattress);
+    }
+  } catch (error) {
+    console.error("Accommodation calculation failed:", error);
+  }
+};
+useEffect(() => {
+  if (values.sharingType && values.noOfRooms) {
+    calculateAccommodation();
+  }
+}, [
+  values.sharingType,
+  values.noOfRooms,
+  values.adults,
+  values.children,
+  values.kidsWithoutMattress,
+  values.infants,
+]);
 
   const handleOpenDialog = (fieldName) => {
     setCurrentField(fieldName);

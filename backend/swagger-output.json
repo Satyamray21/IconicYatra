@@ -307,6 +307,43 @@
         }
       }
     },
+    "/api/v1/lead/options": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/lead/options/add": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fieldName": {
+                  "example": "any"
+                },
+                "value": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
     "/api/v1/staff/": {
       "post": {
         "description": "",
@@ -624,6 +661,48 @@
           },
           "404": {
             "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/accommodation/calculate-accommodation": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "adults": {
+                  "example": "any"
+                },
+                "children": {
+                  "example": "any"
+                },
+                "kidsWithoutMattress": {
+                  "example": "any"
+                },
+                "infants": {
+                  "example": "any"
+                },
+                "sharingType": {
+                  "example": "any"
+                },
+                "noOfRooms": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
