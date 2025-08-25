@@ -183,6 +183,17 @@ useEffect(() => {
   values.kidsWithoutMattress,
   values.infants,
 ]);
+useEffect(() => {
+  if (values.arrivalDate && values.departureDate) {
+    const nights = dayjs(values.departureDate).diff(dayjs(values.arrivalDate), "day");
+
+    if (nights >= 0) {
+      setFieldValue("noOfNights", nights);
+    } else {
+      setFieldValue("noOfNights", 0);
+    }
+  }
+}, [values.arrivalDate, values.departureDate, setFieldValue]);
 
   const handleOpenDialog = (fieldName) => {
     setCurrentField(fieldName);
@@ -779,16 +790,15 @@ const getOptionsForField = (fieldName) => {
               />
             </Grid>
             <Grid size={{xs:4}}>
-              <TextField
-                fullWidth
-                name="noOfNights"
-                label="No of Nights"
-                type="number"
-                value={values.noOfNights}
-                onChange={handleChange}
-                error={touched.noOfNights && Boolean(errors.noOfNights)}
-                helperText={touched.noOfNights && errors.noOfNights}
-              />
+             <TextField
+  fullWidth
+  name="noOfNights"
+  label="No of Nights"
+  type="number"
+  value={values.noOfNights}
+  disabled
+/>
+
             </Grid>
           </Grid>
         </Box>
