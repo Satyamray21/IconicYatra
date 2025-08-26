@@ -27,6 +27,7 @@ import dayjs from "dayjs";
 import AssociateDetailForm from "../../Associates/Form/AssociatesForm";
 import {fetchAllAssociates} from "../../../../features/associate/associateSlice";
 import {fetchAllStaff} from "../../../../features/staff/staffSlice"
+import { fetchStates, fetchCities, clearCities } from '../../../../features/location/locationSlice';
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -57,7 +58,7 @@ const LeadForm = ({ onSaveAndContinue }) => {
   const { list: associates = [], loading: associatesLoading } = useSelector(
   (state) => state.associate
 );
-
+const { states, cities } = useSelector((state) => state.location);
 const { list: staffList = [], loading: staffLoading } = useSelector(
   (state) => state.staffs
 );
@@ -70,8 +71,6 @@ const { list: staffList = [], loading: staffLoading } = useSelector(
     assignedTo: [],
     priority: ["High", "Medium", "Low"],
     country: ["India", "USA", "Canada"],
-    state: ["Karnataka", "Maharashtra"],
-    city: ["Bangalore", "Mumbai"],
   });
 
   const formik = useFormik({
@@ -147,6 +146,25 @@ useEffect(() => {
 useEffect(() => {
   dispatch(fetchAllStaff());
 }, [dispatch]);
+// 🔹 Fetch states only if country is India
+useEffect(() => {
+  if (formik.values.country === "India") {
+    dispatch(fetchStates()); // ✅ Fetch Indian states
+  } else {
+    formik.setFieldValue("state", "");
+    formik.setFieldValue("city", "");
+    dispatch(clearCities()); // ✅ Clear city list
+  }
+}, [formik.values.country, dispatch]);
+// 🔹 Fetch cities only if country is India and state is selected
+useEffect(() => {
+  if (formik.values.country === "India" && formik.values.state) {
+    dispatch(fetchCities(formik.values.state));
+  } else {
+    formik.setFieldValue("city", "");
+    dispatch(clearCities()); // ✅ Clear cities if not India or no state
+  }
+}, [formik.values.country, formik.values.state, dispatch]);
 
   const handleAddNewValue = () => {
     if (newValue.trim() !== "") {
@@ -308,12 +326,32 @@ useEffect(() => {
           <Grid size={{xs:12, sm:4}}>
             {renderSelectField("Country", "country", dropdownOptions.country)}
           </Grid>
-          <Grid size={{xs:12, sm:4}}>
-            {renderSelectField("State", "state", dropdownOptions.state)}
-          </Grid>
-          <Grid size={{xs:12, sm:4}}>
-            {renderSelectField("City", "city", dropdownOptions.city)}
-          </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+  {renderSelectField(
+    "State",
+    "state",
+    formik.values.country === "India"
+      ? states.length > 0
+        ? states.map((s) => (typeof s === "string" ? s : s.name))
+        : ["Loading states..."]
+      : []
+  )}
+</Grid>
+
+<Grid size={{ xs: 12, sm: 4 }}>
+  {renderSelectField(
+    "City",
+    "city",
+    formik.values.country === "India"
+      ? cities.length > 0
+        ? cities.map((c) => (typeof c === "string" ? c : c.name))
+        : ["Loading cities..."]
+      : []
+  )}
+</Grid>
+
+
+
         </Grid>
       </Box>
 

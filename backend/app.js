@@ -36,6 +36,8 @@ app.use('/api/v1/payment',paymentRouter);
 
 import calcualteAccommodationRouter from "./src/routers/calculateAccommodation.router.js"
 app.use('/api/v1/accommodation',calcualteAccommodationRouter);
+import statesAndCitiesRouter from "./src/routers/stateAndCity.router.js";
+app.use("/api/v1/state", statesAndCitiesRouter);
 
 // ✅ Fix: Load JSON without import
 const swaggerDocument = JSON.parse(fs.readFileSync("./swagger-output.json", "utf-8"));
