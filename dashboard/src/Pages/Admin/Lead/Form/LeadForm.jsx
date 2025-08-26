@@ -27,7 +27,7 @@ import dayjs from "dayjs";
 import AssociateDetailForm from "../../Associates/Form/AssociatesForm";
 import {fetchAllAssociates} from "../../../../features/associate/associateSlice";
 import {fetchAllStaff} from "../../../../features/staff/staffSlice"
-import { fetchStates, fetchCities, clearCities } from '../../../../features/location/locationSlice';
+import { fetchStates, fetchCities,fetchCountries, fetchStatesByCountry, clearCities } from '../../../../features/location/locationSlice';
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -58,7 +58,14 @@ const LeadForm = ({ onSaveAndContinue }) => {
   const { list: associates = [], loading: associatesLoading } = useSelector(
   (state) => state.associate
 );
-const { states, cities } = useSelector((state) => state.location);
+const {
+  countries,
+  states,             // For India
+  internationalStates, // For selected country
+  cities,
+  loading,
+} = useSelector((state) => state.location);
+
 const { list: staffList = [], loading: staffLoading } = useSelector(
   (state) => state.staffs
 );
@@ -146,25 +153,37 @@ useEffect(() => {
 useEffect(() => {
   dispatch(fetchAllStaff());
 }, [dispatch]);
+useEffect(() => {
+  dispatch(fetchCountries());
+}, [dispatch]);
+
 // 🔹 Fetch states only if country is India
+// If India → fetch Indian states → fetch cities
 useEffect(() => {
   if (formik.values.country === "India") {
-    dispatch(fetchStates()); // ✅ Fetch Indian states
+    dispatch(fetchStates()); // ✅ India-specific states
+  } else if (formik.values.country) {
+    dispatch(fetchStatesByCountry(formik.values.country)); // ✅ States for selected country
+    formik.setFieldValue("state", "");
+    formik.setFieldValue("city", "");
+    dispatch(clearCities());
   } else {
     formik.setFieldValue("state", "");
     formik.setFieldValue("city", "");
-    dispatch(clearCities()); // ✅ Clear city list
+    dispatch(clearCities());
   }
 }, [formik.values.country, dispatch]);
-// 🔹 Fetch cities only if country is India and state is selected
+
+// Fetch cities for India only
 useEffect(() => {
   if (formik.values.country === "India" && formik.values.state) {
     dispatch(fetchCities(formik.values.state));
   } else {
     formik.setFieldValue("city", "");
-    dispatch(clearCities()); // ✅ Clear cities if not India or no state
+    dispatch(clearCities());
   }
 }, [formik.values.country, formik.values.state, dispatch]);
+
 
   const handleAddNewValue = () => {
     if (newValue.trim() !== "") {
@@ -324,9 +343,16 @@ useEffect(() => {
         </Typography>
         <Grid container spacing={2}>
           <Grid size={{xs:12, sm:4}}>
-            {renderSelectField("Country", "country", dropdownOptions.country)}
+           {renderSelectField(
+  "Country",
+  "country",
+  countries && countries.length > 0
+    ? countries
+    : ["Loading countries..."]
+)}
+
           </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+        <Grid size={{ xs: 12, sm: 4 }}>
   {renderSelectField(
     "State",
     "state",
@@ -334,9 +360,12 @@ useEffect(() => {
       ? states.length > 0
         ? states.map((s) => (typeof s === "string" ? s : s.name))
         : ["Loading states..."]
-      : []
+      : internationalStates.length > 0
+      ? internationalStates
+      : ["Select country first"]
   )}
 </Grid>
+
 
 <Grid size={{ xs: 12, sm: 4 }}>
   {renderSelectField(
