@@ -40,6 +40,8 @@ import statesAndCitiesRouter from "./src/routers/stateAndCity.router.js";
 app.use("/api/v1/state", statesAndCitiesRouter);
 import locationRouter from "./src/routers/location.router.js";
 app.use("/api/v1/location", locationRouter);
+import vehicleQuotationRouter from "./src/routers/quotation/vehicleQuotation.router.js";
+app.use("/api/v1/vehicleQT",vehicleQuotationRouter);
 
 
 // ✅ Fix: Load JSON without import

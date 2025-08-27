@@ -709,7 +709,7 @@
         }
       }
     },
-    "/api/location/countries": {
+    "/api/v1/location/countries": {
       "get": {
         "description": "",
         "responses": {
@@ -722,7 +722,7 @@
         }
       }
     },
-    "/api/location/states/{country}": {
+    "/api/v1/location/states/{country}": {
       "get": {
         "description": "",
         "parameters": [
@@ -742,6 +742,190 @@
           },
           "500": {
             "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/vehicleQT/": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "clientName": {
+                  "example": "any"
+                },
+                "vehicleType": {
+                  "example": "any"
+                },
+                "tripType": {
+                  "example": "any"
+                },
+                "noOfDays": {
+                  "example": "any"
+                },
+                "perDayCost": {
+                  "example": "any"
+                },
+                "totalCost": {
+                  "example": "any"
+                },
+                "pickupDate": {
+                  "example": "any"
+                },
+                "pickupTime": {
+                  "example": "any"
+                },
+                "pickupLocation": {
+                  "example": "any"
+                },
+                "dropDate": {
+                  "example": "any"
+                },
+                "dropTime": {
+                  "example": "any"
+                },
+                "dropLocation": {
+                  "example": "any"
+                },
+                "discount": {
+                  "example": "any"
+                },
+                "gstOn": {
+                  "example": "any"
+                },
+                "applyGst": {
+                  "example": "any"
+                },
+                "contactDetails": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/vehicleQT/{vehicleQuotationId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "vehicleQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "vehicleQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "clientName": {
+                  "example": "any"
+                },
+                "vehicleType": {
+                  "example": "any"
+                },
+                "tripType": {
+                  "example": "any"
+                },
+                "noOfDays": {
+                  "example": "any"
+                },
+                "perDayCost": {
+                  "example": "any"
+                },
+                "totalCost": {
+                  "example": "any"
+                },
+                "pickupDate": {
+                  "example": "any"
+                },
+                "pickupTime": {
+                  "example": "any"
+                },
+                "pickupLocation": {
+                  "example": "any"
+                },
+                "dropDate": {
+                  "example": "any"
+                },
+                "dropTime": {
+                  "example": "any"
+                },
+                "dropLocation": {
+                  "example": "any"
+                },
+                "discount": {
+                  "example": "any"
+                },
+                "gstOn": {
+                  "example": "any"
+                },
+                "applyGst": {
+                  "example": "any"
+                },
+                "contactDetails": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "vehicleQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
