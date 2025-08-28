@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import {
   Box,
   Grid,
@@ -21,7 +21,8 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import VehicleQuotationStep2 from "./VehicleQuotationStep2";
-
+import { useSelector, useDispatch } from "react-redux";
+import {getAllLeads} from "../../../../features/leads/leadSlice";
 // Validation Schema
 const validationSchema = Yup.object({
   clientName: Yup.string().required("Client Name is required"),
@@ -46,7 +47,12 @@ const VehicleQuotationStep1 = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [newValue, setNewValue] = useState("");
   const [fieldType, setFieldType] = useState("");
-
+  const dispatch = useDispatch();
+  const {
+      list: leadList = [],
+      status,
+      error,
+    } = useSelector((state) => state.leads);
   const formik = useFormik({
     initialValues: {
       clientName: "",
@@ -71,17 +77,57 @@ const VehicleQuotationStep1 = () => {
       setStep(2); // move to Step 2 and send values
     },
   });
+  useEffect(() => {
+      dispatch(getAllLeads());
+    }, [dispatch]);
 
-  // Handle dropdown change
   const handleClientChange = (event) => {
-    if (event.target.value === "addNew") {
+    const selectedClientName = event.target.value;
+
+    if (selectedClientName === "addNew") {
       setFieldType("client");
       setNewValue("");
       setOpenDialog(true);
-    } else {
-      formik.handleChange(event);
+      return;
+    }
+
+    formik.handleChange(event);
+
+    // Find selected client details from API data
+    const selectedLead = leadList.find(
+      (lead) => lead.personalDetails.fullName === selectedClientName
+    );
+
+    if (selectedLead) {
+      const { tourDetails } = selectedLead;
+
+      formik.setFieldValue(
+        "noOfDays",
+        (tourDetails?.accommodation?.noOfNights || 0) + 1
+      );
+      formik.setFieldValue(
+        "pickupDate",
+        tourDetails?.pickupDrop?.arrivalDate
+          ? new Date(tourDetails.pickupDrop.arrivalDate)
+          : null
+      );
+      formik.setFieldValue(
+        "pickupLocation",
+        tourDetails?.pickupDrop?.arrivalLocation || ""
+      );
+      formik.setFieldValue(
+        "dropDate",
+        tourDetails?.pickupDrop?.departureDate
+          ? new Date(tourDetails.pickupDrop.departureDate)
+          : null
+      );
+      formik.setFieldValue(
+        "dropLocation",
+        tourDetails?.pickupDrop?.departureLocation || ""
+      );
     }
   };
+
 
   const handleVehicleChange = (event) => {
     if (event.target.value === "addNew") {
@@ -131,9 +177,12 @@ const VehicleQuotationStep1 = () => {
                     error={formik.touched.clientName && Boolean(formik.errors.clientName)}
                     helperText={formik.touched.clientName && formik.errors.clientName}
                   >
-                    {clients.map((client, idx) => (
-                      <MenuItem key={idx} value={client}>
-                        {client}
+                    {leadList.map((lead) => (
+                      <MenuItem
+                        key={lead._id}
+                        value={lead.personalDetails.fullName}
+                      >
+                        {lead.personalDetails.fullName}
                       </MenuItem>
                     ))}
                     <MenuItem value="addNew">+ Add New</MenuItem>
