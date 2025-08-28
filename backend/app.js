@@ -42,7 +42,8 @@ import locationRouter from "./src/routers/location.router.js";
 app.use("/api/v1/location", locationRouter);
 import vehicleQuotationRouter from "./src/routers/quotation/vehicleQuotation.router.js";
 app.use("/api/v1/vehicleQT",vehicleQuotationRouter);
-
+import allCountryStatesAndCity from "./src/routers/allCountryStatesAndCity.router.js";
+app.use("/api/v1/countryStateAndCity",allCountryStatesAndCity);
 
 // ✅ Fix: Load JSON without import
 const swaggerDocument = JSON.parse(fs.readFileSync("./swagger-output.json", "utf-8"));

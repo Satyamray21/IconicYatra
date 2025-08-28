@@ -929,6 +929,73 @@
           }
         }
       }
+    },
+    "/api/v1/countryStateAndCity/countries": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/countryStateAndCity/states/{countryName}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "countryName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/countryStateAndCity/cities/{countryName}/{stateName}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "countryName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "stateName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
     }
   },
   "security": [
