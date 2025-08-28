@@ -27,7 +27,7 @@ import dayjs from "dayjs";
 import AssociateDetailForm from "../../Associates/Form/AssociatesForm";
 import {fetchAllAssociates} from "../../../../features/associate/associateSlice";
 import {fetchAllStaff} from "../../../../features/staff/staffSlice"
-import { fetchStates, fetchCities,fetchCountries, fetchStatesByCountry, clearCities } from '../../../../features/location/locationSlice';
+import { fetchCountries,fetchStatesByCountry,fetchCitiesByState,clearStates, clearCities } from '../../../../features/location/locationSlice';
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -60,8 +60,7 @@ const LeadForm = ({ onSaveAndContinue }) => {
 );
 const {
   countries,
-  states,             // For India
-  internationalStates, // For selected country
+  states,             
   cities,
   loading,
 } = useSelector((state) => state.location);
@@ -157,33 +156,31 @@ useEffect(() => {
   dispatch(fetchCountries());
 }, [dispatch]);
 
-// 🔹 Fetch states only if country is India
-// If India → fetch Indian states → fetch cities
 useEffect(() => {
-  if (formik.values.country === "India") {
-    dispatch(fetchStates()); // ✅ India-specific states
-  } else if (formik.values.country) {
-    dispatch(fetchStatesByCountry(formik.values.country)); // ✅ States for selected country
-    formik.setFieldValue("state", "");
-    formik.setFieldValue("city", "");
-    dispatch(clearCities());
-  } else {
-    formik.setFieldValue("state", "");
-    formik.setFieldValue("city", "");
-    dispatch(clearCities());
-  }
-}, [formik.values.country, dispatch]);
+    if (formik.values.country) {
+      dispatch(fetchStatesByCountry(formik.values.country));
+      formik.setFieldValue("state", "");
+      formik.setFieldValue("city", "");
+      dispatch(clearCities());
+    } else {
+      dispatch(clearStates());
+      dispatch(clearCities());
+    }
+  }, [formik.values.country, dispatch]);
 
-// Fetch cities for India only
-useEffect(() => {
-  if (formik.values.country === "India" && formik.values.state) {
-    dispatch(fetchCities(formik.values.state));
-  } else {
-    formik.setFieldValue("city", "");
-    dispatch(clearCities());
-  }
-}, [formik.values.country, formik.values.state, dispatch]);
-
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (formik.values.state && formik.values.country) {
+      dispatch(
+        fetchCitiesByState({
+          countryName: formik.values.country,
+          stateName: formik.values.state,
+        })
+      );
+    } else {
+      dispatch(clearCities());
+    }
+  }, [formik.values.state, formik.values.country, dispatch]);
 
   const handleAddNewValue = () => {
     if (newValue.trim() !== "") {
@@ -343,40 +340,38 @@ useEffect(() => {
         </Typography>
         <Grid container spacing={2}>
           <Grid size={{xs:12, sm:4}}>
-           {renderSelectField(
+          {renderSelectField(
   "Country",
   "country",
   countries && countries.length > 0
-    ? countries
+    ? countries.map((c) => c.name)
     : ["Loading countries..."]
 )}
 
+
           </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
-  {renderSelectField(
-    "State",
-    "state",
-    formik.values.country === "India"
-      ? states.length > 0
-        ? states.map((s) => (typeof s === "string" ? s : s.name))
-        : ["Loading states..."]
-      : internationalStates.length > 0
-      ? internationalStates
-      : ["Select country first"]
-  )}
+{renderSelectField(
+  "State",
+  "state",
+  states && states.length > 0
+    ? states.map((s) => s.name) // ✅ Fetch full state names from API
+    : ["No states available"]
+)}
+
+
 </Grid>
 
 
 <Grid size={{ xs: 12, sm: 4 }}>
-  {renderSelectField(
-    "City",
-    "city",
-    formik.values.country === "India"
-      ? cities.length > 0
-        ? cities.map((c) => (typeof c === "string" ? c : c.name))
-        : ["Loading cities..."]
-      : []
-  )}
+ {renderSelectField(
+  "City",
+  "city",
+  cities && cities.length > 0
+    ? cities.map((c) => c.name) // ✅ Always fetch from API
+    : ["No cities available"]
+)}
+
 </Grid>
 
 
