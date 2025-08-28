@@ -22,6 +22,13 @@ import StaffForm from "../Pages/Admin/Staff/Form/StaffForm";
 import PaymentsCard from '../Pages/Admin/Payments/PaymentsCard';
 import PaymentsForm from '../Pages/Admin/Payments/Form/PaymentsForm';
 import InvoiceView from '../Components/InvoiceView';
+import QuotationCard from "../Pages/Admin/Quotation/QuotationCard";
+import VehicleQuotation from "../Pages/Admin/Quotation/VehicleQuotation/VehicleQuotation";
+import HotelQuotation from "../Pages/Admin/Quotation/HotelQuotation/hotelquotation";
+import FlightQuotation from "../Pages/Admin/Quotation/FlightQuotation/flightquotation";
+import QuickQuotation from "../Pages/Admin/Quotation/QuickQuotation/quickquotation";
+import FullQuotation from "../Pages/Admin/Quotation/FullQuotation/fullquotation";
+import CustomQuotation from "../Pages/Admin/Quotation/CustomQuotation/customquotation";
 const MainRoute = () => {
     const isAuthenticated = true;
 
@@ -61,7 +68,14 @@ const MainRoute = () => {
 
                 {/* Invoice Routes */}
                 <Route path="/invoice-view" element={<InvoiceView />} />
-
+                 {/* Quotation Routing */}
+        <Route path="/quotation" element={<QuotationCard />} />
+        <Route path="/vehiclequotation" element={<VehicleQuotation />} />
+        <Route path="/hotelquotation" element={<HotelQuotation />} />
+        <Route path="/flightquotation" element={<FlightQuotation />} />
+        <Route path="/quickquotation" element={<QuickQuotation />} />
+        <Route path="/fullquotation" element={<FullQuotation />} />
+        <Route path="/customquotation" element={<CustomQuotation />} />
 
             </Routes>
         </DashboardLayout>
