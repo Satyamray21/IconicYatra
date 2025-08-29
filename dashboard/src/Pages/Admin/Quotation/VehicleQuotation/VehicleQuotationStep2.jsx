@@ -16,6 +16,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Snackbar,
+   Alert,
 } from "@mui/material";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -25,6 +27,8 @@ import { createVehicleQuotation } from "../../../../features/quotation/vehicleQu
 
 const VehicleQuotationStep2 = ({ step1Data, onBack }) => {
   const [openPreview, setOpenPreview] = useState(false);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+
   const navigate = useNavigate();
 const dispatch = useDispatch();
   const formik = useFormik({
@@ -310,28 +314,11 @@ const dispatch = useDispatch();
           </Grid>
 
           {/* Step 2 Data */}
-          <Typography
-            variant="h6"
-            gutterBottom
-            sx={{
-              borderBottom: "2px solid #1976d2",
-              pb: 1,
-              mb: 2,
-              textAlign: "center",
-            }}
-          >
-            Margin & Taxes
-          </Typography>
+        
 
           <Grid container spacing={3} justifyContent="center" textAlign="center">
             <Grid size={{ xs: 6}}>
-              <Typography>
-                <strong>Margin %</strong>
-              </Typography>
               
-              <Typography>
-                <strong>Margin Amount</strong>
-              </Typography>
              
 
               <Typography>
@@ -370,6 +357,17 @@ const dispatch = useDispatch();
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+  open={openSnackbar}
+  autoHideDuration={3000}
+  onClose={() => setOpenSnackbar(false)}
+  anchorOrigin={{ vertical: "top", horizontal: "center" }}
+>
+  <Alert onClose={() => setOpenSnackbar(false)} severity="success" sx={{ width: "100%" }}>
+    Vehicle quotation created successfully!
+  </Alert>
+</Snackbar>
+
     </Paper>
   );
 };
