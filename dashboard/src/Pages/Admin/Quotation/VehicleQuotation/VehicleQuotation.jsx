@@ -23,6 +23,8 @@ import * as Yup from "yup";
 import VehicleQuotationStep2 from "./VehicleQuotationStep2";
 import { useSelector, useDispatch } from "react-redux";
 import {getAllLeads} from "../../../../features/leads/leadSlice";
+
+
 // Validation Schema
 const validationSchema = Yup.object({
   clientName: Yup.string().required("Client Name is required"),
@@ -31,7 +33,7 @@ const validationSchema = Yup.object({
   totalCost: Yup.number().typeError("Must be a number").required("Total Costing is required"),
 });
 
-const tripTypes = ["OneWay", "RoundTrip"];
+const tripTypes = ["One Way", "Round Trip"];
 
 const VehicleQuotationStep1 = () => {
   const [step, setStep] = useState(1);
@@ -59,10 +61,7 @@ const VehicleQuotationStep1 = () => {
       vehicleType: "",
       tripType: "",
       noOfDays: "",
-      ratePerKm: "",
-      kmPerDay: "",
-      driverAllowance: "",
-      tollParking: "",
+      perDayCost:"",
       totalCost: "",
       pickupDate: null,
       pickupTime: null,
@@ -232,21 +231,12 @@ const VehicleQuotationStep1 = () => {
                     onChange={formik.handleChange}
                   />
                 </Grid>
-                <Grid size={{xs:12, sm:4}}>
+                 <Grid size={{xs:12, sm:4}}>
                   <TextField
                     fullWidth
-                    label="Rate Per Km"
-                    name="ratePerKm"
-                    value={formik.values.ratePerKm}
-                    onChange={formik.handleChange}
-                  />
-                </Grid>
-                <Grid size={{xs:12, sm:4}}>
-                  <TextField
-                    fullWidth
-                    label="Km Per Day"
-                    name="kmPerDay"
-                    value={formik.values.kmPerDay}
+                    label="Per Day Cost"
+                    name="perDayCost"
+                    value={formik.values.perDayCost}
                     onChange={formik.handleChange}
                   />
                 </Grid>
@@ -259,24 +249,7 @@ const VehicleQuotationStep1 = () => {
                 Cost Details
               </Typography>
               <Grid container spacing={2} mt={1}>
-                <Grid size={{xs:12, sm:4}}>
-                  <TextField
-                    fullWidth
-                    label="Driver Allowance"
-                    name="driverAllowance"
-                    value={formik.values.driverAllowance}
-                    onChange={formik.handleChange}
-                  />
-                </Grid>
-                <Grid size={{xs:12, sm:4}}>
-                  <TextField
-                    fullWidth
-                    label="Toll/Parking"
-                    name="tollParking"
-                    value={formik.values.tollParking}
-                    onChange={formik.handleChange}
-                  />
-                </Grid>
+                
                 <Grid size={{xs:12, sm:4}}>
                   <TextField
                     fullWidth

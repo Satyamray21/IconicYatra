@@ -20,35 +20,33 @@ const generateVehicleQuotationId = async () => {
 
 
 export const createVehicle = asyncHandler(async (req, res) => {
+  console.log("Req",req.body);
   const {
-    // basicsDetails
+  basicsDetails: {
     clientName,
     vehicleType,
     tripType,
     noOfDays,
-    perDayCost,
-
-    // costDetails
+    perDayCost
+  },
+  costDetails: {
     totalCost,
-
-    // pickupDropDetails
+    discount,
+    gstOn,
+    applyGst
+  },
+  pickupDropDetails: {
     pickupDate,
     pickupTime,
     pickupLocation,
     dropDate,
     dropTime,
-    dropLocation,
-
-    // discount
-    discount,
-
-    // tax
-    gstOn,
-    applyGst,
-
-    // signatureDetails
-    contactDetails,
-  } = req.body;
+    dropLocation
+  },
+  signatureDetails: {
+    contactDetails
+  }
+} = req.body;
 
   // Required field validation
   if (

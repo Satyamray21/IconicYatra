@@ -20,36 +20,71 @@ import {
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { createVehicleQuotation } from "../../../../features/quotation/vehicleQuotationSlice";
 
 const VehicleQuotationStep2 = ({ step1Data, onBack }) => {
   const [openPreview, setOpenPreview] = useState(false);
   const navigate = useNavigate();
-
+const dispatch = useDispatch();
   const formik = useFormik({
     initialValues: {
-      marginPercent: "",
-      marginAmount: "",
+    
+    
       discount: "",
       gstOption: "",
       taxPercent: "",
       contactDetails: "",
     },
     validationSchema: Yup.object({
-      marginPercent: Yup.number()
-        .typeError("Must be a number")
-        .required("Required"),
-      marginAmount: Yup.number()
-        .typeError("Must be a number")
-        .required("Required"),
       discount: Yup.number().typeError("Must be a number"),
       gstOption: Yup.string().required("Required"),
       taxPercent: Yup.string().required("Required"),
       contactDetails: Yup.string().required("Required"),
     }),
-    onSubmit: (values) => {
-      console.log("Step 1 Data:", step1Data);
-      console.log("Step 2 Data:", values);
-      alert("Form Submitted!");
+   onSubmit: async (values) => {
+      // Combine step1 + step2 data
+      const finalData = {
+        basicsDetails: {
+          clientName: step1Data.clientName,
+          vehicleType: step1Data.vehicleType,
+          tripType: step1Data.tripType,
+          noOfDays: step1Data.noOfDays,
+          perDayCost: step1Data.perDayCost,
+        },
+        costDetails: {
+          totalCost: step1Data.totalCost,
+          discount: values.discount,
+         gstOn: values.gstOption,          // ✅ FIXED
+  applyGst: values.taxPercent,      
+        },
+        pickupDropDetails: {
+          pickupDate: step1Data.pickupDate,
+          pickupTime: step1Data.pickupTime,
+          pickupLocation: step1Data.pickupLocation,
+          dropDate: step1Data.dropDate,
+          dropTime: step1Data.dropTime,
+          dropLocation: step1Data.dropLocation,
+        },
+        signatureDetails: {
+          contactDetails: values.contactDetails,
+        },
+      };
+
+      try {
+        const result = await dispatch(createVehicleQuotation(finalData)).unwrap();
+        console.log("API Response:", result);
+
+        setOpenSnackbar(true);
+
+        // Reset Form after success
+        formik.resetForm();
+
+        // Navigate back or to listing after success
+        navigate("/quotation", { replace: true });
+      } catch (err) {
+        console.error("Error creating quotation:", err);
+      }
     },
   });
 
@@ -66,38 +101,8 @@ const VehicleQuotationStep2 = ({ step1Data, onBack }) => {
             Company Margin
           </Typography>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 6}}>
-              <TextField
-                fullWidth
-                label="Margin %"
-                name="marginPercent"
-                value={formik.values.marginPercent}
-                onChange={formik.handleChange}
-                error={
-                  formik.touched.marginPercent &&
-                  Boolean(formik.errors.marginPercent)
-                }
-                helperText={
-                  formik.touched.marginPercent && formik.errors.marginPercent
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 6}}>
-              <TextField
-                fullWidth
-                label="Margin ₹"
-                name="marginAmount"
-                value={formik.values.marginAmount}
-                onChange={formik.handleChange}
-                error={
-                  formik.touched.marginAmount &&
-                  Boolean(formik.errors.marginAmount)
-                }
-                helperText={
-                  formik.touched.marginAmount && formik.errors.marginAmount
-                }
-              />
-            </Grid>
+           
+           
           </Grid>
         </Box>
 
@@ -323,12 +328,11 @@ const VehicleQuotationStep2 = ({ step1Data, onBack }) => {
               <Typography>
                 <strong>Margin %</strong>
               </Typography>
-              <Typography>{formik.values.marginPercent}%</Typography>
-
+              
               <Typography>
                 <strong>Margin Amount</strong>
               </Typography>
-              <Typography>₹{formik.values.marginAmount}</Typography>
+             
 
               <Typography>
                 <strong>Discount</strong>
