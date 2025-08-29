@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
 } from "@mui/material";
 import {
   DatePicker,
@@ -22,7 +23,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import VehicleQuotationStep2 from "./VehicleQuotationStep2";
 import { useSelector, useDispatch } from "react-redux";
-import {getAllLeads} from "../../../../features/leads/leadSlice";
+import {getAllLeads,getLeadOptions,addLeadOption} from "../../../../features/leads/leadSlice";
 
 
 // Validation Schema
@@ -37,7 +38,9 @@ const tripTypes = ["One Way", "Round Trip"];
 
 const VehicleQuotationStep1 = () => {
   const [step, setStep] = useState(1);
-  const [clients, setClients] = useState(["Client A", "Client B"]);
+  
+  
+
   const [vehicleTypes, setVehicleTypes] = useState([
     "Sedan",
     "SUV",
@@ -53,8 +56,11 @@ const VehicleQuotationStep1 = () => {
   const {
       list: leadList = [],
       status,
+       options=[], 
+       loading: optionsLoading,
       error,
     } = useSelector((state) => state.leads);
+   
   const formik = useFormik({
     initialValues: {
       clientName: "",
@@ -78,9 +84,12 @@ const VehicleQuotationStep1 = () => {
   });
   useEffect(() => {
       dispatch(getAllLeads());
+        dispatch(getLeadOptions({ fieldName: "vehicleType" }));
+
     }, [dispatch]);
 
   const handleClientChange = (event) => {
+     event.preventDefault();
     const selectedClientName = event.target.value;
 
     if (selectedClientName === "addNew") {
@@ -129,6 +138,7 @@ const VehicleQuotationStep1 = () => {
 
 
   const handleVehicleChange = (event) => {
+    event.preventDefault();
     if (event.target.value === "addNew") {
       setFieldType("vehicle");
       setNewValue("");
@@ -138,14 +148,20 @@ const VehicleQuotationStep1 = () => {
     }
   };
 
-  const handleDialogSave = () => {
+  const handleDialogSave = async () => {
     if (newValue.trim() === "") return;
     if (fieldType === "client") {
-      setClients((prev) => [...prev, newValue]);
+      
       formik.setFieldValue("clientName", newValue);
     } else if (fieldType === "vehicle") {
-      setVehicleTypes((prev) => [...prev, newValue]);
-      formik.setFieldValue("vehicleType", newValue);
+       try {
+        await dispatch(addLeadOption({ fieldName: "vehicleType", value: newValue }));
+await dispatch(getLeadOptions({ fieldName: "vehicleType" }));
+
+        formik.setFieldValue("vehicleType", newValue);
+      } catch (err) {
+        console.error("Error adding vehicle option:", err);
+      }
     }
     setOpenDialog(false);
   };
@@ -198,11 +214,20 @@ const VehicleQuotationStep1 = () => {
                     error={formik.touched.vehicleType && Boolean(formik.errors.vehicleType)}
                     helperText={formik.touched.vehicleType && formik.errors.vehicleType}
                   >
-                    {vehicleTypes.map((type, idx) => (
-                      <MenuItem key={idx} value={type}>
-                        {type}
+                    {optionsLoading ? (
+                      <MenuItem disabled>
+                        <CircularProgress size={20} />
                       </MenuItem>
-                    ))}
+                    ) : error ? (
+                      <MenuItem disabled>Error Loading</MenuItem>
+                    ) : (
+                      options.filter((opt) => opt.fieldName === "vehicleType")
+                      .map((type, idx) => (
+                        <MenuItem key={idx} value={type.value}>
+                          {type.value}
+                        </MenuItem>
+                      ))
+                    )}
                     <MenuItem value="addNew">+ Add New</MenuItem>
                   </TextField>
                 </Grid>
