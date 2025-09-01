@@ -1,7 +1,7 @@
 import { FlightQuotation } from "../../models/quotation/flightQuotation.model.js";
 import {asyncHandler} from "../../utils/asyncHandler.js";
-import {ApiError} from "../utils/ApiError.js";
-import {ApiResponse} from "../utils/ApiResponse.js";
+import {ApiError} from "../../utils/ApiError.js";
+import {ApiResponse} from "../../utils/ApiResponse.js";
 import {Lead} from "../../models/lead.model.js"
 const generateFlightQuotationId = async () => {
   const lastQuotation = await FlightQuotation.findOne({})
@@ -18,6 +18,7 @@ const generateFlightQuotationId = async () => {
   return `ICYR_QT_F_${nextNumber}`;
 };
 export const createFlightQuotation = asyncHandler(async (req, res) => {
+    console.log("Req",req.body);
     const {
         tripType,
         clientDetails,
@@ -54,7 +55,8 @@ export const createFlightQuotation = asyncHandler(async (req, res) => {
 
     // Generate dynamic title
     const title = `Flight Quotation for ${clientDetails.clientName}`;
-    const lead = await Lead.findOne({ "clientDetails.clientName": clientDetails.clientName });
+    const lead = await Lead.findOne({ "personalDetails.fullName": clientDetails.clientName });
+
     if (!lead) {
         throw new ApiError(404, `Lead not found for client ${clientDetails.clientName}`);
     }
@@ -74,7 +76,7 @@ export const createFlightQuotation = asyncHandler(async (req, res) => {
         anyMessage,
         personalDetails,
         status: status || "New" ,
-         Quotation_type,
+        quotation_type: "flight" ,
         leadId: lead.leadId
     });
 
