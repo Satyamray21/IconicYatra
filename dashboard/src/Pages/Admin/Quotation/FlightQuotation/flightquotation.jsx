@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Grid,
@@ -38,13 +38,14 @@ import {
   Person,
   Phone,
   Email,
-  Close
-} from '@mui/icons-material';
-import {createFlightQuotation} from "../../../../features/quotation/flightQuotationSlice"
+  Close,
+} from "@mui/icons-material";
+import { createFlightQuotation } from "../../../../features/quotation/flightQuotationSlice";
 import { useSelector, useDispatch } from "react-redux";
-import {getAllLeads,getLeadOptions,addLeadOption} from "../../../../features/leads/leadSlice";
+import { getAllLeads } from "../../../../features/leads/leadSlice";
+import { useNavigate } from "react-router-dom";
 
-// Validation schema
+// Validation schema (base fields)
 const validationSchema = Yup.object({
   clientName: Yup.string().required("Client name is required"),
   from: Yup.string().required("From is required"),
@@ -52,7 +53,7 @@ const validationSchema = Yup.object({
   airline: Yup.string().required("Preferred airline is required"),
   flightNo: Yup.string().required("Flight number is required"),
   fare: Yup.number().typeError("Must be a number").required("Fare is required"),
-  departureDate: Yup.date().required("Departure date is required"),
+  departureDate: Yup.date().nullable().required("Departure date is required"),
   adults: Yup.number().min(1, "At least 1 adult").required("Required"),
   fullName: Yup.string().required("Full name is required"),
   mobile: Yup.string().required("Mobile number is required"),
@@ -64,13 +65,20 @@ const QuotationFlightForm = () => {
   const [previewData, setPreviewData] = useState(null);
   const theme = useTheme();
   const dispatch = useDispatch();
-   const {
-        list: leadList = [],
-        status,
-         options=[], 
-         loading: optionsLoading,
-        error,
-      } = useSelector((state) => state.leads);
+  const navigate = useNavigate();
+
+  const {
+    list: leadList = [],
+    status,
+    options = [],
+    loading: optionsLoading,
+    error,
+  } = useSelector((state) => state.leads);
+
+  useEffect(() => {
+    dispatch(getAllLeads());
+  }, [dispatch]);
+
   const initialValues = {
     tripType: "oneway",
     clientName: "",
@@ -99,72 +107,68 @@ const QuotationFlightForm = () => {
   };
 
   const formik = useFormik({
-  initialValues,
-  validationSchema,
-  onSubmit: async (values) => {
-    const payload = {
-      tripType: values.tripType,
-      clientDetails: {
-        clientName: values.clientName,
-      },
-      flightDetails: [
-        {
-          from: values.from,
-          to: values.to,
-           preferredAirline: values.airline,
-          flightNo: values.flightNo,
-          fare: Number(values.fare),
-          departureDate: values.departureDate,
-          departureTime: values.departureTime,
+    initialValues,
+    validationSchema,
+    onSubmit: async (values) => {
+      const payload = {
+        tripType: values.tripType,
+        clientDetails: {
+          clientName: values.clientName,
         },
-      ],
-      adults: Number(values.adults),
-      childs: Number(values.childs),
-      infants: Number(values.infants),
-      anyMessage: values.message,
-      personalDetails: {
-        fullName: values.fullName,
-        mobileNumber: values.mobile,
-        emailId: values.email,
-      },
-    };
+        flightDetails: [
+          {
+            from: values.from,
+            to: values.to,
+            preferredAirline: values.airline,
+            flightNo: values.flightNo,
+            fare: Number(values.fare),
+            departureDate: values.departureDate,
+            departureTime: values.departureTime,
+          },
+        ],
+        adults: Number(values.adults || 0),
+        childs: Number(values.childs || 0),
+        infants: Number(values.infants || 0),
+        anyMessage: values.message,
+        personalDetails: {
+          fullName: values.fullName,
+          mobileNumber: values.mobile,
+          emailId: values.email,
+        },
+      };
 
-    // ✅ Handle roundtrip flights
-    if (values.tripType === "roundtrip") {
-      payload.flightDetails.push({
-        from: values.returnFrom,
-        to: values.returnTo,
-        airline: values.returnAirline,
-        flightNo: values.returnFlightNo,
-        fare: Number(values.returnFare),
-        departureDate: values.returnDate,
-        departureTime: values.returnTime,
-      });
-    }
+      // Roundtrip block
+      if (values.tripType === "roundtrip") {
+        payload.flightDetails.push({
+          from: values.returnFrom,
+          to: values.returnTo,
+          preferredAirline: values.returnAirline,
+          flightNo: values.returnFlightNo,
+          fare: Number(values.returnFare || 0),
+          departureDate: values.returnDate,
+          departureTime: values.returnTime,
+        });
+      }
 
-    // ✅ Handle multicity flights
-    if (values.tripType === "multicity" && values.additionalCities.length > 0) {
-      const multiCities = values.additionalCities.map((city) => ({
-        from: city.from,
-        to: city.to,
-        airline: city.airline,
-        flightNo: city.flightNo,
-        fare: Number(city.fare),
-        departureDate: city.date,
-        departureTime: city.time,
-      }));
-      payload.flightDetails.push(...multiCities);
-    }
+      // Multicity block
+      if (values.tripType === "multicity" && values.additionalCities.length > 0) {
+        const multiCities = values.additionalCities.map((city) => ({
+          from: city.from,
+          to: city.to,
+          preferredAirline: city.airline,
+          flightNo: city.flightNo,
+          fare: Number(city.fare || 0),
+          departureDate: city.date,
+          departureTime: city.time,
+        }));
+        payload.flightDetails.push(...multiCities);
+      }
 
-    console.log("Final Payload:", payload);
-    await dispatch(createFlightQuotation(payload));
-    formik.resetForm();
-
-        // Navigate back or to listing after success
-        navigate("/quotation", { replace: true });
-  },
-});
-
+      await dispatch(createFlightQuotation(payload));
+      formik.resetForm();
+      navigate("/quotation", { replace: true });
+    },
+  });
 
   const addAnotherCity = () => {
     const newCity = {
@@ -189,126 +193,136 @@ const QuotationFlightForm = () => {
   };
 
   const deleteCity = (index) => {
-    const updatedCities = formik.values.additionalCities.filter(
-      (_, i) => i !== index
-    );
+    const updatedCities = formik.values.additionalCities.filter((_, i) => i !== index);
     formik.setFieldValue("additionalCities", updatedCities);
   };
 
   const handlePreview = () => {
-    setPreviewData(formik.values);
+    // Build a preview payload matching what the dialog expects
+    const v = formik.values;
+    const flightDetails = [
+      {
+        from: v.from,
+        to: v.to,
+        preferredAirline: v.airline,
+        flightNo: v.flightNo,
+        fare: v.fare,
+        departureDate: v.departureDate,
+        departureTime: v.departureTime,
+      },
+    ];
+
+    if (v.tripType === "roundtrip") {
+      flightDetails.push({
+        from: v.returnFrom,
+        to: v.returnTo,
+        preferredAirline: v.returnAirline,
+        flightNo: v.returnFlightNo,
+        fare: v.returnFare,
+        departureDate: v.returnDate,
+        departureTime: v.returnTime,
+      });
+    }
+
+    if (v.tripType === "multicity" && v.additionalCities.length > 0) {
+      v.additionalCities.forEach((c) =>
+        flightDetails.push({
+          from: c.from,
+          to: c.to,
+          preferredAirline: c.airline,
+          flightNo: c.flightNo,
+          fare: c.fare,
+          departureDate: c.date,
+          departureTime: c.time,
+        })
+      );
+    }
+
+    setPreviewData({
+      tripType: v.tripType,
+      clientName: v.clientName,
+      flightDetails,
+      additionalCities: v.additionalCities || [],
+      adults: v.adults,
+      childs: v.childs,
+      infants: v.infants,
+      message: v.message,
+      fullName: v.fullName,
+      mobile: v.mobile,
+      email: v.email,
+    });
     setPreviewOpen(true);
   };
-const handleClientChange = (event) => {
-  event.preventDefault();
-  const selectedClientName = event.target.value;
 
-  // If user selects "Add New" client
-  if (selectedClientName === "addNew") {
-    setFieldType("client");
-    setNewValue("");
-    setOpenDialog(true);
-    return;
-  }
+  const handleClientChange = (event) => {
+    const selectedClientName = event.target.value;
+    formik.setFieldValue("clientName", selectedClientName);
 
-  // Update formik value for client name
-  formik.setFieldValue("clientName", selectedClientName);
+    const selectedLead =
+      leadList.find((lead) => lead?.personalDetails?.fullName === selectedClientName) || null;
 
-  // Find selected client details from leadList
-  const selectedLead = leadList.find(
-    (lead) => lead.personalDetails.fullName === selectedClientName
-  );
+    if (selectedLead) {
+      const { personalDetails } = selectedLead;
+      formik.setFieldValue("fullName", personalDetails?.fullName || "");
+      formik.setFieldValue("email", personalDetails?.emailId || "");
+      formik.setFieldValue("mobile", personalDetails?.mobile || "");
+    }
+  };
 
-  if (selectedLead) {
-    const { personalDetails, tourDetails } = selectedLead;
+  // Reusable Flight details block
+  const renderFlightDetails = (isReturn = false, values = formik.values) => {
+    const prefix = isReturn ? "return" : "";
+    const fromField = isReturn ? "returnFrom" : "from";
+    const toField = isReturn ? "returnTo" : "to";
+    const airlineField = isReturn ? "returnAirline" : "airline";
+    const flightNoField = isReturn ? "returnFlightNo" : "flightNo";
+    const fareField = isReturn ? "returnFare" : "fare";
+    const dateField = isReturn ? "returnDate" : "departureDate";
+    const timeField = isReturn ? "returnTime" : "departureTime";
 
-    // Auto-fill personal details
-    formik.setFieldValue("fullName", personalDetails.fullName || "");
-    formik.setFieldValue("email", personalDetails.emailId || "");
-    formik.setFieldValue("mobile", personalDetails.mobile || "");
-
-    // Auto-fill tour-related fields if available
-    formik.setFieldValue(
-      "noOfDays",
-      (tourDetails?.accommodation?.noOfNights || 0) + 1
-    );
-    formik.setFieldValue(
-      "pickupDate",
-      tourDetails?.pickupDrop?.arrivalDate
-        ? new Date(tourDetails.pickupDrop.arrivalDate)
-        : null
-    );
-    formik.setFieldValue(
-      "pickupLocation",
-      tourDetails?.pickupDrop?.arrivalLocation || ""
-    );
-    formik.setFieldValue(
-      "dropDate",
-      tourDetails?.pickupDrop?.departureDate
-        ? new Date(tourDetails.pickupDrop.departureDate)
-        : null
-    );
-    formik.setFieldValue(
-      "dropLocation",
-      tourDetails?.pickupDrop?.departureLocation || ""
-    );
-  }
-};
-
-  const renderFlightDetails = (prefix = "", values = formik.values) => (
-    <>
+    return (
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TextField
+            id={`${fromField}-id`}
             fullWidth
             label="From"
-            name={`${prefix}from`}
-            value={values[`${prefix}from`]}
+            name={fromField}
+            autoComplete="off"
+            value={values[fromField]}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            error={
-              formik.touched[`${prefix}from`] &&
-              Boolean(formik.errors[`${prefix}from`])
-            }
-            helperText={
-              formik.touched[`${prefix}from`] && formik.errors[`${prefix}from`]
-            }
+            error={formik.touched[fromField] && Boolean(formik.errors[fromField])}
+            helperText={formik.touched[fromField] && formik.errors[fromField]}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TextField
+            id={`${toField}-id`}
             fullWidth
             label="To"
-            name={`${prefix}to`}
-            value={values[`${prefix}to`]}
+            name={toField}
+            autoComplete="off"
+            value={values[toField]}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            error={
-              formik.touched[`${prefix}to`] &&
-              Boolean(formik.errors[`${prefix}to`])
-            }
-            helperText={
-              formik.touched[`${prefix}to`] && formik.errors[`${prefix}to`]
-            }
+            error={formik.touched[toField] && Boolean(formik.errors[toField])}
+            helperText={formik.touched[toField] && formik.errors[toField]}
           />
         </Grid>
-        <Grid size={{ xs: 12 }}>
+        <Grid item xs={12}>
           <TextField
+            id={`${airlineField}-id`}
             fullWidth
             select
             label="Preferred Airline"
-            name={`${prefix}airline`}
-            value={values[`${prefix}airline`]}
+            name={airlineField}
+            autoComplete="off"
+            value={values[airlineField]}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            error={
-              formik.touched[`${prefix}airline`] &&
-              Boolean(formik.errors[`${prefix}airline`])
-            }
-            helperText={
-              formik.touched[`${prefix}airline`] &&
-              formik.errors[`${prefix}airline`]
-            }
+            error={formik.touched[airlineField] && Boolean(formik.errors[airlineField])}
+            helperText={formik.touched[airlineField] && formik.errors[airlineField]}
           >
             {[
               "AirIndia",
@@ -326,94 +340,71 @@ const handleClientChange = (event) => {
             ))}
           </TextField>
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TextField
+            id={`${flightNoField}-id`}
             fullWidth
             label="Flight No."
-            name={`${prefix}flightNo`}
-            value={values[`${prefix}flightNo`]}
+            name={flightNoField}
+            autoComplete="off"
+            value={values[flightNoField]}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            error={
-              formik.touched[`${prefix}flightNo`] &&
-              Boolean(formik.errors[`${prefix}flightNo`])
-            }
-            helperText={
-              formik.touched[`${prefix}flightNo`] &&
-              formik.errors[`${prefix}flightNo`]
-            }
+            error={formik.touched[flightNoField] && Boolean(formik.errors[flightNoField])}
+            helperText={formik.touched[flightNoField] && formik.errors[flightNoField]}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TextField
+            id={`${fareField}-id`}
             fullWidth
             label="Fare"
-            name={`${prefix}fare`}
-            value={values[`${prefix}fare`]}
+            name={fareField}
+            type="number"
+            inputProps={{ inputMode: "numeric", min: 0 }}
+            autoComplete="off"
+            value={values[fareField]}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            error={
-              formik.touched[`${prefix}fare`] &&
-              Boolean(formik.errors[`${prefix}fare`])
-            }
-            helperText={
-              formik.touched[`${prefix}fare`] && formik.errors[`${prefix}fare`]
-            }
+            error={formik.touched[fareField] && Boolean(formik.errors[fareField])}
+            helperText={formik.touched[fareField] && formik.errors[fareField]}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <DatePicker
-            label={`${prefix ? "Return " : "Departure "}Date`}
-            value={
-              values[`${prefix}departureDate`] || values[`${prefix}returnDate`]
-            }
-            onChange={(val) =>
-              formik.setFieldValue(
-                `${prefix}${prefix ? "return" : "departure"}Date`,
-                val
-              )
-            }
+            label={isReturn ? "Return Date" : "Departure Date"}
+            value={values[dateField]}
+            onChange={(val) => formik.setFieldValue(dateField, val)}
             slotProps={{
               textField: {
+                id: `${dateField}-id`,
+                name: dateField,
                 fullWidth: true,
-                error:
-                  formik.touched[
-                    `${prefix}${prefix ? "return" : "departure"}Date`
-                  ] &&
-                  Boolean(
-                    formik.errors[
-                      `${prefix}${prefix ? "return" : "departure"}Date`
-                    ]
-                  ),
-                helperText:
-                  formik.touched[
-                    `${prefix}${prefix ? "return" : "departure"}Date`
-                  ] &&
-                  formik.errors[
-                    `${prefix}${prefix ? "return" : "departure"}Date`
-                  ],
+                onBlur: formik.handleBlur,
+                error: formik.touched[dateField] && Boolean(formik.errors[dateField]),
+                helperText: formik.touched[dateField] && formik.errors[dateField],
               },
             }}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TimePicker
-            label={`${prefix ? "Return " : "Departure "}Time`}
-            value={
-              values[`${prefix}departureTime`] || values[`${prefix}returnTime`]
-            }
-            onChange={(val) =>
-              formik.setFieldValue(
-                `${prefix}${prefix ? "return" : "departure"}Time`,
-                val
-              )
-            }
-            slotProps={{ textField: { fullWidth: true } }}
+            label={isReturn ? "Return Time" : "Departure Time"}
+            value={values[timeField]}
+            onChange={(val) => formik.setFieldValue(timeField, val)}
+            slotProps={{
+              textField: {
+                id: `${timeField}-id`,
+                name: timeField,
+                fullWidth: true,
+                onBlur: formik.handleBlur,
+              },
+            }}
           />
         </Grid>
       </Grid>
-    </>
-  );
+    );
+  };
 
   const renderAdditionalCity = (city, index) => (
     <Paper key={index} sx={{ p: 3, mb: 3, position: "relative" }}>
@@ -421,6 +412,7 @@ const handleClientChange = (event) => {
         sx={{ position: "absolute", top: 8, right: 8 }}
         onClick={() => deleteCity(index)}
         color="error"
+        aria-label={`delete-city-${index}`}
       >
         <DeleteIcon />
       </IconButton>
@@ -428,35 +420,35 @@ const handleClientChange = (event) => {
         Additional City {index + 1}
       </Typography>
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TextField
+            id={`ac-from-${index}`}
             fullWidth
             label="From"
+            name={`additionalCities[${index}].from`}
             value={city.from}
-            onChange={(e) =>
-              handleAdditionalCityChange(index, "from", e.target.value)
-            }
+            onChange={(e) => handleAdditionalCityChange(index, "from", e.target.value)}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TextField
+            id={`ac-to-${index}`}
             fullWidth
             label="To"
+            name={`additionalCities[${index}].to`}
             value={city.to}
-            onChange={(e) =>
-              handleAdditionalCityChange(index, "to", e.target.value)
-            }
+            onChange={(e) => handleAdditionalCityChange(index, "to", e.target.value)}
           />
         </Grid>
-        <Grid size={{ xs: 12 }}>
+        <Grid item xs={12}>
           <TextField
+            id={`ac-airline-${index}`}
             fullWidth
             select
             label="Preferred Airline"
+            name={`additionalCities[${index}].airline`}
             value={city.airline}
-            onChange={(e) =>
-              handleAdditionalCityChange(index, "airline", e.target.value)
-            }
+            onChange={(e) => handleAdditionalCityChange(index, "airline", e.target.value)}
           >
             {[
               "AirIndia",
@@ -474,325 +466,261 @@ const handleClientChange = (event) => {
             ))}
           </TextField>
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TextField
+            id={`ac-flightNo-${index}`}
             fullWidth
             label="Flight No."
+            name={`additionalCities[${index}].flightNo`}
             value={city.flightNo}
-            onChange={(e) =>
-              handleAdditionalCityChange(index, "flightNo", e.target.value)
-            }
+            onChange={(e) => handleAdditionalCityChange(index, "flightNo", e.target.value)}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TextField
+            id={`ac-fare-${index}`}
             fullWidth
             label="Fare"
+            type="number"
+            inputProps={{ inputMode: "numeric", min: 0 }}
+            name={`additionalCities[${index}].fare`}
             value={city.fare}
-            onChange={(e) =>
-              handleAdditionalCityChange(index, "fare", e.target.value)
-            }
+            onChange={(e) => handleAdditionalCityChange(index, "fare", e.target.value)}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <DatePicker
             label="Date"
             value={city.date}
             onChange={(val) => handleAdditionalCityChange(index, "date", val)}
-            slotProps={{ textField: { fullWidth: true } }}
+            slotProps={{ textField: { id: `ac-date-${index}`, name: `additionalCities[${index}].date`, fullWidth: true } }}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid item xs={12} md={6}>
           <TimePicker
             label="Time"
             value={city.time}
             onChange={(val) => handleAdditionalCityChange(index, "time", val)}
-            slotProps={{ textField: { fullWidth: true } }}
+            slotProps={{ textField: { id: `ac-time-${index}`, name: `additionalCities[${index}].time`, fullWidth: true } }}
           />
         </Grid>
       </Grid>
     </Paper>
   );
 
-    const PreviewDialog = () => (
-        <Dialog
-      open={previewOpen}
-      onClose={() => setPreviewOpen(false)}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          overflow: 'hidden'
-        }
-      }}
-    >
-      <DialogTitle
-        sx={{
-          background: 'linear-gradient(135deg, #1976d2 0%, #004ba0 100%)',
-          color: 'white',
-          py: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
+  // Preview dialog (self-contained, safe)
+  const PreviewDialog = ({ data }) => {
+    if (!data || !data.flightDetails || data.flightDetails.length === 0) return null;
+
+    return (
+      <Dialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: "hidden",
+          },
         }}
       >
-        <Box display="flex" alignItems="center">
-          <FlightTakeoff sx={{ mr: 1, fontSize: 28 }} />
-          <Typography variant="h5" component="div" fontWeight="600">
-            Iconic Yatra
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #1976d2 0%, #004ba0 100%)",
+            color: "white",
+            py: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Box display="flex" alignItems="center">
+            <FlightTakeoff sx={{ mr: 1, fontSize: 28 }} />
+            <Typography variant="h5" component="div" fontWeight="600">
+              Iconic Yatra
+            </Typography>
+          </Box>
+          <Typography variant="h6" component="div">
+            Flight Quotation Preview
           </Typography>
-        </Box>
-        <Typography variant="h6" component="div">
-          Flight Quotation Preview
-        </Typography>
-      </DialogTitle>
+        </DialogTitle>
 
-      <DialogContent sx={{ p: 0 }}>
-        {previewData && (
+        <DialogContent sx={{ p: 0 }}>
           <Box>
             {/* Header with trip type and client */}
-            <Box sx={{ p: 3, pb: 2, background: '#f9f9f9' }}>
+            <Box sx={{ p: 3, pb: 2, background: "#f9f9f9" }}>
               <Box display="flex" justifyContent="space-between" alignItems="flex-start">
                 <Chip
-                  label={previewData.tripType.toUpperCase()}
+                  label={data.tripType?.toUpperCase()}
                   color="primary"
                   variant="outlined"
-                  sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}
+                  sx={{ fontWeight: "bold", fontSize: "0.9rem" }}
                 />
                 <Box textAlign="right">
                   <Typography variant="body2" color="textSecondary">
                     Prepared for
                   </Typography>
                   <Typography variant="h6" color="primary" fontWeight="600">
-                    {previewData.clientName}
+                    {data.clientName || "-"}
                   </Typography>
                 </Box>
               </Box>
             </Box>
 
-            {/* Flight Details */}
+            {/* Flight Details (first leg) */}
             <Box sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                <FlightTakeoff sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
+                <FlightTakeoff sx={{ mr: 1, color: "primary.main" }} />
                 Flight Details
               </Typography>
-              
-              <Paper variant="outlined" sx={{ p: 2, mb: 2, background: '#fafafa' }}>
+
+              <Paper variant="outlined" sx={{ p: 2, mb: 2, background: "#fafafa" }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                   <Box>
                     <Typography variant="body2" color="textSecondary">
                       From
                     </Typography>
                     <Typography variant="h6" fontWeight="600">
-                      {previewData.from}
+                      {data.flightDetails?.[0]?.from || "-"}
                     </Typography>
                   </Box>
-                  
-                  <Box sx={{ textAlign: 'center', flex: 1 }}>
-                    <FlightTakeoff sx={{ color: 'success.main', fontSize: 20, verticalAlign: 'middle' }} />
-                    <Box sx={{ 
-                      display: 'inline-block', 
-                      height: '2px', 
-                      width: '40px', 
-                      bgcolor: 'grey.300', 
-                      mx: 1,
-                      verticalAlign: 'middle'
-                    }} />
-                    <FlightLand sx={{ color: 'error.main', fontSize: 20, verticalAlign: 'middle' }} />
+
+                  <Box sx={{ textAlign: "center", flex: 1 }}>
+                    <FlightTakeoff sx={{ color: "success.main", fontSize: 20, verticalAlign: "middle" }} />
+                    <Box
+                      sx={{
+                        display: "inline-block",
+                        height: "2px",
+                        width: "40px",
+                        bgcolor: "grey.300",
+                        mx: 1,
+                        verticalAlign: "middle",
+                      }}
+                    />
+                    <FlightLand sx={{ color: "error.main", fontSize: 20, verticalAlign: "middle" }} />
                   </Box>
-                  
-                  <Box sx={{ textAlign: 'right' }}>
+
+                  <Box sx={{ textAlign: "right" }}>
                     <Typography variant="body2" color="textSecondary">
                       To
                     </Typography>
                     <Typography variant="h6" fontWeight="600">
-                      {previewData.to}
+                      {data.flightDetails?.[0]?.to || "-"}
                     </Typography>
                   </Box>
                 </Box>
-                
+
                 <Divider sx={{ my: 2 }} />
-                
+
                 <Box display="flex" justifyContent="space-between">
                   <Box>
                     <Typography variant="body2" color="textSecondary">
                       Airline
                     </Typography>
                     <Typography variant="body1" fontWeight="500">
-                      {previewData.airline}
+                      {data.flightDetails?.[0]?.preferredAirline || "-"}
                     </Typography>
                   </Box>
-                  
-                  <Box sx={{ textAlign: 'center' }}>
+
+                  <Box sx={{ textAlign: "center" }}>
                     <Typography variant="body2" color="textSecondary">
                       Flight No
                     </Typography>
                     <Typography variant="body1" fontWeight="500">
-                      {previewData.flightNo}
+                      {data.flightDetails?.[0]?.flightNo || "-"}
                     </Typography>
                   </Box>
-                  
-                  <Box sx={{ textAlign: 'right' }}>
+
+                  <Box sx={{ textAlign: "right" }}>
                     <Typography variant="body2" color="textSecondary">
                       Fare
                     </Typography>
                     <Typography variant="body1" fontWeight="500" color="primary">
-                      {previewData.fare}
+                      {data.flightDetails?.[0]?.fare || "-"}
                     </Typography>
                   </Box>
                 </Box>
               </Paper>
 
-              {/* Return Flight Details */}
-              {previewData.tripType !== "oneway" && (
+              {/* Return / extra legs */}
+              {data.tripType !== "oneway" && data.flightDetails?.[1] && (
                 <>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mt: 3 }}>
-                    <FlightLand sx={{ mr: 1, color: 'primary.main' }} />
-                    Return Flight Details
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{ display: "flex", alignItems: "center", mt: 3 }}
+                  >
+                    <FlightLand sx={{ mr: 1, color: "primary.main" }} />
+                    Return / Next Flight
                   </Typography>
-                  
-                  <Paper variant="outlined" sx={{ p: 2, mb: 2, background: '#fafafa' }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                      <Box>
-                        <Typography variant="body2" color="textSecondary">
-                          From
-                        </Typography>
-                        <Typography variant="h6" fontWeight="600">
-                          {previewData.returnfrom}
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ textAlign: 'center', flex: 1 }}>
-                        <FlightTakeoff sx={{ color: 'success.main', fontSize: 20, verticalAlign: 'middle' }} />
-                        <Box sx={{ 
-                          display: 'inline-block', 
-                          height: '2px', 
-                          width: '40px', 
-                          bgcolor: 'grey.300', 
-                          mx: 1,
-                          verticalAlign: 'middle'
-                        }} />
-                        <FlightLand sx={{ color: 'error.main', fontSize: 20, verticalAlign: 'middle' }} />
-                      </Box>
-                      
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="body2" color="textSecondary">
-                          To
-                        </Typography>
-                        <Typography variant="h6" fontWeight="600">
-                          {previewData.returnto}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    
-                    <Divider sx={{ my: 2 }} />
-                    
-                    <Box display="flex" justifyContent="space-between">
-                      <Box>
-                        <Typography variant="body2" color="textSecondary">
-                          Airline
-                        </Typography>
-                        <Typography variant="body1" fontWeight="500">
-                          {previewData.returnairline}
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="body2" color="textSecondary">
-                          Flight No
-                        </Typography>
-                        <Typography variant="body1" fontWeight="500">
-                          {previewData.returnflightNo}
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="body2" color="textSecondary">
-                          Fare
-                        </Typography>
-                        <Typography variant="body1" fontWeight="500" color="primary">
-                          {previewData.returnfare}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Paper>
-                </>
-              )}
 
-              {/* Additional Cities */}
-              {previewData.additionalCities.length > 0 && (
-                <>
-                  <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
-                    Additional Cities
-                  </Typography>
-                  
-                  {previewData.additionalCities.map((city, index) => (
-                    <Paper key={index} variant="outlined" sx={{ p: 2, mb: 2, background: '#fafafa' }}>
-                      <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-                        City {index + 1}
-                      </Typography>
-                      
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                  {data.flightDetails.slice(1).map((leg, idx) => (
+                    <Paper key={idx} variant="outlined" sx={{ p: 2, mb: 2, background: "#fafafa" }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
                         <Box>
                           <Typography variant="body2" color="textSecondary">
                             From
                           </Typography>
-                          <Typography variant="body1" fontWeight="500">
-                            {city.from}
+                          <Typography variant="h6" fontWeight="600">
+                            {leg?.from || "-"}
                           </Typography>
                         </Box>
-                        
-                        <Box sx={{ textAlign: 'center', flex: 1 }}>
-                          <FlightTakeoff sx={{ color: 'success.main', fontSize: 20, verticalAlign: 'middle' }} />
-                          <Box sx={{ 
-                            display: 'inline-block', 
-                            height: '2px', 
-                            width: '40px', 
-                            bgcolor: 'grey.300', 
-                            mx: 1,
-                            verticalAlign: 'middle'
-                          }} />
-                          <FlightLand sx={{ color: 'error.main', fontSize: 20, verticalAlign: 'middle' }} />
+
+                        <Box sx={{ textAlign: "center", flex: 1 }}>
+                          <FlightTakeoff
+                            sx={{ color: "success.main", fontSize: 20, verticalAlign: "middle" }}
+                          />
+                          <Box
+                            sx={{
+                              display: "inline-block",
+                              height: "2px",
+                              width: "40px",
+                              bgcolor: "grey.300",
+                              mx: 1,
+                              verticalAlign: "middle",
+                            }}
+                          />
+                          <FlightLand sx={{ color: "error.main", fontSize: 20, verticalAlign: "middle" }} />
                         </Box>
-                        
-                        <Box sx={{ textAlign: 'right' }}>
+
+                        <Box sx={{ textAlign: "right" }}>
                           <Typography variant="body2" color="textSecondary">
                             To
                           </Typography>
-                          <Typography variant="body1" fontWeight="500">
-                            {city.to}
+                          <Typography variant="h6" fontWeight="600">
+                            {leg?.to || "-"}
                           </Typography>
                         </Box>
                       </Box>
-                      
-                      <Divider sx={{ my: 1 }} />
-                      
+
+                      <Divider sx={{ my: 2 }} />
+
                       <Box display="flex" justifyContent="space-between">
                         <Box>
                           <Typography variant="body2" color="textSecondary">
                             Airline
                           </Typography>
-                          <Typography variant="body1">
-                            {city.airline}
+                          <Typography variant="body1" fontWeight="500">
+                            {leg?.preferredAirline || "-"}
                           </Typography>
                         </Box>
-                        
-                        <Box sx={{ textAlign: 'center' }}>
+
+                        <Box sx={{ textAlign: "center" }}>
                           <Typography variant="body2" color="textSecondary">
                             Flight No
                           </Typography>
-                          <Typography variant="body1">
-                            {city.flightNo}
+                          <Typography variant="body1" fontWeight="500">
+                            {leg?.flightNo || "-"}
                           </Typography>
                         </Box>
-                        
-                        <Box sx={{ textAlign: 'right' }}>
+
+                        <Box sx={{ textAlign: "right" }}>
                           <Typography variant="body2" color="textSecondary">
                             Fare
                           </Typography>
-                          <Typography variant="body1" color="primary">
-                            {city.fare}
+                          <Typography variant="body1" fontWeight="500" color="primary">
+                            {leg?.fare || "-"}
                           </Typography>
                         </Box>
                       </Box>
@@ -803,102 +731,83 @@ const handleClientChange = (event) => {
 
               {/* Passengers */}
               <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                  <AirlineSeatReclineNormal sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
+                  <AirlineSeatReclineNormal sx={{ mr: 1, color: "primary.main" }} />
                   Passengers
                 </Typography>
-                
+
                 <Box display="flex" gap={2}>
                   <Chip
-                    avatar={<Avatar>{previewData.adults}</Avatar>}
+                    avatar={<Avatar>{data.adults || 0}</Avatar>}
                     label="Adults"
                     variant="outlined"
                     color="primary"
                   />
                   <Chip
-                    avatar={<Avatar>{previewData.childs}</Avatar>}
+                    avatar={<Avatar>{data.childs || 0}</Avatar>}
                     label="Children"
                     variant="outlined"
                     color="secondary"
                   />
-                  <Chip
-                    avatar={<Avatar>{previewData.infants}</Avatar>}
-                    label="Infants"
-                    variant="outlined"
-                  />
+                  <Chip avatar={<Avatar>{data.infants || 0}</Avatar>} label="Infants" variant="outlined" />
                 </Box>
               </Box>
 
               {/* Message */}
-              {previewData.message && (
+              {data.message && (
                 <Box sx={{ mt: 3 }}>
                   <Typography variant="h6" gutterBottom>
                     Message
                   </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, background: '#f9f9f9' }}>
-                    <Typography variant="body2">
-                      {previewData.message}
-                    </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, background: "#f9f9f9" }}>
+                    <Typography variant="body2">{data.message}</Typography>
                   </Paper>
                 </Box>
               )}
 
               {/* Personal Details */}
               <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Person sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
+                  <Person sx={{ mr: 1, color: "primary.main" }} />
                   Personal Details
                 </Typography>
-                
+
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Box display="flex" alignItems="center" mb={1}>
-                    <Person sx={{ mr: 1, color: 'action.active' }} />
-                    <Typography variant="body1">
-                      {previewData.fullName}
-                    </Typography>
+                    <Person sx={{ mr: 1, color: "action.active" }} />
+                    <Typography variant="body1">{data.fullName || "-"}</Typography>
                   </Box>
-                  
+
                   <Box display="flex" alignItems="center" mb={1}>
-                    <Phone sx={{ mr: 1, color: 'action.active' }} />
-                    <Typography variant="body1">
-                      {previewData.mobile}
-                    </Typography>
+                    <Phone sx={{ mr: 1, color: "action.active" }} />
+                    <Typography variant="body1">{data.mobile || "-"}</Typography>
                   </Box>
-                  
+
                   <Box display="flex" alignItems="center">
-                    <Email sx={{ mr: 1, color: 'action.active' }} />
-                    <Typography variant="body1">
-                      {previewData.email}
-                    </Typography>
+                    <Email sx={{ mr: 1, color: "action.active" }} />
+                    <Typography variant="body1">{data.email || "-"}</Typography>
                   </Box>
                 </Paper>
               </Box>
             </Box>
           </Box>
-        )}
-      </DialogContent>
-      
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button 
-          onClick={() => setPreviewOpen(false)} 
-          variant="outlined"
-          startIcon={<Close />}
-        >
-          Close
-        </Button>
-        <Button 
-          variant="contained"
-          onClick={() => window.print()}
-        >
-          Print Quotation
-        </Button>
-      </DialogActions>
-    </Dialog>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setPreviewOpen(false)} variant="outlined" startIcon={<Close />}>
+            Close
+          </Button>
+          <Button variant="contained" onClick={() => window.print()}>
+            Print Quotation
+          </Button>
+        </DialogActions>
+      </Dialog>
     );
+  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <form onSubmit={formik.handleSubmit}>
+      <form onSubmit={formik.handleSubmit} noValidate>
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             Quotation Flight Section
@@ -914,66 +823,66 @@ const handleClientChange = (event) => {
                 key={type}
                 value={type}
                 control={<Radio />}
-                label={
-                  type === "oneway"
-                    ? "One Way"
-                    : type === "roundtrip"
-                    ? "Round-Trip"
-                    : "Multi City"
-                }
+                label={type === "oneway" ? "One Way" : type === "roundtrip" ? "Round-Trip" : "Multi City"}
               />
             ))}
           </RadioGroup>
         </Paper>
 
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="subtitle1">Client Details</Typography>
+          <Typography variant="subtitle1" gutterBottom>
+            Client Details
+          </Typography>
           <TextField
-  select
-  fullWidth
-  label="Client Name"
-  name="clientName"
-  value={formik.values.clientName}
-  onChange={handleClientChange}
->
-  {leadList.map((lead, index) => (
-    <MenuItem key={index} value={lead.personalDetails.fullName}>
-      {lead.personalDetails.fullName}
-    </MenuItem>
-  ))}
-  </TextField>
+            id="clientName-id"
+            select
+            fullWidth
+            label="Client Name"
+            name="clientName"
+            value={formik.values.clientName}
+            onChange={handleClientChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.clientName && Boolean(formik.errors.clientName)}
+            helperText={formik.touched.clientName && formik.errors.clientName}
+          >
+            {leadList.map((lead, index) => (
+              <MenuItem key={index} value={lead?.personalDetails?.fullName || ""}>
+                {lead?.personalDetails?.fullName || "-"}
+              </MenuItem>
+            ))}
+          </TextField>
         </Paper>
 
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <Paper sx={{ p: 3, mb: 3 }}>
               <Typography variant="subtitle1" gutterBottom>
                 Flight Details
               </Typography>
-              {renderFlightDetails()}
+              {renderFlightDetails(false)}
             </Paper>
           </Grid>
 
-          {(formik.values.tripType === "roundtrip" ||
-            formik.values.tripType === "multicity") && (
-            <Grid size={{ xs: 12, md: 6 }}>
+          {(formik.values.tripType === "roundtrip" || formik.values.tripType === "multicity") && (
+            <Grid item xs={12} md={6}>
               <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="subtitle1" gutterBottom>
-                  Flight Details
+                  {formik.values.tripType === "roundtrip" ? "Return Flight Details" : "Next Flight Details"}
                 </Typography>
-                {renderFlightDetails("return", formik.values)}
+                {renderFlightDetails(true)}
               </Paper>
             </Grid>
           )}
         </Grid>
+
         {formik.values.tripType === "multicity" && (
           <Grid container spacing={2}>
             {formik.values.additionalCities.map((city, index) => (
-              <Grid size={{ xs: 12, md: 6 }} key={index}>
+              <Grid item xs={12} md={6} key={index}>
                 {renderAdditionalCity(city, index)}
               </Grid>
             ))}
-            <Grid size={{ xs: 12 }}>
+            <Grid item xs={12}>
               <Button
                 variant="contained"
                 color="primary"
@@ -1003,9 +912,12 @@ const handleClientChange = (event) => {
         <Paper sx={{ p: 3, mb: 3 }}>
           <Grid container spacing={2}>
             {["adults", "childs", "infants"].map((field) => (
-              <Grid key={field} size={{ xs: 4 }}>
+              <Grid key={field} item xs={12} sm={4}>
                 <TextField
+                  id={`${field}-id`}
                   fullWidth
+                  type="number"
+                  inputProps={{ inputMode: "numeric", min: 0 }}
                   label={
                     field === "adults"
                       ? "Adults (12+ Yrs)"
@@ -1022,8 +934,9 @@ const handleClientChange = (event) => {
                 />
               </Grid>
             ))}
-            <Grid size={{ xs: 12 }}>
+            <Grid item xs={12}>
               <TextField
+                id="message-id"
                 fullWidth
                 multiline
                 rows={2}
@@ -1039,26 +952,48 @@ const handleClientChange = (event) => {
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="subtitle1">Personal Details</Typography>
           <Grid container spacing={2}>
-            {["fullName", "mobile", "email"].map((field, index) => (
-              <Grid key={field} size={{ xs: index === 2 ? 12 : 6 }}>
-                <TextField
-                  fullWidth
-                  label={
-                    field === "fullName"
-                      ? "Full Name"
-                      : field === "mobile"
-                      ? "Mobile Number"
-                      : "Email Id"
-                  }
-                  name={field}
-                  value={formik.values[field]}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  error={formik.touched[field] && Boolean(formik.errors[field])}
-                  helperText={formik.touched[field] && formik.errors[field]}
-                />
-              </Grid>
-            ))}
+            <Grid item xs={12} md={6}>
+              <TextField
+                id="fullName-id"
+                fullWidth
+                label="Full Name"
+                name="fullName"
+                autoComplete="name"
+                value={formik.values.fullName}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                error={formik.touched.fullName && Boolean(formik.errors.fullName)}
+                helperText={formik.touched.fullName && formik.errors.fullName}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                id="mobile-id"
+                fullWidth
+                label="Mobile Number"
+                name="mobile"
+                autoComplete="tel"
+                value={formik.values.mobile}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                error={formik.touched.mobile && Boolean(formik.errors.mobile)}
+                helperText={formik.touched.mobile && formik.errors.mobile}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                id="email-id"
+                fullWidth
+                label="Email Id"
+                name="email"
+                autoComplete="email"
+                value={formik.values.email}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                error={formik.touched.email && Boolean(formik.errors.email)}
+                helperText={formik.touched.email && formik.errors.email}
+              />
+            </Grid>
           </Grid>
         </Paper>
 
@@ -1066,27 +1001,18 @@ const handleClientChange = (event) => {
           <Button type="submit" variant="contained" color="primary">
             Save
           </Button>
-          <Button
-            variant="outlined"
-            color="info"
-            startIcon={<VisibilityIcon />}
-            onClick={handlePreview}
-          >
+          <Button variant="outlined" color="info" startIcon={<VisibilityIcon />} onClick={handlePreview}>
             View
           </Button>
-          <Button
-            type="reset"
-            variant="outlined"
-            color="secondary"
-            onClick={formik.handleReset}
-          >
+          <Button type="reset" variant="outlined" color="secondary" onClick={formik.handleReset}>
             Clear Form
           </Button>
         </Box>
 
-        <PreviewDialog />
+        <PreviewDialog data={previewData} />
       </form>
     </LocalizationProvider>
   );
 };
+
 export default QuotationFlightForm;
