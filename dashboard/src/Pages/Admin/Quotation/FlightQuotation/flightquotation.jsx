@@ -110,59 +110,64 @@ const QuotationFlightForm = () => {
     initialValues,
     validationSchema,
     onSubmit: async (values) => {
-      const payload = {
-        tripType: values.tripType,
-        clientDetails: {
-          clientName: values.clientName,
-        },
-        flightDetails: [
-          {
-            from: values.from,
-            to: values.to,
-            preferredAirline: values.airline,
-            flightNo: values.flightNo,
-            fare: Number(values.fare),
-            departureDate: values.departureDate,
-            departureTime: values.departureTime,
-          },
-        ],
-        adults: Number(values.adults || 0),
-        childs: Number(values.childs || 0),
-        infants: Number(values.infants || 0),
-        anyMessage: values.message,
-        personalDetails: {
-          fullName: values.fullName,
-          mobileNumber: values.mobile,
-          emailId: values.email,
-        },
-      };
+     const payload = {
+  tripType: values.tripType,
+  clientDetails: {
+    clientName: values.clientName,
+  },
+  flightDetails: [],
+  adults: Number(values.adults || 0),
+  childs: Number(values.childs || 0),
+  infants: Number(values.infants || 0),
+  anyMessage: values.message,
+  personalDetails: {
+    fullName: values.fullName,
+    mobileNumber: values.mobile,
+    emailId: values.email,
+  },
+};
 
-      // Roundtrip block
-      if (values.tripType === "roundtrip") {
-        payload.flightDetails.push({
-          from: values.returnFrom,
-          to: values.returnTo,
-          preferredAirline: values.returnAirline,
-          flightNo: values.returnFlightNo,
-          fare: Number(values.returnFare || 0),
-          departureDate: values.returnDate,
-          departureTime: values.returnTime,
-        });
-      }
+// Always push first flight
+payload.flightDetails.push({
+  from: values.from,
+  to: values.to,
+  preferredAirline: values.airline,
+  flightNo: values.flightNo,
+  fare: Number(values.fare),
+  departureDate: values.departureDate,
+  departureTime: values.departureTime,
+});
 
-      // Multicity block
-      if (values.tripType === "multicity" && values.additionalCities.length > 0) {
-        const multiCities = values.additionalCities.map((city) => ({
-          from: city.from,
-          to: city.to,
-          preferredAirline: city.airline,
-          flightNo: city.flightNo,
-          fare: Number(city.fare || 0),
-          departureDate: city.date,
-          departureTime: city.time,
-        }));
-        payload.flightDetails.push(...multiCities);
-      }
+// Add return flight for roundtrip
+// Add 2nd flight if user filled it (for both roundtrip & multicity)
+if (values.returnFrom && values.returnTo) {
+  payload.flightDetails.push({
+    from: values.returnFrom,
+    to: values.returnTo,
+    preferredAirline: values.returnAirline,
+    flightNo: values.returnFlightNo,
+    fare: Number(values.returnFare || 0),
+    departureDate: values.returnDate,
+    departureTime: values.returnTime,
+  });
+}
+
+
+// Add multicity flights
+if (values.tripType === "multicity" && values.additionalCities.length > 0) {
+  values.additionalCities.forEach((city) => {
+    payload.flightDetails.push({
+      from: city.from,
+      to: city.to,
+      preferredAirline: city.airline,
+      flightNo: city.flightNo,
+      fare: Number(city.fare || 0),
+      departureDate: city.date,
+      departureTime: city.time,
+    });
+  });
+}
+
 
       await dispatch(createFlightQuotation(payload));
       formik.resetForm();
@@ -187,72 +192,80 @@ const QuotationFlightForm = () => {
   };
 
   const handleAdditionalCityChange = (index, field, value) => {
-    const updatedCities = [...formik.values.additionalCities];
-    updatedCities[index][field] = value;
-    formik.setFieldValue("additionalCities", updatedCities);
-  };
+  const updatedCities = formik.values.additionalCities.map((city, i) =>
+    i === index ? { ...city, [field]: value } : city
+  );
+  formik.setFieldValue("additionalCities", updatedCities);
+};
+
 
   const deleteCity = (index) => {
     const updatedCities = formik.values.additionalCities.filter((_, i) => i !== index);
     formik.setFieldValue("additionalCities", updatedCities);
   };
 
-  const handlePreview = () => {
-    // Build a preview payload matching what the dialog expects
-    const v = formik.values;
-    const flightDetails = [
-      {
-        from: v.from,
-        to: v.to,
-        preferredAirline: v.airline,
-        flightNo: v.flightNo,
-        fare: v.fare,
-        departureDate: v.departureDate,
-        departureTime: v.departureTime,
-      },
-    ];
+ const handlePreview = () => {
+  const v = formik.values;
+  const flightDetails = [];
 
-    if (v.tripType === "roundtrip") {
+  // Always add first flight
+  flightDetails.push({
+    from: v.from,
+    to: v.to,
+    preferredAirline: v.airline,
+    flightNo: v.flightNo,
+    fare: v.fare,
+    departureDate: v.departureDate,
+    departureTime: v.departureTime,
+  });
+
+  // Roundtrip
+  // Add 2nd flight if user filled it (for both roundtrip & multicity)
+if (v.returnFrom && v.returnTo) {
+  flightDetails.push({
+    from: v.returnFrom,
+    to: v.returnTo,
+    preferredAirline: v.returnAirline,
+    flightNo: v.returnFlightNo,
+    fare: v.returnFare,
+    departureDate: v.returnDate,
+    departureTime: v.returnTime,
+  });
+}
+
+
+  // Multicity
+  if (v.tripType === "multicity" && v.additionalCities.length > 0) {
+    v.additionalCities.forEach((c) => {
       flightDetails.push({
-        from: v.returnFrom,
-        to: v.returnTo,
-        preferredAirline: v.returnAirline,
-        flightNo: v.returnFlightNo,
-        fare: v.returnFare,
-        departureDate: v.returnDate,
-        departureTime: v.returnTime,
+        from: c.from,
+        to: c.to,
+        preferredAirline: c.airline,
+        flightNo: c.flightNo,
+        fare: c.fare,
+        departureDate: c.date,
+        departureTime: c.time,
       });
-    }
-
-    if (v.tripType === "multicity" && v.additionalCities.length > 0) {
-      v.additionalCities.forEach((c) =>
-        flightDetails.push({
-          from: c.from,
-          to: c.to,
-          preferredAirline: c.airline,
-          flightNo: c.flightNo,
-          fare: c.fare,
-          departureDate: c.date,
-          departureTime: c.time,
-        })
-      );
-    }
-
-    setPreviewData({
-      tripType: v.tripType,
-      clientName: v.clientName,
-      flightDetails,
-      additionalCities: v.additionalCities || [],
-      adults: v.adults,
-      childs: v.childs,
-      infants: v.infants,
-      message: v.message,
-      fullName: v.fullName,
-      mobile: v.mobile,
-      email: v.email,
     });
-    setPreviewOpen(true);
-  };
+  }
+
+  setPreviewData({
+    tripType: v.tripType,
+    clientName: v.clientName,
+    flightDetails,
+    adults: v.adults,
+    childs: v.childs,
+    infants: v.infants,
+    message: v.message,
+    fullName: v.fullName,
+    mobile: v.mobile,
+    email: v.email,
+  });
+
+  setPreviewOpen(true);
+};
+
+
 
   const handleClientChange = (event) => {
     const selectedClientName = event.target.value;
@@ -644,90 +657,89 @@ const QuotationFlightForm = () => {
               </Paper>
 
               {/* Return / extra legs */}
-              {data.tripType !== "oneway" && data.flightDetails?.[1] && (
-                <>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", mt: 3 }}
-                  >
-                    <FlightLand sx={{ mr: 1, color: "primary.main" }} />
-                    Return / Next Flight
-                  </Typography>
+             {/* Next flights / Multi-city legs */}
+{data.flightDetails.length > 1 && (
+  <>
+    <Typography
+      variant="h6"
+      gutterBottom
+      sx={{ display: "flex", alignItems: "center", mt: 3 }}
+    >
+      <FlightLand sx={{ mr: 1, color: "primary.main" }} />
+      {data.tripType === "multicity" ? "Multi-City Flight Details" : "Return / Next Flight"}
+    </Typography>
 
-                  {data.flightDetails.slice(1).map((leg, idx) => (
-                    <Paper key={idx} variant="outlined" sx={{ p: 2, mb: 2, background: "#fafafa" }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Box>
-                          <Typography variant="body2" color="textSecondary">
-                            From
-                          </Typography>
-                          <Typography variant="h6" fontWeight="600">
-                            {leg?.from || "-"}
-                          </Typography>
-                        </Box>
+    {data.flightDetails.slice(1).map((leg, idx) => (
+      <Paper key={idx} variant="outlined" sx={{ p: 2, mb: 2, background: "#fafafa" }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box>
+            <Typography variant="body2" color="textSecondary">
+              From
+            </Typography>
+            <Typography variant="h6" fontWeight="600">
+              {leg?.from || "-"}
+            </Typography>
+          </Box>
 
-                        <Box sx={{ textAlign: "center", flex: 1 }}>
-                          <FlightTakeoff
-                            sx={{ color: "success.main", fontSize: 20, verticalAlign: "middle" }}
-                          />
-                          <Box
-                            sx={{
-                              display: "inline-block",
-                              height: "2px",
-                              width: "40px",
-                              bgcolor: "grey.300",
-                              mx: 1,
-                              verticalAlign: "middle",
-                            }}
-                          />
-                          <FlightLand sx={{ color: "error.main", fontSize: 20, verticalAlign: "middle" }} />
-                        </Box>
+          <Box sx={{ textAlign: "center", flex: 1 }}>
+            <FlightTakeoff sx={{ color: "success.main", fontSize: 20 }} />
+            <Box
+              sx={{
+                display: "inline-block",
+                height: "2px",
+                width: "40px",
+                bgcolor: "grey.300",
+                mx: 1,
+              }}
+            />
+            <FlightLand sx={{ color: "error.main", fontSize: 20 }} />
+          </Box>
 
-                        <Box sx={{ textAlign: "right" }}>
-                          <Typography variant="body2" color="textSecondary">
-                            To
-                          </Typography>
-                          <Typography variant="h6" fontWeight="600">
-                            {leg?.to || "-"}
-                          </Typography>
-                        </Box>
-                      </Box>
+          <Box sx={{ textAlign: "right" }}>
+            <Typography variant="body2" color="textSecondary">
+              To
+            </Typography>
+            <Typography variant="h6" fontWeight="600">
+              {leg?.to || "-"}
+            </Typography>
+          </Box>
+        </Box>
 
-                      <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 2 }} />
 
-                      <Box display="flex" justifyContent="space-between">
-                        <Box>
-                          <Typography variant="body2" color="textSecondary">
-                            Airline
-                          </Typography>
-                          <Typography variant="body1" fontWeight="500">
-                            {leg?.preferredAirline || "-"}
-                          </Typography>
-                        </Box>
+        <Box display="flex" justifyContent="space-between">
+          <Box>
+            <Typography variant="body2" color="textSecondary">
+              Airline
+            </Typography>
+            <Typography variant="body1" fontWeight="500">
+              {leg?.preferredAirline || "-"}
+            </Typography>
+          </Box>
 
-                        <Box sx={{ textAlign: "center" }}>
-                          <Typography variant="body2" color="textSecondary">
-                            Flight No
-                          </Typography>
-                          <Typography variant="body1" fontWeight="500">
-                            {leg?.flightNo || "-"}
-                          </Typography>
-                        </Box>
+          <Box sx={{ textAlign: "center" }}>
+            <Typography variant="body2" color="textSecondary">
+              Flight No
+            </Typography>
+            <Typography variant="body1" fontWeight="500">
+              {leg?.flightNo || "-"}
+            </Typography>
+          </Box>
 
-                        <Box sx={{ textAlign: "right" }}>
-                          <Typography variant="body2" color="textSecondary">
-                            Fare
-                          </Typography>
-                          <Typography variant="body1" fontWeight="500" color="primary">
-                            {leg?.fare || "-"}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Paper>
-                  ))}
-                </>
-              )}
+          <Box sx={{ textAlign: "right" }}>
+            <Typography variant="body2" color="textSecondary">
+              Fare
+            </Typography>
+            <Typography variant="body1" fontWeight="500" color="primary">
+              {leg?.fare || "-"}
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
+    ))}
+  </>
+)}
+
 
               {/* Passengers */}
               <Box sx={{ mt: 3 }}>
