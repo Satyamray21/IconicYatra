@@ -204,81 +204,112 @@ const FlightFinalize = () => {
           </Paper>
 
           <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-            <Box display="flex" alignItems="center" mb={2}>
-              <Flight sx={{ color: "orange", mr: 1 }} />
-              <Typography variant="h6" color="orange">
-                <b>Flight Booking Details (One Way)</b>
-              </Typography>
-            </Box>
-          <Grid container spacing={2}>
-  {flightData.map((flight, index) => (
-    <Paper
-      key={index}
-      elevation={3}
-      sx={{
-        p: 2,
-        mb: 2,
-        borderRadius: 2,
-        bgcolor: index % 2 === 0 ? "#f9f9f9" : "#eef7ff",
-        border: "1px solid #ddd",
-        boxShadow: "0px 2px 6px rgba(0,0,0,0.1)",
-      }}
-    >
-      {/* Flight Header */}
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        mb={1}
-        sx={{ borderBottom: "1px solid #ccc", pb: 1 }}
+  {/* Header Section */}
+  <Box
+    display="flex"
+    alignItems="center"
+    justifyContent="space-between"
+    mb={2}
+  >
+    <Box display="flex" alignItems="center">
+      <Flight sx={{ color: "orange", mr: 1 }} />
+      <Typography variant="h6" color="orange">
+        <b>
+          Flight Booking Details{" "}
+          {quotation?.tripType === "oneway"
+            ? "(One Way Trip)"
+            : quotation?.tripType === "roundtrip"
+            ? "(Round Trip)"
+            : quotation?.tripType === "multicity"
+            ? "(Multi City Trip)"
+            : ""}
+        </b>
+      </Typography>
+    </Box>
+
+    {/* Total Fare Chip */}
+    <Chip
+      label={`Total Fare: ₹ ${flightData.reduce(
+        (total, flight) => total + (parseFloat(flight.fare) || 0),
+        0
+      )}`}
+      color="success"
+      variant="outlined"
+      sx={{ fontWeight: "bold", fontSize: "14px" }}
+    />
+  </Box>
+
+  {/* Flight Details Section */}
+  <Grid container spacing={2}>
+    {flightData.map((flight, index) => (
+      <Paper
+        key={index}
+        elevation={3}
+        sx={{
+          p: 2,
+          mb: 2,
+          borderRadius: 2,
+          bgcolor: index % 2 === 0 ? "#f9f9f9" : "#eef7ff",
+          border: "1px solid #ddd",
+          boxShadow: "0px 2px 6px rgba(0,0,0,0.1)",
+        }}
       >
-        <Typography variant="h6" fontWeight="bold" color="primary">
-          ✈️ Flight {index + 1}
-        </Typography>
-        <Chip
-          label={`₹ ${flight.fare}`}
-          color="success"
-          variant="outlined"
-          sx={{ fontWeight: "bold" }}
-        />
-      </Box>
-
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Typography fontWeight="bold">From:</Typography>
-          <Typography>{flight.from}</Typography>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Typography fontWeight="bold">To:</Typography>
-          <Typography>{flight.to}</Typography>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Typography fontWeight="bold">Airline:</Typography>
-          <Typography>{flight.preferredAirline}</Typography>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Typography fontWeight="bold">Flight Number:</Typography>
-          <Typography>{flight.flightNo}</Typography>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Typography fontWeight="bold">Fare:</Typography>
-          <Typography color="green" fontWeight="bold">
-            ₹ {flight.fare}
+        {/* Flight Header */}
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+          mb={1}
+          sx={{ borderBottom: "1px solid #ccc", pb: 1 }}
+        >
+          <Typography variant="h6" fontWeight="bold" color="primary">
+            ✈️ Flight {index + 1}
           </Typography>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Typography fontWeight="bold">Departure:</Typography>
-          <Typography>
-            {new Date(flight.departureDate).toLocaleDateString()} —{" "}
-            {new Date(flight.departureTime).toLocaleTimeString()}
-          </Typography>
-        </Grid>
-      </Grid>
-    </Paper>
-  ))}
-</Grid>
+          <Chip
+            label={`₹ ${flight.fare}`}
+            color="success"
+            variant="outlined"
+            sx={{ fontWeight: "bold" }}
+          />
+        </Box>
 
-          </Paper>
+        {/* Flight Info */}
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography fontWeight="bold">From:</Typography>
+            <Typography>{flight.from}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography fontWeight="bold">To:</Typography>
+            <Typography>{flight.to}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography fontWeight="bold">Airline:</Typography>
+            <Typography>{flight.preferredAirline}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography fontWeight="bold">Flight Number:</Typography>
+            <Typography>{flight.flightNo}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography fontWeight="bold">Fare:</Typography>
+            <Typography color="green" fontWeight="bold">
+              ₹ {flight.fare}
+            </Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography fontWeight="bold">Departure:</Typography>
+            <Typography>
+              {new Date(flight.departureDate).toLocaleDateString()} —{" "}
+              {new Date(flight.departureTime).toLocaleTimeString()}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Paper>
+    ))}
+  </Grid>
+</Paper>
+
           <Box mt={3} textAlign="center">
             <Typography variant="body2" color="textSecondary">
               For any changes or queries, please contact our support team
