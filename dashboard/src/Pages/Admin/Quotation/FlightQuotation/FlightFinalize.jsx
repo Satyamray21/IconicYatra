@@ -213,27 +213,27 @@ const FlightFinalize = () => {
             <Grid container spacing={2}>
   {flightData.map((flight, index) => (
     <React.Fragment key={index}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{xs:12, md:6}}>
         <Typography fontWeight="bold">From:</Typography>
         <Typography>{flight.from}</Typography>
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid size={{xs:12, md:6}}>
         <Typography fontWeight="bold">To:</Typography>
         <Typography>{flight.to}</Typography>
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid size={{xs:12, md:6}}>
         <Typography fontWeight="bold">Airline:</Typography>
         <Typography>{flight.preferredAirline}</Typography>
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid size={{xs:12, md:6}}>
         <Typography fontWeight="bold">Flight Number:</Typography>
         <Typography>{flight.flightNo}</Typography>
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid size={{xs:12, md:6}}>
         <Typography fontWeight="bold">Fare:</Typography>
         <Typography>₹ {flight.fare}</Typography>
       </Grid>
-      <Grid item xs={12} md={6}>
+      <Grid size={{xs:12, md:6}}>
         <Typography fontWeight="bold">Departure:</Typography>
         <Typography>
           {new Date(flight.departureDate).toLocaleDateString()} —{" "}
