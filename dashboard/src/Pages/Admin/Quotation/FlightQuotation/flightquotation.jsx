@@ -347,7 +347,7 @@ if (v.returnFrom && v.returnTo) {
               "AirDeccan",
               "GoAir",
             ].map((item) => (
-              <MenuItem key={item} value={`airline${item}`}>
+              <MenuItem key={item} value={`${item}`}>
                 {item}
               </MenuItem>
             ))}
