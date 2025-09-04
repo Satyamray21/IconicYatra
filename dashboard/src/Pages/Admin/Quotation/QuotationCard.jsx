@@ -276,6 +276,15 @@ useEffect(() => {
                 rowsPerPageOptions={[7, 25, 50, 100]}
                 autoHeight
                 disableRowSelectionOnClick
+                onRowClick={(params) => {
+                if (params.row.type === "Flight") {
+                  navigate("/flightfinalize");
+                } else if (params.row.type === "Vehicle") {
+                  navigate("/vehiclefinalize");
+                } else {
+                  navigate(`/quotation/${params.row.id}`);
+                }
+              }}
               />
             )}
           </Box>
