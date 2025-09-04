@@ -31,6 +31,7 @@ import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 
 import { getAllVehicleQuotations } from "../../../features/quotation/vehicleQuotationSlice";
+import { getAllFlightQuotations } from "../../../features/quotation/flightQuotationSlice";
 
 const stats = [
   { title: "Today's", confirmed: 0, inProcess: 0, cancelledIncomplete: 0 },
@@ -44,28 +45,35 @@ const QuotationCard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // ✅ Redux State
-  const { list, loading, error } = useSelector((state) => state.vehicleQuotation);
+  const {
+    list: vehicleList,
+    loading: vehicleLoading,
+    error: vehicleError,
+  } = useSelector((state) => state.vehicleQuotation);
 
-  // Local state for modal
+  const { quotations: flightList } = useSelector((state) => state.flightQuotation);
+
+
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState("");
+  const [search, setSearch] = useState("");
 
-  // ✅ Fetch data from API on mount
   useEffect(() => {
     dispatch(getAllVehicleQuotations());
+    dispatch(getAllFlightQuotations());
   }, [dispatch]);
+useEffect(() => {
+  console.log("Vehicle List:", vehicleList);
+  console.log("Flight List:", flightList);
+}, [vehicleList, flightList]);
 
-  // Delete handler (temporarily local, will connect to API later)
   const handleDeleteClick = (id) => {
     console.log("Delete quotation id:", id);
   };
 
-  // Modal controls
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  // Navigate to selected quotation type
   const handleNext = () => {
     handleClose();
     switch (selectedType) {
@@ -92,24 +100,35 @@ const QuotationCard = () => {
     }
   };
 
+  // Format Date Safely
+  const formatDate = (date) => {
+    if (!date) return "N/A";
+    try {
+      return new Date(date).toLocaleDateString("en-IN");
+    } catch {
+      return "N/A";
+    }
+  };
+
+  // Table Columns
   const columns = [
-    { field: "id", headerName: "Sr No.", width: 60 },
+    { field: "id", headerName: "Sr No.", width: 80 },
     { field: "quoteId", headerName: "Quote Id", width: 140 },
     { field: "clientName", headerName: "Client Name", width: 200 },
-    { field: "arrival", headerName: "Arrival", width: 120 },
-    { field: "departure", headerName: "Departure", width: 120 },
-    { field: "sector", headerName: "Sector", width: 120 },
-    { field: "title", headerName: "Title", width: 120 },
+    { field: "arrival", headerName: "Arrival", width: 140 },
+    { field: "departure", headerName: "Departure", width: 140 },
+    { field: "sector", headerName: "Sector", width: 180 },
+    { field: "title", headerName: "Title", width: 180 },
     { field: "noOfNight", headerName: "No of Night", width: 120 },
     { field: "tourType", headerName: "Tour Type", width: 120 },
     { field: "type", headerName: "Type", width: 120 },
-    { field: "quotationStatus", headerName: "Quotation Status", width: 150 },
-    { field: "formStatus", headerName: "Form Status", width: 120 },
-    { field: "businessType", headerName: "Business Type", width: 120 },
+    { field: "quotationStatus", headerName: "Quotation Status", width: 160 },
+    { field: "formStatus", headerName: "Form Status", width: 140 },
+    { field: "businessType", headerName: "Business Type", width: 140 },
     {
       field: "action",
       headerName: "Action",
-      width: 100,
+      width: 120,
       renderCell: (params) => (
         <Box display="flex" gap={1}>
           <IconButton color="primary" size="small">
@@ -127,6 +146,55 @@ const QuotationCard = () => {
     },
   ];
 
+  // Combine Vehicle + Flight Quotations
+  const combinedList = [
+    ...(vehicleList || []).map((item, index) => ({
+      id: `V-${index + 1}`,
+      quoteId: item?.vehicleQuotationId || "N/A",
+      clientName: item?.basicsDetails?.clientName || "N/A",
+      arrival: formatDate(item?.pickupDropDetails?.pickupDate),
+      departure: formatDate(item?.pickupDropDetails?.dropDate),
+      sector:
+        item?.pickupDropDetails?.pickupLocation && item?.pickupDropDetails?.dropLocation
+          ? `${item.pickupDropDetails.pickupLocation} → ${item.pickupDropDetails.dropLocation}`
+          : "N/A",
+      title: item?.basicsDetails?.vehicleType || "Vehicle Booking",
+      noOfNight: item?.basicsDetails?.noOfDays || "-",
+      tourType: item?.basicsDetails?.tripType || "-",
+      type: "Vehicle",
+      quotationStatus: item?.status || "Pending",
+      formStatus: "Completed",
+      businessType: "Travel",
+    })),
+
+    ...(flightList || []).map((item, index) => ({
+      id: `F-${index + 1}`,
+      quoteId: item?.flightQuotationId || "N/A",
+      clientName: item?.clientDetails?.clientName || "N/A",
+      arrival: formatDate(item?.flightDetails?.[0]?.departureDate),
+      departure: formatDate(
+        item?.flightDetails?.[item?.flightDetails?.length - 1]?.departureDate
+      ),
+      sector: Array.isArray(item?.flightDetails)
+        ? item.flightDetails.map((f) => `${f.from} → ${f.to}`).join(", ")
+        : "N/A",
+      title: item?.title || "Flight Booking",
+      noOfNight: "-",
+      tourType: item?.tripType || "-",
+      type: "Flight",
+      quotationStatus: item?.status || "Pending",
+      formStatus: "Completed",
+      businessType: "Travel",
+    })),
+  ];
+
+  // Search Filter
+  const filteredList = combinedList.filter((row) =>
+    Object.values(row).some((value) =>
+      String(value).toLowerCase().includes(search.toLowerCase())
+    )
+  );
+
   return (
     <Container maxWidth="xl">
       <Box py={3}>
@@ -140,9 +208,7 @@ const QuotationCard = () => {
                     {item.title}: {item.confirmed}
                   </Typography>
                   <Typography variant="body2">Confirmed: {item.confirmed}</Typography>
-                  <Typography variant="body2">
-                    In Process: {item.inProcess}
-                  </Typography>
+                  <Typography variant="body2">In Process: {item.inProcess}</Typography>
                   <Typography variant="body2">
                     Cancelled/Incomplete: {item.cancelledIncomplete}
                   </Typography>
@@ -175,6 +241,8 @@ const QuotationCard = () => {
             variant="outlined"
             size="small"
             placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             sx={{ width: { xs: "100%", sm: 300 } }}
             InputProps={{
               endAdornment: (
@@ -191,28 +259,18 @@ const QuotationCard = () => {
         {/* Data Grid */}
         <Box sx={{ width: "100%", overflowX: "auto" }}>
           <Box sx={{ minWidth: "600px" }}>
-            {loading ? (
-              <Typography>Loading quotations...</Typography>
-            ) : error ? (
-              <Typography color="error">{error}</Typography>
+            {filteredList.length === 0 ? (
+              <Typography
+                variant="h6"
+                color="textSecondary"
+                align="center"
+                sx={{ mt: 2 }}
+              >
+                No quotations available
+              </Typography>
             ) : (
               <DataGrid
-              rows={list.map((item, index) => ({
-  id: index + 1,
-  quoteId: item.vehicleQuotationId,
-  clientName: item.basicsDetails.clientName,
-  arrival: new Date(item.pickupDropDetails.pickupDate).toLocaleDateString(),
-  departure: new Date(item.pickupDropDetails.dropDate).toLocaleDateString(),
-  sector: item.pickupDropDetails.pickupLocation + " → " + item.pickupDropDetails.dropLocation,
-  title: item.basicsDetails.vehicleType,
-  noOfNight: item.basicsDetails.noOfDays,
-  tourType: item.basicsDetails.tripType,
-  type: "Vehicle",
-  quotationStatus: "Pending", // You can update if API provides status
-  formStatus: "Completed",    // Placeholder for now
-  businessType: "Travel",     // Placeholder for now
-}))}
-
+                rows={filteredList}
                 columns={columns}
                 pageSize={7}
                 rowsPerPageOptions={[7, 25, 50, 100]}
@@ -224,13 +282,16 @@ const QuotationCard = () => {
         </Box>
       </Box>
 
-      {/* Modal */}
+      {/* Quotation Type Modal */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ color: "#0b6396ff" }}>
           How would you like to create Quotation?
         </DialogTitle>
         <DialogContent>
-          <RadioGroup value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+          <RadioGroup
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+          >
             <Grid container spacing={2} mt={1}>
               {/* Full Quotation */}
               <Grid item xs={6} sm={4}>
@@ -238,7 +299,9 @@ const QuotationCard = () => {
                   sx={{
                     height: "100%",
                     border:
-                      selectedType === "full" ? "2px solid #0b6396ff" : "1px solid #ddd",
+                      selectedType === "full"
+                        ? "2px solid #0b6396ff"
+                        : "1px solid #ddd",
                   }}
                 >
                   <CardContent>
@@ -262,7 +325,9 @@ const QuotationCard = () => {
                   sx={{
                     height: "100%",
                     border:
-                      selectedType === "quick" ? "2px solid #0b6396ff" : "1px solid #ddd",
+                      selectedType === "quick"
+                        ? "2px solid #0b6396ff"
+                        : "1px solid #ddd",
                   }}
                 >
                   <CardContent>
@@ -286,7 +351,9 @@ const QuotationCard = () => {
                   sx={{
                     height: "100%",
                     border:
-                      selectedType === "hotel" ? "2px solid #0b6396ff" : "1px solid #ddd",
+                      selectedType === "hotel"
+                        ? "2px solid #0b6396ff"
+                        : "1px solid #ddd",
                   }}
                 >
                   <CardContent>
@@ -310,7 +377,9 @@ const QuotationCard = () => {
                   sx={{
                     height: "100%",
                     border:
-                      selectedType === "vehicle" ? "2px solid #0b6396ff" : "1px solid #ddd",
+                      selectedType === "vehicle"
+                        ? "2px solid #0b6396ff"
+                        : "1px solid #ddd",
                   }}
                 >
                   <CardContent>
@@ -334,7 +403,9 @@ const QuotationCard = () => {
                   sx={{
                     height: "100%",
                     border:
-                      selectedType === "flight" ? "2px solid #0b6396ff" : "1px solid #ddd",
+                      selectedType === "flight"
+                        ? "2px solid #0b6396ff"
+                        : "1px solid #ddd",
                   }}
                 >
                   <CardContent>
@@ -358,7 +429,9 @@ const QuotationCard = () => {
                   sx={{
                     height: "100%",
                     border:
-                      selectedType === "custom" ? "2px solid #0b6396ff" : "1px solid #ddd",
+                      selectedType === "custom"
+                        ? "2px solid #0b6396ff"
+                        : "1px solid #ddd",
                   }}
                 >
                   <CardContent>
@@ -367,7 +440,11 @@ const QuotationCard = () => {
                       control={<Radio />}
                       label={
                         <Box textAlign="center">
-                          <Typography variant="h4" fontWeight="bold" sx={{ color: "#0b6396ff" }}>
+                          <Typography
+                            variant="h4"
+                            fontWeight="bold"
+                            sx={{ color: "#0b6396ff" }}
+                          >
                             CQ
                           </Typography>
                           <Typography>Custom Quotation</Typography>
