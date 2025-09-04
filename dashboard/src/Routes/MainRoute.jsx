@@ -78,7 +78,7 @@ const MainRoute = () => {
         <Route path="/quickquotation" element={<QuickQuotation />} />
         <Route path="/fullquotation" element={<FullQuotation />} />
         <Route path="/customquotation" element={<CustomQuotation />} />
-        <Route path="/flightfinalize" element={<FlightFinalize />} />
+        <Route path="/flightfinalize/:id" element={<FlightFinalize />} />
         <Route path="/vehiclefinalize" element={<VehicleFinalize />} />
             </Routes>
         </DashboardLayout>

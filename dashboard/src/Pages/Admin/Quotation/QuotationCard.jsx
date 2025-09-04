@@ -278,7 +278,7 @@ useEffect(() => {
                 disableRowSelectionOnClick
                 onRowClick={(params) => {
                 if (params.row.type === "Flight") {
-                  navigate("/flightfinalize");
+                  navigate(`/flightfinalize/${params.row.quoteId}`);
                 } else if (params.row.type === "Vehicle") {
                   navigate("/vehiclefinalize");
                 } else {
