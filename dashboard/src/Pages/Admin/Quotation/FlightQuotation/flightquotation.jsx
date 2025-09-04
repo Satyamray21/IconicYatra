@@ -295,7 +295,7 @@ if (v.returnFrom && v.returnTo) {
 
     return (
       <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TextField
             id={`${fromField}-id`}
             fullWidth
@@ -309,7 +309,7 @@ if (v.returnFrom && v.returnTo) {
             helperText={formik.touched[fromField] && formik.errors[fromField]}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TextField
             id={`${toField}-id`}
             fullWidth
@@ -323,7 +323,7 @@ if (v.returnFrom && v.returnTo) {
             helperText={formik.touched[toField] && formik.errors[toField]}
           />
         </Grid>
-        <Grid item xs={12}>
+        <Grid size={{xs:12}}>
           <TextField
             id={`${airlineField}-id`}
             fullWidth
@@ -353,7 +353,7 @@ if (v.returnFrom && v.returnTo) {
             ))}
           </TextField>
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TextField
             id={`${flightNoField}-id`}
             fullWidth
@@ -367,7 +367,7 @@ if (v.returnFrom && v.returnTo) {
             helperText={formik.touched[flightNoField] && formik.errors[flightNoField]}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TextField
             id={`${fareField}-id`}
             fullWidth
@@ -383,7 +383,7 @@ if (v.returnFrom && v.returnTo) {
             helperText={formik.touched[fareField] && formik.errors[fareField]}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <DatePicker
             label={isReturn ? "Return Date" : "Departure Date"}
             value={values[dateField]}
@@ -400,7 +400,7 @@ if (v.returnFrom && v.returnTo) {
             }}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TimePicker
             label={isReturn ? "Return Time" : "Departure Time"}
             value={values[timeField]}
@@ -433,7 +433,7 @@ if (v.returnFrom && v.returnTo) {
         Additional City {index + 1}
       </Typography>
       <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TextField
             id={`ac-from-${index}`}
             fullWidth
@@ -443,7 +443,7 @@ if (v.returnFrom && v.returnTo) {
             onChange={(e) => handleAdditionalCityChange(index, "from", e.target.value)}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TextField
             id={`ac-to-${index}`}
             fullWidth
@@ -453,7 +453,7 @@ if (v.returnFrom && v.returnTo) {
             onChange={(e) => handleAdditionalCityChange(index, "to", e.target.value)}
           />
         </Grid>
-        <Grid item xs={12}>
+        <Grid size={{xs:12}}>
           <TextField
             id={`ac-airline-${index}`}
             fullWidth
@@ -479,7 +479,7 @@ if (v.returnFrom && v.returnTo) {
             ))}
           </TextField>
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TextField
             id={`ac-flightNo-${index}`}
             fullWidth
@@ -489,7 +489,7 @@ if (v.returnFrom && v.returnTo) {
             onChange={(e) => handleAdditionalCityChange(index, "flightNo", e.target.value)}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TextField
             id={`ac-fare-${index}`}
             fullWidth
@@ -501,7 +501,7 @@ if (v.returnFrom && v.returnTo) {
             onChange={(e) => handleAdditionalCityChange(index, "fare", e.target.value)}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <DatePicker
             label="Date"
             value={city.date}
@@ -509,7 +509,7 @@ if (v.returnFrom && v.returnTo) {
             slotProps={{ textField: { id: `ac-date-${index}`, name: `additionalCities[${index}].date`, fullWidth: true } }}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <TimePicker
             label="Time"
             value={city.time}
@@ -866,7 +866,7 @@ if (v.returnFrom && v.returnTo) {
         </Paper>
 
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{xs:12, md:6}}>
             <Paper sx={{ p: 3, mb: 3 }}>
               <Typography variant="subtitle1" gutterBottom>
                 Flight Details
@@ -876,7 +876,7 @@ if (v.returnFrom && v.returnTo) {
           </Grid>
 
           {(formik.values.tripType === "roundtrip" || formik.values.tripType === "multicity") && (
-            <Grid item xs={12} md={6}>
+            <Grid size={{xs:12, md:6}}>
               <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="subtitle1" gutterBottom>
                   {formik.values.tripType === "roundtrip" ? "Return Flight Details" : "Next Flight Details"}
@@ -890,11 +890,11 @@ if (v.returnFrom && v.returnTo) {
         {formik.values.tripType === "multicity" && (
           <Grid container spacing={2}>
             {formik.values.additionalCities.map((city, index) => (
-              <Grid item xs={12} md={6} key={index}>
+              <Grid size={{xs:12, md:6}} key={index}>
                 {renderAdditionalCity(city, index)}
               </Grid>
             ))}
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
               <Button
                 variant="contained"
                 color="primary"
@@ -924,7 +924,7 @@ if (v.returnFrom && v.returnTo) {
         <Paper sx={{ p: 3, mb: 3 }}>
           <Grid container spacing={2}>
             {["adults", "childs", "infants"].map((field) => (
-              <Grid key={field} item xs={12} sm={4}>
+              <Grid key={field} size={{xs:12, md:4}}>
                 <TextField
                   id={`${field}-id`}
                   fullWidth
@@ -946,7 +946,7 @@ if (v.returnFrom && v.returnTo) {
                 />
               </Grid>
             ))}
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
               <TextField
                 id="message-id"
                 fullWidth
@@ -964,7 +964,7 @@ if (v.returnFrom && v.returnTo) {
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="subtitle1">Personal Details</Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{xs:12, md:6}}>
               <TextField
                 id="fullName-id"
                 fullWidth
@@ -978,7 +978,7 @@ if (v.returnFrom && v.returnTo) {
                 helperText={formik.touched.fullName && formik.errors.fullName}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{xs:12, md:6}}>
               <TextField
                 id="mobile-id"
                 fullWidth
@@ -992,7 +992,7 @@ if (v.returnFrom && v.returnTo) {
                 helperText={formik.touched.mobile && formik.errors.mobile}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
               <TextField
                 id="email-id"
                 fullWidth
