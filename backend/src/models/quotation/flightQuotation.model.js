@@ -69,9 +69,12 @@ const flightQuotationSchema = mongoose.Schema({
    }
 }, { timestamps: true });
 flightQuotationSchema.pre("save", async function (next) {
-     if (!this.totalFare || this.totalFare === 0) {
-        this.totalFare = this.flightDetails.reduce((sum, flight) => sum + flight.fare, 0);
-    }
-    next();
+  // Convert fare to number in case someone sends it as string
+  this.totalFare = this.flightDetails.reduce(
+    (sum, flight) => sum + Number(flight.fare || 0),
+    0
+  );
+  next();
 });
+
 export const FlightQuotation = mongoose.model("FlightQuotation", flightQuotationSchema);

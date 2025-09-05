@@ -117,7 +117,7 @@ const handleDownloadPDF = () => {
   const rightColX = 120;
 
   doc.text(`Reference No: ${quotation.flightQuotationId}`, leftColX, startY);
-  doc.text(`Date: ${new Date(quotation.createdAt).toLocaleDateString()}`, leftColX, startY + 8);
+  doc.text(`Date: ${new Date(quotation.createdAt).toLocaleDateString("en-GB")}`, leftColX, startY + 8);
   doc.text(
     `Customer: ${quotation?.clientDetails?.clientName || quotation?.personalDetails?.fullName}`,
     leftColX,
@@ -151,7 +151,7 @@ const handleDownloadPDF = () => {
       flight.to,
       flight.preferredAirline,
       flight.flightNo,
-      new Date(flight.departureDate).toLocaleDateString(),
+      new Date(flight.departureDate).toLocaleDateString("en-GB"),
       new Date(flight.departureTime).toLocaleTimeString(),
       `Rs. ${flight.fare}`, // ✅ Fixed symbol issue
       pnrList[index] || quotation.pnrList?.[index] || "N/A"
@@ -259,10 +259,11 @@ const handleDownloadPDF = () => {
           </Box>
           <Paper variant="outlined" sx={{ p: 2, mt: 4 }}>
             <Typography variant="subtitle2">Booking Summary</Typography>
-            <Divider sx={{ my: 1 }} />
+            <Divider sx={{ my: 1 ,flexGrow: 1}} />
             {[
-              ["Reference No:", `#${quotation.refNo}`],
-              ["Date:", quotation.date],
+              ["Reference No:", `${quotation.flightQuotationId}`],
+              ["Date:", new Date(quotation.createdAt).toLocaleDateString("en-GB")
+],
             ].map(([k, v]) => (
               <Box key={k} display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">{k}</Typography>
