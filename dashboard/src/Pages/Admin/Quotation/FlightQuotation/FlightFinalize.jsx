@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -10,41 +10,42 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogContentText,
   DialogTitle,
   Snackbar,
   Alert,
+  TextField,
+  CircularProgress,
 } from "@mui/material";
 import {
   Flight,
   Person,
   LocationOn,
-  Event,
-  Schedule,
-  ConfirmationNumber,
-  Group,
-  AttachMoney,
   Download,
   CheckCircle,
   Flag,
-  FlightClass,
-  AirplaneTicket,
 } from "@mui/icons-material";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { getFlightQuotationById } from "../../../../features/quotation/flightQuotationSlice";
+import {
+  getFlightQuotationById,
+  confirmFlightQuotation,
+} from "../../../../features/quotation/flightQuotationSlice";
+
 const FlightFinalize = () => {
   const [openDialog, setOpenDialog] = useState(false);
+const [pnrList, setPnrList] = useState([]);
+
+  const [finalFare, setFinalFare] = useState("");
   const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [bookingStatus, setBookingStatus] = useState("Pending");
   const { id } = useParams();
   const dispatch = useDispatch();
-  const { quotationDetails, loading, error } = useSelector((state) => state.flightQuotation);
+
+  const { quotationDetails, loading, error } = useSelector(
+    (state) => state.flightQuotation
+  );
   const quotation = quotationDetails || null;
 
-   const flightData = quotation?.flightDetails || [];
-
-
+  const flightData = quotation?.flightDetails || [];
 
   // Fetch quotation when ID changes
   useEffect(() => {
@@ -52,20 +53,47 @@ const FlightFinalize = () => {
       dispatch(getFlightQuotationById(id));
     }
   }, [id, dispatch]);
-  if (!quotation || !quotation.flightDetails || quotation.flightDetails?.length === 0) {
- 
-  return (
-    <Box sx={{ textAlign: "center", mt: 5 }}>
-      <Alert severity="warning">No flight quotation found!</Alert>
-    </Box>
-  );
-}
+  useEffect(() => {
+  if (quotation?.flightDetails?.length) {
+    setPnrList(Array(quotation.flightDetails.length).fill(""));
+  }
+}, [quotation]);
 
-  const handleConfirmFinalize = () => {
-    setBookingStatus("Confirmed");
+
+  if (!quotation || !quotation.flightDetails || quotation.flightDetails?.length === 0) {
+    return (
+      <Box sx={{ textAlign: "center", mt: 5 }}>
+        <Alert severity="warning">No flight quotation found!</Alert>
+      </Box>
+    );
+  }
+
+  // Handle confirm
+ const handleConfirmFinalize = async () => {
+  if (pnrList.some((pnr) => !pnr) || !finalFare) {
+    alert("Please enter PNR for all flights and the final fare before confirming!");
+    return;
+  }
+
+  try {
+    await dispatch(
+      confirmFlightQuotation({
+        flightQuotationId: quotation.flightQuotationId, // ✅ Keep using custom ID
+        pnrList,  // ✅ Send array of PNRs
+        finalFare,
+      })
+    ).unwrap();
+
     setOpenDialog(false);
     setOpenSnackbar(true);
-  };
+    setPnrList(Array(flightData.length).fill(""));
+    setFinalFare("");
+  } catch (err) {
+    console.error("Error confirming quotation:", err);
+  }
+};
+
+
 
   const handleDownloadPDF = () => {
     const pdfContent = `
@@ -75,14 +103,9 @@ const FlightFinalize = () => {
       Date: ${quotation.date}
       Customer: ${quotation.customer}
       Country: ${quotation.country}
-      From: ${quotation.flight.from} To: ${quotation.flight.to}
-      Airline: ${quotation.flight.airline}
-      Date: ${quotation.flight.date} Time: ${quotation.flight.time}
-      Flight No: ${quotation.flight.flightNo} PNR: ${quotation.flight.pnr}
-      Passengers: ${quotation.flight.passengers}
-      Class: ${quotation.flight.class} Baggage: ${quotation.flight.baggage}
-      Price: ${quotation.flight.price}
-      Status: ${bookingStatus}
+      Status: ${quotation.status}
+      PNR: ${pnr}
+      Final Fare: ₹ ${finalFare}
       Generated on: ${new Date().toLocaleDateString()}
     `;
     const blob = new Blob([pdfContent], { type: "application/pdf" });
@@ -102,7 +125,8 @@ const FlightFinalize = () => {
     <>
       <Grid container>
         {/* Sidebar */}
-        <Grid size={{xs:12, md:3}}
+        <Grid
+          size={{ xs: 12, md: 3 }}
           sx={{
             borderRight: { md: "1px solid #ddd" },
             p: 3,
@@ -136,7 +160,8 @@ const FlightFinalize = () => {
             <Person sx={{ fontSize: 60 }} />
           </Box>
           <Typography variant="h6" fontWeight="bold">
-            {quotation?.clientDetails?.clientName || quotation?.personalDetails?.fullName}
+            {quotation?.clientDetails?.clientName ||
+              quotation?.personalDetails?.fullName}
           </Typography>
           <Box display="flex" justifyContent="center" alignItems="center">
             <Flag sx={{ fontSize: 16, mr: 0.5, color: "text.secondary" }} />
@@ -159,8 +184,8 @@ const FlightFinalize = () => {
             <Box display="flex" justifyContent="space-between">
               <Typography variant="body2">Status:</Typography>
               <Chip
-                label={bookingStatus}
-                color={bookingStatus === "Confirmed" ? "success" : "default"}
+                label={quotation.status}
+                color={quotation.status === "Confirmed" ? "success" : "default"}
                 size="small"
               />
             </Box>
@@ -168,15 +193,15 @@ const FlightFinalize = () => {
         </Grid>
 
         {/* Content */}
-        <Grid size={{xs:12, md:9}} sx={{ p: 3 }}>
+        <Grid size={{ xs: 12, md: 9 }} sx={{ p: 3 }}>
           <Box display="flex" gap={2} mb={3}>
             <Button
               variant="contained"
               startIcon={<CheckCircle />}
               onClick={() => setOpenDialog(true)}
-              disabled={bookingStatus === "Confirmed"}
+              disabled={quotation.status === "Confirmed"}
             >
-              {bookingStatus === "Confirmed"
+              {quotation.status === "Confirmed"
                 ? "Booking Confirmed"
                 : "Finalize Booking"}
             </Button>
@@ -189,151 +214,153 @@ const FlightFinalize = () => {
             </Button>
           </Box>
 
-          <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: "#f8f9fa" }}>
-            <Typography variant="subtitle2" gutterBottom>
-              <Person sx={{ fontSize: 16, mr: 1 }} />
-              Kind Attention
-            </Typography>
-            <Typography variant="h6">{quotation?.clientDetails?.clientName || quotation?.personalDetails?.fullName}</Typography>
-            <Box display="flex" alignItems="center">
-              <LocationOn
-                sx={{ fontSize: 16, mr: 0.5, color: "text.secondary" }}
-              />
-              <Typography variant="body2">{quotation.country}</Typography>
-            </Box>
-          </Paper>
-
+          {/* Flight Details */}
           <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
-  {/* Header Section */}
-  <Box
-    display="flex"
-    alignItems="center"
-    justifyContent="space-between"
-    mb={2}
-  >
-    <Box display="flex" alignItems="center">
-      <Flight sx={{ color: "orange", mr: 1 }} />
-      <Typography variant="h6" color="orange">
-        <b>
-          Flight Booking Details{" "}
-          {quotation?.tripType === "oneway"
-            ? "(One Way Trip)"
-            : quotation?.tripType === "roundtrip"
-            ? "(Round Trip)"
-            : quotation?.tripType === "multicity"
-            ? "(Multi City Trip)"
-            : ""}
-        </b>
-      </Typography>
-    </Box>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+              <Box display="flex" alignItems="center">
+                <Flight sx={{ color: "orange", mr: 1 }} />
+                <Typography variant="h6" color="orange">
+                  <b>
+                    Flight Booking Details{" "}
+                    {quotation?.tripType === "oneway"
+                      ? "(One Way Trip)"
+                      : quotation?.tripType === "roundtrip"
+                      ? "(Round Trip)"
+                      : quotation?.tripType === "multicity"
+                      ? "(Multi City Trip)"
+                      : ""}
+                  </b>
+                </Typography>
+              </Box>
+              <Chip
+                label={`Total Fare: ₹ ${flightData.reduce(
+                  (total, flight) => total + (parseFloat(flight.fare) || 0),
+                  0
+                )}`}
+                color="success"
+                variant="outlined"
+                sx={{ fontWeight: "bold", fontSize: "14px" }}
+              />
+            </Box>
 
-    {/* Total Fare Chip */}
-    <Chip
-      label={`Total Fare: ₹ ${flightData.reduce(
-        (total, flight) => total + (parseFloat(flight.fare) || 0),
-        0
-      )}`}
-      color="success"
-      variant="outlined"
-      sx={{ fontWeight: "bold", fontSize: "14px" }}
-    />
-  </Box>
-
-  {/* Flight Details Section */}
-  <Grid container spacing={2}>
-    {flightData.map((flight, index) => (
-      <Paper
-        key={index}
-        elevation={3}
-        sx={{
-          p: 2,
-          mb: 2,
-          borderRadius: 2,
-          bgcolor: index % 2 === 0 ? "#f9f9f9" : "#eef7ff",
-          border: "1px solid #ddd",
-          boxShadow: "0px 2px 6px rgba(0,0,0,0.1)",
-        }}
-      >
-        {/* Flight Header */}
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          mb={1}
-          sx={{ borderBottom: "1px solid #ccc", pb: 1 }}
-        >
-          <Typography variant="h6" fontWeight="bold" color="primary">
-            ✈️ Flight {index + 1}
-          </Typography>
-          <Chip
-            label={`₹ ${flight.fare}`}
-            color="success"
-            variant="outlined"
-            sx={{ fontWeight: "bold" }}
-          />
-        </Box>
-
-        {/* Flight Info */}
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Typography fontWeight="bold">From:</Typography>
-            <Typography>{flight.from}</Typography>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Typography fontWeight="bold">To:</Typography>
-            <Typography>{flight.to}</Typography>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Typography fontWeight="bold">Airline:</Typography>
-            <Typography>{flight.preferredAirline}</Typography>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Typography fontWeight="bold">Flight Number:</Typography>
-            <Typography>{flight.flightNo}</Typography>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Typography fontWeight="bold">Fare:</Typography>
-            <Typography color="green" fontWeight="bold">
-              ₹ {flight.fare}
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Typography fontWeight="bold">Departure:</Typography>
-            <Typography>
-              {new Date(flight.departureDate).toLocaleDateString()} —{" "}
-              {new Date(flight.departureTime).toLocaleTimeString()}
-            </Typography>
-          </Grid>
-        </Grid>
-      </Paper>
-    ))}
-  </Grid>
-</Paper>
-
-          <Box mt={3} textAlign="center">
-            <Typography variant="body2" color="textSecondary">
-              For any changes or queries, please contact our support team
-            </Typography>
-          </Box>
+            {/* Flight Details Section */}
+            <Grid container spacing={2}>
+              {flightData.map((flight, index) => (
+                <Paper
+                  key={index}
+                  elevation={3}
+                  sx={{
+                    p: 2,
+                    mb: 2,
+                    borderRadius: 2,
+                    bgcolor: index % 2 === 0 ? "#f9f9f9" : "#eef7ff",
+                    border: "1px solid #ddd",
+                    boxShadow: "0px 2px 6px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    mb={1}
+                    sx={{ borderBottom: "1px solid #ccc", pb: 1 }}
+                  >
+                    <Typography variant="h6" fontWeight="bold" color="primary">
+                      ✈️ Flight {index + 1}
+                    </Typography>
+                    <Chip
+                      label={`₹ ${flight.fare}`}
+                      color="success"
+                      variant="outlined"
+                      sx={{ fontWeight: "bold" }}
+                    />
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Typography fontWeight="bold">From:</Typography>
+                      <Typography>{flight.from}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Typography fontWeight="bold">To:</Typography>
+                      <Typography>{flight.to}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Typography fontWeight="bold">Airline:</Typography>
+                      <Typography>{flight.preferredAirline}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Typography fontWeight="bold">Flight Number:</Typography>
+                      <Typography>{flight.flightNo}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Typography fontWeight="bold">Fare:</Typography>
+                      <Typography color="green" fontWeight="bold">
+                        ₹ {flight.fare}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              ))}
+            </Grid>
+          </Paper>
         </Grid>
       </Grid>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Confirm Flight Booking Finalization</DialogTitle>
+      {/* Confirmation Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: "bold", textAlign: "center" }}>
+          Finalize Flight Booking
+        </DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to finalize this flight booking? This action
-            cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>No, Cancel</Button>
-          <Button onClick={handleConfirmFinalize} variant="contained" autoFocus>
-            Yes, Finalize
+  <Grid container spacing={2}>
+    {flightData.map((flight, index) => (
+      <Grid key={index} size={{ xs: 12 }}>
+        <TextField
+          label={`PNR for Flight ${index + 1}`}
+          fullWidth
+          value={pnrList[index] || ""}
+          onChange={(e) => {
+            const updatedPnrs = [...pnrList];
+            updatedPnrs[index] = e.target.value;
+            setPnrList(updatedPnrs);
+          }}
+          variant="outlined"
+          size="small"
+        />
+      </Grid>
+    ))}
+
+    <Grid size={{ xs: 12 }}>
+      <TextField
+        label="Final Total Fare (₹)"
+        type="number"
+        fullWidth
+        value={finalFare}
+        onChange={(e) => setFinalFare(e.target.value)}
+        variant="outlined"
+        size="small"
+      />
+    </Grid>
+  </Grid>
+</DialogContent>
+
+        <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
+          <Button onClick={() => setOpenDialog(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmFinalize}
+            variant="contained"
+            color="primary"
+            startIcon={loading ? <CircularProgress size={18} /> : <CheckCircle />}
+            disabled={loading}
+          >
+            {loading ? "Confirming..." : "Confirm Booking"}
           </Button>
         </DialogActions>
       </Dialog>
 
+      {/* Success Snackbar */}
       <Snackbar
         open={openSnackbar}
         autoHideDuration={4000}

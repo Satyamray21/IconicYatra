@@ -138,29 +138,49 @@ export const deleteFlightQuotationById = asyncHandler(async (req, res) => {
 });
 
 
+// ✅ Confirm Flight Quotation API
 export const confirmFlightQuotation = asyncHandler(async (req, res) => {
-    const { flightQuotationId } = req.params;
+  const { flightQuotationId } = req.params;
+  const { pnrList, finalFare } = req.body;
 
-    // Check if flight quotation exists
-    const quotation = await FlightQuotation.findOne({ flightQuotationId });
+  // Find quotation
+  const quotation = await FlightQuotation.findOne({flightQuotationId});
 
-    if (!quotation) {
-        throw new ApiError(404, "Flight quotation not found");
-    }
+  if (!quotation) {
+    throw new ApiError(404, "Flight quotation not found");
+  }
 
-    // Allow status change only if it's currently "Completed"
-    if (quotation.status !== "Completed") {
-        throw new ApiError(
-            400,
-            `Cannot update status. Current status is "${quotation.status}". Only "Completed" quotations can be confirmed.`
-        );
-    }
+  // Block confirmation if already confirmed
+  if (quotation.status === "Confirmed") {
+    throw new ApiError(400, "Quotation is already confirmed");
+  }
 
-    // Update status to Confirmed
-    quotation.status = "Confirmed";
-    await quotation.save();
+  // Block confirmation if cancelled
+  if (quotation.status === "Cancelled") {
+    throw new ApiError(400, "Cannot confirm a cancelled quotation");
+  }
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, quotation, "Flight quotation confirmed successfully"));
+  // ✅ Auto-set "New" quotations to "Completed"
+  if (quotation.status === "New") {
+    quotation.status = "Completed";
+  }
+
+  // Update PNR list if provided
+  if (pnrList && Array.isArray(pnrList)) {
+    quotation.pnrList = pnrList;
+  }
+
+  // Update final fare
+  if (finalFare) {
+    quotation.finalFare = finalFare;
+  }
+
+  // ✅ Set status to Confirmed
+  quotation.status = "Confirmed";
+
+  await quotation.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, quotation, "Flight quotation confirmed successfully"));
 });

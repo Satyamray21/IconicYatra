@@ -45,6 +45,15 @@ const flightQuotationSchema = mongoose.Schema({
         mobileNumber: { type: String, required: true },
         emailId: { type: String, required: true }
     },
+    totalFare: { type: Number, default: 0 },
+
+   
+   pnrList: [{ type: String }],
+
+
+    
+    finalFare: { type: Number, default: null },
+
     status:{
         type:String,
         enum:['In Progress','Completed','Confirmed','New'],
@@ -59,5 +68,10 @@ const flightQuotationSchema = mongoose.Schema({
     default:'Flight_Quotation'
    }
 }, { timestamps: true });
-
+flightQuotationSchema.pre("save", async function (next) {
+     if (!this.totalFare || this.totalFare === 0) {
+        this.totalFare = this.flightDetails.reduce((sum, flight) => sum + flight.fare, 0);
+    }
+    next();
+});
 export const FlightQuotation = mongoose.model("FlightQuotation", flightQuotationSchema);
