@@ -30,6 +30,8 @@ import {
   getFlightQuotationById,
   confirmFlightQuotation,
 } from "../../../../features/quotation/flightQuotationSlice";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const FlightFinalize = () => {
   const [openDialog, setOpenDialog] = useState(false);
@@ -94,32 +96,109 @@ const [pnrList, setPnrList] = useState([]);
 };
 
 
+const handleDownloadPDF = () => {
+  const doc = new jsPDF();
 
-  const handleDownloadPDF = () => {
-    const pdfContent = `
-      FLIGHT QUOTATION
-      =================
-      Reference No: ${quotation.refNo}
-      Date: ${quotation.date}
-      Customer: ${quotation.customer}
-      Country: ${quotation.country}
-      Status: ${quotation.status}
-      PNR: ${pnr}
-      Final Fare: ₹ ${finalFare}
-      Generated on: ${new Date().toLocaleDateString()}
-    `;
-    const blob = new Blob([pdfContent], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Flight_Quotation_${quotation.refNo}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 100);
-  };
+  // Header Title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(33, 150, 243); // Blue like MUI primary
+  doc.text("✈️ Flight Quotation", 14, 15);
+
+  // Sub-header
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Reference No: ${quotation.flightQuotationId}`, 14, 30);
+  doc.text(`Date: ${new Date(quotation.createdAt).toLocaleDateString()}`, 14, 38);
+  doc.text(
+    `Customer: ${
+      quotation?.clientDetails?.clientName ||
+      quotation?.personalDetails?.fullName
+    }`,
+    14,
+    46
+  );
+  doc.text(`Country: ${quotation.country || "N/A"}`, 14, 54);
+  doc.text(`Status: ${quotation.status}`, 14, 62);
+
+  // Passengers Info
+  doc.setFont("helvetica", "bold");
+  doc.text(
+    `Passengers: Adults: ${quotation.adults} | Children: ${quotation.childs} | Infants: ${quotation.infants}`,
+    14,
+    70
+  );
+
+  // Flight Details Table
+  autoTable(doc, {
+    startY: 80,
+    head: [
+      [
+        "Flight",
+        "From",
+        "To",
+        "Airline",
+        "Flight No",
+        "Departure Date",
+        "Departure Time",
+        "Fare",
+        "PNR",
+      ],
+    ],
+    body: quotation.flightDetails.map((flight, index) => [
+      `Flight ${index + 1}`,
+      flight.from,
+      flight.to,
+      flight.preferredAirline,
+      flight.flightNo,
+      new Date(flight.departureDate).toLocaleDateString(),
+      new Date(flight.departureTime).toLocaleTimeString(),
+      `₹ ${flight.fare}`,
+      pnrList[index] || quotation.pnrList?.[index] || "Not Available",
+    ]),
+    theme: "grid",
+    styles: {
+      font: "helvetica",
+      fontSize: 10,
+      cellPadding: 4,
+      lineColor: [220, 220, 220],
+      lineWidth: 0.3,
+    },
+    headStyles: {
+      fillColor: [33, 150, 243], // MUI primary blue
+      textColor: [255, 255, 255],
+      fontSize: 11,
+      halign: "center",
+    },
+    bodyStyles: {
+      halign: "center",
+    },
+  });
+
+  // Final Fare Box
+  const finalFareText = `Final Total Fare: ₹ ${finalFare || quotation.finalFare || "N/A"}`;
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(76, 175, 80); // Green for success
+  doc.text(finalFareText, 14, doc.lastAutoTable.finalY + 15);
+
+  // Footer
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(100);
+  doc.text(
+    `Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
+    14,
+    doc.lastAutoTable.finalY + 30
+  );
+
+  // Save PDF
+  doc.save(`Flight_Quotation_${quotation.flightQuotationId}.pdf`);
+};
+
+
+  
 
   return (
     <>
@@ -205,13 +284,14 @@ const [pnrList, setPnrList] = useState([]);
                 ? "Booking Confirmed"
                 : "Finalize Booking"}
             </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadPDF}
-            >
-              Download PDF
-            </Button>
+                <Button
+  variant="outlined"
+  startIcon={<Download />}
+  onClick={handleDownloadPDF}
+>
+  Download PDF
+</Button>
+
           </Box>
 
           {/* Flight Details */}
