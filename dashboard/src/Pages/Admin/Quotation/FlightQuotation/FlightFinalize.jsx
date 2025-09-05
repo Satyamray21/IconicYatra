@@ -97,55 +97,54 @@ const [pnrList, setPnrList] = useState([]);
 
 
 const handleDownloadPDF = () => {
-  const doc = new jsPDF();
+  const doc = new jsPDF("p", "mm", "a4");
 
-  // Header Title
+  // ===== HEADER =====
+  doc.setFillColor(25, 118, 210); // MUI Primary Blue
+  doc.rect(0, 0, 210, 30, "F"); // Header background
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.setTextColor(33, 150, 243); // Blue like MUI primary
-  doc.text("✈️ Flight Quotation", 14, 15);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Flight Quotation", 14, 20);
 
-  // Sub-header
+  // ===== QUOTATION SUMMARY =====
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Reference No: ${quotation.flightQuotationId}`, 14, 30);
-  doc.text(`Date: ${new Date(quotation.createdAt).toLocaleDateString()}`, 14, 38);
-  doc.text(
-    `Customer: ${
-      quotation?.clientDetails?.clientName ||
-      quotation?.personalDetails?.fullName
-    }`,
-    14,
-    46
-  );
-  doc.text(`Country: ${quotation.country || "N/A"}`, 14, 54);
-  doc.text(`Status: ${quotation.status}`, 14, 62);
 
-  // Passengers Info
-  doc.setFont("helvetica", "bold");
-  doc.text(
-    `Passengers: Adults: ${quotation.adults} | Children: ${quotation.childs} | Infants: ${quotation.infants}`,
-    14,
-    70
-  );
+  const startY = 40;
+  const leftColX = 14;
+  const rightColX = 120;
 
-  // Flight Details Table
+  doc.text(`Reference No: ${quotation.flightQuotationId}`, leftColX, startY);
+  doc.text(`Date: ${new Date(quotation.createdAt).toLocaleDateString()}`, leftColX, startY + 8);
+  doc.text(
+    `Customer: ${quotation?.clientDetails?.clientName || quotation?.personalDetails?.fullName}`,
+    leftColX,
+    startY + 16
+  );
+  doc.text(`Country: ${quotation.country || "N/A"}`, leftColX, startY + 24);
+  doc.text(`Status: ${quotation.status}`, leftColX, startY + 32);
+
+  doc.text("Passengers:", rightColX, startY);
+  doc.text(`Adults: ${quotation.adults}`, rightColX, startY + 8);
+  doc.text(`Children: ${quotation.childs}`, rightColX, startY + 16);
+  doc.text(`Infants: ${quotation.infants}`, rightColX, startY + 24);
+
+  // ===== FLIGHT DETAILS TABLE =====
   autoTable(doc, {
-    startY: 80,
-    head: [
-      [
-        "Flight",
-        "From",
-        "To",
-        "Airline",
-        "Flight No",
-        "Departure Date",
-        "Departure Time",
-        "Fare",
-        "PNR",
-      ],
-    ],
+    startY: startY + 45,
+    head: [[
+      "Flight",
+      "From",
+      "To",
+      "Airline",
+      "Flight No",
+      "Departure Date",
+      "Departure Time",
+      "Fare",
+      "PNR"
+    ]],
     body: quotation.flightDetails.map((flight, index) => [
       `Flight ${index + 1}`,
       flight.from,
@@ -154,48 +153,60 @@ const handleDownloadPDF = () => {
       flight.flightNo,
       new Date(flight.departureDate).toLocaleDateString(),
       new Date(flight.departureTime).toLocaleTimeString(),
-      `₹ ${flight.fare}`,
-      pnrList[index] || quotation.pnrList?.[index] || "Not Available",
+      `Rs. ${flight.fare}`, // ✅ Fixed symbol issue
+      pnrList[index] || quotation.pnrList?.[index] || "N/A"
     ]),
     theme: "grid",
     styles: {
       font: "helvetica",
       fontSize: 10,
       cellPadding: 4,
-      lineColor: [220, 220, 220],
-      lineWidth: 0.3,
+      valign: "middle",
     },
     headStyles: {
-      fillColor: [33, 150, 243], // MUI primary blue
+      fillColor: [25, 118, 210], // MUI Blue
       textColor: [255, 255, 255],
-      fontSize: 11,
       halign: "center",
+      fontSize: 11,
     },
     bodyStyles: {
       halign: "center",
+      textColor: [40, 40, 40],
+    },
+    columnStyles: {
+      0: { cellWidth: 20 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 25 },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 22 },
+      5: { cellWidth: 28 },
+      6: { cellWidth: 28 },
+      7: { cellWidth: 22 },
+      8: { cellWidth: 25 },
     },
   });
 
-  // Final Fare Box
-  const finalFareText = `Final Total Fare: ₹ ${finalFare || quotation.finalFare || "N/A"}`;
+  // ===== FINAL FARE =====
+  const finalY = doc.lastAutoTable.finalY + 15;
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(76, 175, 80); // Green for success
-  doc.text(finalFareText, 14, doc.lastAutoTable.finalY + 15);
+  doc.setTextColor(76, 175, 80);
+  doc.text(`Final Total Fare: Rs. ${finalFare || quotation.finalFare || "N/A"}`, 14, finalY);
 
-  // Footer
+  // ===== FOOTER =====
   doc.setFontSize(10);
   doc.setFont("helvetica", "italic");
   doc.setTextColor(100);
   doc.text(
     `Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
     14,
-    doc.lastAutoTable.finalY + 30
+    finalY + 10
   );
 
-  // Save PDF
+  // SAVE PDF
   doc.save(`Flight_Quotation_${quotation.flightQuotationId}.pdf`);
 };
+
 
 
   
