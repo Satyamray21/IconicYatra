@@ -17,8 +17,10 @@ const generateFlightQuotationId = async () => {
 
   return `ICYR_QT_F_${nextNumber}`;
 };
+
+
 export const createFlightQuotation = asyncHandler(async (req, res) => {
-    console.log("Req",req.body);
+    console.log("Req", req.body);
     const {
         tripType,
         clientDetails,
@@ -31,7 +33,7 @@ export const createFlightQuotation = asyncHandler(async (req, res) => {
         status // optional from client
     } = req.body;
 
-    // Validate required fields
+    // ✅ Validate required fields
     if (
         !tripType ||
         !clientDetails?.clientName ||
@@ -42,7 +44,7 @@ export const createFlightQuotation = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Required fields are missing");
     }
 
-    // Validate flightDetails count based on tripType
+    // ✅ Validate flightDetails count based on tripType
     if (tripType === "oneway" && flightDetails.length !== 1) {
         throw new ApiError(400, "Oneway trip must have exactly 1 flight detail");
     }
@@ -53,17 +55,20 @@ export const createFlightQuotation = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Multicity trip must have at least 2 flight details");
     }
 
-    // Generate dynamic title
+    // ✅ Generate dynamic title
     const title = `Flight Quotation for ${clientDetails.clientName}`;
+
+    // ✅ Find the lead based on client name
     const lead = await Lead.findOne({ "personalDetails.fullName": clientDetails.clientName });
 
     if (!lead) {
         throw new ApiError(404, `Lead not found for client ${clientDetails.clientName}`);
     }
-    // Generate unique Flight Quotation ID
+
+    // ✅ Generate unique Flight Quotation ID
     const flightQuotationId = await generateFlightQuotationId();
 
-    // Create quotation
+    // ✅ Create quotation
     const quotation = await FlightQuotation.create({
         flightQuotationId,
         tripType,
@@ -75,37 +80,90 @@ export const createFlightQuotation = asyncHandler(async (req, res) => {
         infants,
         anyMessage,
         personalDetails,
-        status: status || "New" ,
-        quotation_type: "flight" ,
+        status: status || "New",
+        quotation_type: "flight",
         leadId: lead.leadId
     });
 
-    return res
-        .status(201)
-        .json(new ApiResponse(201, quotation, "Flight quotation created successfully"));
+    // ✅ Send response with quotation + full lead info
+    return res.status(201).json(
+        new ApiResponse(201, {
+            quotation,
+            leadDetails: lead,  // <--- Include full lead info here
+        }, "Flight quotation created successfully")
+    );
 });
+
 
 
 
 export const getAllFlightQuotations = asyncHandler(async (req, res) => {
+    // Fetch all quotations sorted by createdAt (latest first)
     const quotations = await FlightQuotation.find().sort({ createdAt: -1 });
+
+    if (!quotations || quotations.length === 0) {
+        throw new ApiError(404, "No flight quotations found");
+    }
+
+    // Fetch lead info for each quotation based on client name
+    const quotationsWithLead = await Promise.all(
+        quotations.map(async (quotation) => {
+            const lead = await Lead.findOne({
+                "personalDetails.fullName": quotation.clientDetails.clientName,
+            });
+
+            return {
+                ...quotation.toObject(),
+                lead: lead || null, // If no lead found, send null
+            };
+        })
+    );
 
     return res
         .status(200)
-        .json(new ApiResponse(200, quotations, "Flight quotations fetched successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                quotationsWithLead,
+                "Flight quotations with lead details fetched successfully"
+            )
+        );
 });
+
 
 
 export const getFlightQuotationById = asyncHandler(async (req, res) => {
     const { flightQuotationId } = req.params;
 
-    const quotation = await FlightQuotation.findOne({ flightQuotationId});
-    if (!quotation) throw new ApiError(404, "Flight quotation not found");
+    // Find the quotation first
+    const quotation = await FlightQuotation.findOne({ flightQuotationId });
+    if (!quotation) {
+        throw new ApiError(404, "Flight quotation not found");
+    }
+
+    // Fetch lead information based on client name from quotation
+    const lead = await Lead.findOne({
+        "personalDetails.fullName": quotation.clientDetails.clientName,
+    });
+
+    if (!lead) {
+        throw new ApiError(
+            404,
+            `Lead not found for client ${quotation.clientDetails.clientName}`
+        );
+    }
+
+    // Combine quotation + lead information
+    const responseData = {
+        quotation,
+        lead,
+    };
 
     return res
         .status(200)
-        .json(new ApiResponse(200, quotation, "Flight quotation fetched successfully"));
+        .json(new ApiResponse(200, responseData, "Flight quotation fetched successfully"));
 });
+
 
 
 export const updateFlightQuotationById = asyncHandler(async (req, res) => {
