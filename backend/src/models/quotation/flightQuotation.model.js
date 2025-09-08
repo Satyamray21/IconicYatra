@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-
 const flightDetailSchema = new mongoose.Schema({
     from: { type: String, required: true },
     to: { type: String, required: true },
@@ -7,7 +6,7 @@ const flightDetailSchema = new mongoose.Schema({
     flightNo: { type: String, required: true },
     fare: { type: String, required: true },
     departureDate: { type: String, required: true },
-    departureTime: { type: String, required: true }
+    departureTime: { type: String, required: true },
 }, { _id: false });
 
 const flightQuotationSchema = mongoose.Schema({
@@ -19,10 +18,8 @@ const flightQuotationSchema = mongoose.Schema({
     clientDetails: {
         clientName: { type: String, required: true }
     },
-    title: {
-        type: String,
-        default: ""
-    },
+    title: { type: String, default: "" },
+
     flightDetails: {
         type: [flightDetailSchema],
         required: true,
@@ -36,45 +33,42 @@ const flightQuotationSchema = mongoose.Schema({
             message: "Invalid number of flight details for the selected trip type"
         }
     },
+
     adults: { type: String, required: true },
     childs: { type: String },
     infants: { type: String },
     anyMessage: { type: String },
+
     personalDetails: {
         fullName: { type: String, required: true },
         mobileNumber: { type: String, required: true },
         emailId: { type: String, required: true }
     },
+
     totalFare: { type: Number, default: 0 },
 
-   
-   pnrList: [{ type: String }],
+    pnrList: [{ type: String }],   // ✅ PNR per flight
+    finalFareList: [{ type: Number }], // 🆕 NEW: Fare per flight
 
-
-    
     finalFare: { type: Number, default: null },
 
-    status:{
-        type:String,
-        enum:['In Progress','Completed','Confirmed','New'],
-        default:'New'
+    status: {
+        type: String,
+        enum: ['In Progress', 'Completed', 'Confirmed', 'New'],
+        default: 'New'
     },
-    flightQuotationId:{
-    type:String,
-    unique:true
-   },
-   Quotation_type:{
-    type:String,
-    default:'Flight_Quotation'
-   }
+
+    flightQuotationId: {
+        type: String,
+        unique: true
+    },
+
+    Quotation_type: {
+        type: String,
+        default: 'Flight_Quotation'
+    }
 }, { timestamps: true });
-flightQuotationSchema.pre("save", async function (next) {
-  // Convert fare to number in case someone sends it as string
-  this.totalFare = this.flightDetails.reduce(
-    (sum, flight) => sum + Number(flight.fare || 0),
-    0
-  );
-  next();
-});
+
+
 
 export const FlightQuotation = mongoose.model("FlightQuotation", flightQuotationSchema);

@@ -20,7 +20,7 @@ const generateFlightQuotationId = async () => {
 
 
 export const createFlightQuotation = asyncHandler(async (req, res) => {
-    console.log("Req", req.body);
+    
     const {
         tripType,
         clientDetails,
@@ -199,46 +199,55 @@ export const deleteFlightQuotationById = asyncHandler(async (req, res) => {
 // ✅ Confirm Flight Quotation API
 export const confirmFlightQuotation = asyncHandler(async (req, res) => {
   const { flightQuotationId } = req.params;
-  const { pnrList, finalFare } = req.body;
+  const { pnrList, finalFareList, finalFare } = req.body; 
 
-  // Find quotation
-  const quotation = await FlightQuotation.findOne({flightQuotationId});
+  const quotation = await FlightQuotation.findOne({ flightQuotationId });
 
   if (!quotation) {
     throw new ApiError(404, "Flight quotation not found");
   }
 
-  // Block confirmation if already confirmed
   if (quotation.status === "Confirmed") {
     throw new ApiError(400, "Quotation is already confirmed");
   }
 
-  // Block confirmation if cancelled
   if (quotation.status === "Cancelled") {
     throw new ApiError(400, "Cannot confirm a cancelled quotation");
   }
 
-  // ✅ Auto-set "New" quotations to "Completed"
   if (quotation.status === "New") {
     quotation.status = "Completed";
   }
 
-  // Update PNR list if provided
+  // ✅ Update PNRs
   if (pnrList && Array.isArray(pnrList)) {
+    if (pnrList.length !== quotation.flightDetails.length) {
+      throw new ApiError(400, "PNR list length must match flight details length");
+    }
     quotation.pnrList = pnrList;
   }
 
-  // Update final fare
-  if (finalFare) {
-    quotation.finalFare = finalFare;
+  // ✅ Update final fares per flight
+  if (finalFareList && Array.isArray(finalFareList)) {
+    if (finalFareList.length !== quotation.flightDetails.length) {
+      throw new ApiError(400, "Final fare list length must match flight details length");
+    }
+    quotation.finalFareList = finalFareList;
+
+    // ✅ Update total final fare
+    quotation.finalFare = finalFare
+      ? Number(finalFare) // ✅ Use manual value if provided
+      : finalFareList.reduce((sum, fare) => sum + Number(fare || 0), 0);
   }
 
-  // ✅ Set status to Confirmed
   quotation.status = "Confirmed";
-
   await quotation.save();
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, quotation, "Flight quotation confirmed successfully"));
+  return res.status(200).json(
+    new ApiResponse(200, quotation, "Flight quotation confirmed successfully")
+  );
 });
+
+
+
+

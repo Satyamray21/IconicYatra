@@ -69,11 +69,11 @@ export const deleteFlightQuotationById = createAsyncThunk(
 // Confirm flight quotation (Completed → Confirmed)
 export const confirmFlightQuotation = createAsyncThunk(
   "flightQuotation/confirm",
-  async ({ flightQuotationId, pnrList, finalFare }, { rejectWithValue }) => {
+  async ({ flightQuotationId, pnrList, finalFareList, finalFare }, { rejectWithValue }) => {
     try {
       const { data } = await axios.patch(
         `flightQT/confirm/${flightQuotationId}`,
-        { pnrList, finalFare } // ✅ Send PNR and Final Fare to backend
+        { pnrList, finalFareList, finalFare } // ✅ Added finalFare to request body
       );
       return data.data;
     } catch (err) {
@@ -83,6 +83,7 @@ export const confirmFlightQuotation = createAsyncThunk(
     }
   }
 );
+
 
 
 // =============================
@@ -194,26 +195,28 @@ const flightQuotationSlice = createSlice({
   state.success = true;
 
   // Update only the confirmed quotation
-  state.quotations = state.quotations.map((q) =>
-    q.flightQuotationId === action.payload.flightQuotationId
-      ? {
-          ...q,
-          status: "Confirmed",
-          pnrList: action.payload.pnrList, // ✅ Update PNR in store
-          finalFare: action.payload.finalFare, // ✅ Update final fare in store
-        }
-      : q
-  );
+state.quotations = state.quotations.map((q) =>
+  q.flightQuotationId === action.payload.flightQuotationId
+    ? {
+        ...q,
+        status: "Confirmed",
+        pnrList: action.payload.pnrList,
+        finalFareList: action.payload.finalFareList,
+        finalFare: action.payload.finalFare, // ✅ Store manual final fare
+      }
+    : q
+);
 
-  // Update quotation details if we're on detail page
-  if (state.quotationDetails?.flightQuotationId === action.payload.flightQuotationId) {
-    state.quotationDetails = {
-      ...state.quotationDetails,
-      status: "Confirmed",
-      pnr: action.payload.pnr,
-      finalFare: action.payload.finalFare,
-    };
-  }
+if (state.quotationDetails?.flightQuotationId === action.payload.flightQuotationId) {
+  state.quotationDetails = {
+    ...state.quotationDetails,
+    status: "Confirmed",
+    pnrList: action.payload.pnrList,
+    finalFareList: action.payload.finalFareList,
+    finalFare: action.payload.finalFare, // ✅ Store manual final fare in details too
+  };
+}
+
 })
 .addCase(confirmFlightQuotation.rejected, (state, action) => {
   state.loading = false;
