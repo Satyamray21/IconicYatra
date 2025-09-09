@@ -79,7 +79,7 @@ const MainRoute = () => {
         <Route path="/fullquotation" element={<FullQuotation />} />
         <Route path="/customquotation" element={<CustomQuotation />} />
         <Route path="/flightfinalize/:id" element={<FlightFinalize />} />
-        <Route path="/vehiclefinalize" element={<VehicleFinalize />} />
+        <Route path="/vehiclefinalize/:id" element={<VehicleFinalize />} />
             </Routes>
         </DashboardLayout>
     ) : (

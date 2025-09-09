@@ -280,7 +280,7 @@ useEffect(() => {
                 if (params.row.type === "Flight") {
                   navigate(`/flightfinalize/${params.row.quoteId}`);
                 } else if (params.row.type === "Vehicle") {
-                  navigate("/vehiclefinalize");
+                  navigate(`/vehiclefinalize/${params.row.quoteId}`);
                 } else {
                   navigate(`/quotation/${params.row.id}`);
                 }
