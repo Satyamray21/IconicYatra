@@ -32,49 +32,44 @@ import {
 } from "../../../../features/quotation/flightQuotationSlice";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import "jspdf/dist/polyfills.es.js";
+
 
 const FlightFinalize = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [pnrList, setPnrList] = useState([]);
-const [finalFareList, setFinalFareList] = useState([]);
-const [totalFinalFare, setTotalFinalFare] = useState(0);
-
+  const [finalFareList, setFinalFareList] = useState([]);
+  const [totalFinalFare, setTotalFinalFare] = useState(0);
+  const [flightData, setFlightData] = useState([]);
   const [openSnackbar, setOpenSnackbar] = useState(false);
+
   const { id } = useParams();
   const dispatch = useDispatch();
-
-  const { quotationDetails, loading, error } = useSelector(
+  const { quotationDetails, loading } = useSelector(
     (state) => state.flightQuotation
   );
   const quotation = quotationDetails?.quotation || null;
 
+  // ✅ Load flight data whenever quotation changes
+  useEffect(() => {
+    if (quotation) {
+      setFlightData(quotation.flightDetails || []);
+      setPnrList(quotation.pnrList || []);
+      setFinalFareList(
+        quotation.flightDetails?.map((f) => f.fare) || []
+      );
+      setTotalFinalFare(quotation.finalFare || 0);
+    }
+  }, [quotation]);
 
-
-  const flightData = quotation?.flightDetails || [];
-
-  // Fetch quotation when ID changes
+  // ✅ Fetch quotation on mount or ID change
   useEffect(() => {
     if (id) {
       dispatch(getFlightQuotationById(id));
     }
   }, [id, dispatch]);
-useEffect(() => {
-  if (quotation?.flightDetails?.length) {
-    setPnrList(Array(quotation.flightDetails.length).fill(""));
-    setFinalFareList(
-      quotation.flightDetails.map((flight) => flight.fare || "")
-    );
-  }
-}, [quotation]);
 
-
-
-
-
-
-
-  if (!quotation || !quotation.flightDetails || quotation.flightDetails.length === 0) {
-
+  if (!quotation || !quotation.flightDetails) {
     return (
       <Box sx={{ textAlign: "center", mt: 5 }}>
         <Alert severity="warning">No flight quotation found!</Alert>
@@ -82,61 +77,74 @@ useEffect(() => {
     );
   }
 
-  // Handle confirm
-const handleConfirmFinalize = async () => {
-  if (
-    pnrList.some((pnr) => !pnr) ||
-    finalFareList.some((fare) => !fare)
-  ) {
+  // ✅ Handle Confirm Finalization
+ const handleConfirmFinalize = async () => {
+  if (pnrList.some((pnr) => !pnr) || finalFareList.some((fare) => !fare)) {
     alert("Please enter PNR and Final Fare for all flights before confirming!");
     return;
   }
 
   try {
-    await dispatch(
+    const response = await dispatch(
       confirmFlightQuotation({
         flightQuotationId: quotation.flightQuotationId,
         pnrList,
         finalFareList,
-        finalFare: totalFinalFare, // ✅ Send totalFinalFare also
+        finalFare: totalFinalFare,
       })
     ).unwrap();
 
+    // ✅ Extract updated quotation from response
+    const updatedQuotation = response?.data;
+
+    // ✅ Refetch from backend to ensure UI sync
+    dispatch(getFlightQuotationById(quotation.flightQuotationId));
+
+    // ✅ Update local state instantly
+    setFlightData(
+      flightData.map((f, index) => ({
+        ...f,
+        fare: finalFareList[index],
+      }))
+    );
+
+    // ✅ Update total final fare correctly
+    setTotalFinalFare(updatedQuotation?.finalFare || totalFinalFare);
+
     setOpenDialog(false);
     setOpenSnackbar(true);
-    setPnrList(Array(flightData.length).fill(""));
-    setFinalFareList(flightData.map((flight) => flight.fare || ""));
+
   } catch (err) {
     console.error("Error confirming quotation:", err);
   }
 };
 
-
-
-
-
-const handleDownloadPDF = () => {
+  // ✅ PDF Download Handler
+ const handleDownloadPDF = () => {
   const doc = new jsPDF("p", "mm", "a4");
 
-  // ===== HEADER =====
-  doc.setFillColor(25, 118, 210); // MUI Primary Blue
-  doc.rect(0, 0, 210, 30, "F"); // Header background
+  // === Header ===
+  doc.setFillColor(25, 118, 210);
+  doc.rect(0, 0, 210, 30, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(255, 255, 255);
   doc.text("Flight Quotation", 14, 20);
 
-  // ===== QUOTATION SUMMARY =====
+  // === Quotation Summary ===
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-
   const startY = 40;
   const leftColX = 14;
   const rightColX = 120;
 
   doc.text(`Reference No: ${quotation.flightQuotationId}`, leftColX, startY);
-  doc.text(`Date: ${new Date(quotation.createdAt).toLocaleDateString("en-GB")}`, leftColX, startY + 8);
+  doc.text(
+    `Date: ${new Date(quotation.createdAt).toLocaleDateString("en-GB")}`,
+    leftColX,
+    startY + 8
+  );
   doc.text(
     `Customer: ${quotation?.clientDetails?.clientName || quotation?.personalDetails?.fullName}`,
     leftColX,
@@ -150,85 +158,50 @@ const handleDownloadPDF = () => {
   doc.text(`Children: ${quotation.childs}`, rightColX, startY + 16);
   doc.text(`Infants: ${quotation.infants}`, rightColX, startY + 24);
 
-  // ===== FLIGHT DETAILS TABLE =====
+  // === Flight Details Table ===
   autoTable(doc, {
     startY: startY + 45,
-    head: [[
-      "Flight",
-      "From",
-      "To",
-      "Airline",
-      "Flight No",
-      "Departure Date",
-      "Departure Time",
-      "Fare",
-      "PNR"
-    ]],
-    body: quotation.flightDetails.map((flight, index) => [
+    head: [["Flight", "From", "To", "Airline", "Flight No", "Departure Date", "Departure Time", "Fare", "PNR"]],
+    body: flightData.map((flight, index) => [
       `Flight ${index + 1}`,
       flight.from,
       flight.to,
       flight.preferredAirline,
       flight.flightNo,
-      new Date(flight.departureDate).toLocaleDateString("en-GB"),
-      new Date(flight.departureTime).toLocaleTimeString(),
-      `Rs. ${flight.fare}`, // ✅ Fixed symbol issue
-      pnrList[index] || quotation.pnrList?.[index] || "N/A"
+      flight.departureDate ? new Date(flight.departureDate).toLocaleDateString("en-GB") : "N/A",
+      flight.departureTime ? new Date(flight.departureTime).toLocaleTimeString() : "N/A",
+      `₹ ${Number(finalFareList[index] || flight.fare).toLocaleString("en-IN")}`,
+      pnrList[index] || "N/A",
     ]),
     theme: "grid",
-    styles: {
-      font: "helvetica",
-      fontSize: 10,
-      cellPadding: 4,
-      valign: "middle",
-    },
+    styles: { font: "helvetica", fontSize: 10, cellPadding: 4, valign: "middle" },
     headStyles: {
-      fillColor: [25, 118, 210], // MUI Blue
+      fillColor: [25, 118, 210],
       textColor: [255, 255, 255],
       halign: "center",
       fontSize: 11,
     },
-    bodyStyles: {
-      halign: "center",
-      textColor: [40, 40, 40],
-    },
-    columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 25 },
-      3: { cellWidth: 28 },
-      4: { cellWidth: 22 },
-      5: { cellWidth: 28 },
-      6: { cellWidth: 28 },
-      7: { cellWidth: 22 },
-      8: { cellWidth: 25 },
-    },
+    bodyStyles: { halign: "center", textColor: [40, 40, 40] },
   });
 
-  // ===== FINAL FARE =====
+  // === Final Total Fare ===
   const finalY = doc.lastAutoTable.finalY + 15;
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(76, 175, 80);
-  doc.text(`Final Total Fare: Rs. ${finalFare || quotation.finalFare || "N/A"}`, 14, finalY);
 
-  // ===== FOOTER =====
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(100);
-  doc.text(
-    `Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
-    14,
-    finalY + 10
-  );
+  // Right-align the final total fare
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const finalFareText = `Final Total Fare: ₹ ${Number(totalFinalFare).toLocaleString("en-IN")}`;
+  const textWidth = doc.getTextWidth(finalFareText);
+  const rightAlignedX = pageWidth - textWidth - 14;
 
-  // SAVE PDF
+  doc.text(finalFareText, rightAlignedX, finalY);
+
+  // === Save PDF ===
   doc.save(`Flight_Quotation_${quotation.flightQuotationId}.pdf`);
 };
 
-
-
-  
 
   return (
     <>
@@ -269,8 +242,7 @@ const handleDownloadPDF = () => {
             <Person sx={{ fontSize: 60 }} />
           </Box>
           <Typography variant="h6" fontWeight="bold">
-            {quotation?.clientDetails?.clientName ||
-              quotation?.personalDetails?.fullName}
+            {quotation?.clientDetails?.clientName || quotation?.personalDetails?.fullName}
           </Typography>
           <Box display="flex" justifyContent="center" alignItems="center">
             <Flag sx={{ fontSize: 16, mr: 0.5, color: "text.secondary" }} />
@@ -278,12 +250,8 @@ const handleDownloadPDF = () => {
           </Box>
           <Paper variant="outlined" sx={{ p: 2, mt: 4 }}>
             <Typography variant="subtitle2">Booking Summary</Typography>
-            <Divider sx={{ my: 1 ,flexGrow: 1}} />
-            {[
-              ["Reference No:", `${quotation.flightQuotationId}`],
-              ["Date:", new Date(quotation.createdAt).toLocaleDateString("en-GB")
-],
-            ].map(([k, v]) => (
+            <Divider sx={{ my: 1 }} />
+            {[["Reference No:", quotation.flightQuotationId], ["Date:", new Date(quotation.createdAt).toLocaleDateString("en-GB")]].map(([k, v]) => (
               <Box key={k} display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">{k}</Typography>
                 <Typography variant="body2" fontWeight="bold">
@@ -302,7 +270,7 @@ const handleDownloadPDF = () => {
           </Paper>
         </Grid>
 
-        {/* Content */}
+        {/* Main Content */}
         <Grid size={{ xs: 12, md: 9 }} sx={{ p: 3 }}>
           <Box display="flex" gap={2} mb={3}>
             <Button
@@ -311,18 +279,11 @@ const handleDownloadPDF = () => {
               onClick={() => setOpenDialog(true)}
               disabled={quotation.status === "Confirmed"}
             >
-              {quotation.status === "Confirmed"
-                ? "Booking Confirmed"
-                : "Finalize Booking"}
+              {quotation.status === "Confirmed" ? "Booking Confirmed" : "Finalize Booking"}
             </Button>
-                <Button
-  variant="outlined"
-  startIcon={<Download />}
-  onClick={handleDownloadPDF}
->
-  Download PDF
-</Button>
-
+            <Button variant="outlined" startIcon={<Download />} onClick={handleDownloadPDF}>
+              Download PDF
+            </Button>
           </Box>
 
           {/* Flight Details */}
@@ -345,7 +306,8 @@ const handleDownloadPDF = () => {
               </Box>
               <Chip
                 label={`Total Fare: ₹ ${flightData.reduce(
-                  (total, flight) => total + (parseFloat(flight.fare) || 0),
+                  (total, flight, i) =>
+                    total + (parseFloat(finalFareList[i] || flight.fare) || 0),
                   0
                 )}`}
                 color="success"
@@ -354,7 +316,6 @@ const handleDownloadPDF = () => {
               />
             </Box>
 
-            {/* Flight Details Section */}
             <Grid container spacing={2}>
               {flightData.map((flight, index) => (
                 <Paper
@@ -380,7 +341,7 @@ const handleDownloadPDF = () => {
                       ✈️ Flight {index + 1}
                     </Typography>
                     <Chip
-                      label={`₹ ${flight.fare}`}
+                      label={`₹ ${finalFareList[index] || flight.fare}`}
                       color="success"
                       variant="outlined"
                       sx={{ fontWeight: "bold" }}
@@ -406,7 +367,7 @@ const handleDownloadPDF = () => {
                     <Grid size={{ xs: 12, md: 6 }}>
                       <Typography fontWeight="bold">Fare:</Typography>
                       <Typography color="green" fontWeight="bold">
-                        ₹ {flight.fare}
+                        ₹ {finalFareList[index] || flight.fare}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -422,68 +383,54 @@ const handleDownloadPDF = () => {
         <DialogTitle sx={{ fontWeight: "bold", textAlign: "center" }}>
           Finalize Flight Booking
         </DialogTitle>
-              <DialogContent>
-  <Grid container spacing={2}>
-    {flightData.map((flight, index) => (
-      <Grid
-        key={index}
-        container
-        spacing={2}
-        alignItems="center"
-        sx={{ mb: 1 }}
-      >
-        {/* PNR Input */}
-        <Grid size={{ xs: 6 }}>
-          <TextField
-            label={`PNR (Flight ${index + 1})`}
-            fullWidth
-            value={pnrList[index] || ""}
-            onChange={(e) => {
-              const updated = [...pnrList];
-              updated[index] = e.target.value;
-              setPnrList(updated);
-            }}
-            variant="outlined"
-            size="small"
-          />
-        </Grid>
-
-        {/* Final Fare Input */}
-        <Grid size={{ xs: 6 }}>
-          <TextField
-            label="Final Fare (₹)"
-            type="number"
-            fullWidth
-            value={finalFareList[index] || ""}
-            onChange={(e) => {
-              const updated = [...finalFareList];
-              updated[index] = e.target.value; // You enter fare + margin here
-              setFinalFareList(updated);
-            }}
-            variant="outlined"
-            size="small"
-          />
-        </Grid>
-      </Grid>
-    ))}
-
-    {/* Display Total Final Fare */}
-    <Grid size={{ xs: 12 }} sx={{ mt: 2 }}>
-  <TextField
-    label="Total Final Fare (₹)"
-    type="number"
-    fullWidth
-    value={totalFinalFare}
-    onChange={(e) => setTotalFinalFare(e.target.value)}
-    variant="outlined"
-    size="small"
-  />
-</Grid>
-  </Grid>
-</DialogContent>
-
-
-
+        <DialogContent>
+          <Grid container spacing={2}>
+            {flightData.map((flight, index) => (
+              <Grid key={index} container spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                <Grid size={{ xs: 6 }}>
+                  <TextField
+                    label={`PNR (Flight ${index + 1})`}
+                    fullWidth
+                    value={pnrList[index] || ""}
+                    onChange={(e) => {
+                      const updated = [...pnrList];
+                      updated[index] = e.target.value;
+                      setPnrList(updated);
+                    }}
+                    variant="outlined"
+                    size="small"
+                  />
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <TextField
+                    label="Final Fare (₹)"
+                    type="number"
+                    fullWidth
+                    value={finalFareList[index] || ""}
+                    onChange={(e) => {
+                      const updated = [...finalFareList];
+                      updated[index] = e.target.value;
+                      setFinalFareList(updated);
+                    }}
+                    variant="outlined"
+                    size="small"
+                  />
+                </Grid>
+              </Grid>
+            ))}
+            <Grid size={{ xs: 12 }} sx={{ mt: 2 }}>
+              <TextField
+                label="Total Final Fare (₹)"
+                type="number"
+                fullWidth
+                value={totalFinalFare}
+                onChange={(e) => setTotalFinalFare(e.target.value)}
+                variant="outlined"
+                size="small"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
         <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
           <Button onClick={() => setOpenDialog(false)} color="inherit">
             Cancel

@@ -194,30 +194,25 @@ const flightQuotationSlice = createSlice({
   state.loading = false;
   state.success = true;
 
-  // Update only the confirmed quotation
-state.quotations = state.quotations.map((q) =>
-  q.flightQuotationId === action.payload.flightQuotationId
-    ? {
-        ...q,
-        status: "Confirmed",
-        pnrList: action.payload.pnrList,
-        finalFareList: action.payload.finalFareList,
-        finalFare: action.payload.finalFare, // ✅ Store manual final fare
-      }
-    : q
-);
+  // Update quotations list
+  state.quotations = state.quotations.map((q) =>
+    q.flightQuotationId === action.payload.flightQuotationId
+      ? action.payload
+      : q
+  );
 
-if (state.quotationDetails?.flightQuotationId === action.payload.flightQuotationId) {
-  state.quotationDetails = {
-    ...state.quotationDetails,
-    status: "Confirmed",
-    pnrList: action.payload.pnrList,
-    finalFareList: action.payload.finalFareList,
-    finalFare: action.payload.finalFare, // ✅ Store manual final fare in details too
-  };
-}
-
+  // ✅ Fix: Update quotationDetails.quotation properly
+  if (state.quotationDetails?.quotation?.flightQuotationId === action.payload.flightQuotationId) {
+    state.quotationDetails = {
+      ...state.quotationDetails,
+      quotation: {
+        ...state.quotationDetails.quotation,
+        ...action.payload, // ✅ This keeps status, finalFare, PNR, etc. updated
+      },
+    };
+  }
 })
+
 .addCase(confirmFlightQuotation.rejected, (state, action) => {
   state.loading = false;
   state.error = action.payload;

@@ -756,52 +756,16 @@
             "schema": {
               "type": "object",
               "properties": {
-                "clientName": {
+                "basicsDetails": {
                   "example": "any"
                 },
-                "vehicleType": {
+                "costDetails": {
                   "example": "any"
                 },
-                "tripType": {
+                "pickupDropDetails": {
                   "example": "any"
                 },
-                "noOfDays": {
-                  "example": "any"
-                },
-                "perDayCost": {
-                  "example": "any"
-                },
-                "totalCost": {
-                  "example": "any"
-                },
-                "pickupDate": {
-                  "example": "any"
-                },
-                "pickupTime": {
-                  "example": "any"
-                },
-                "pickupLocation": {
-                  "example": "any"
-                },
-                "dropDate": {
-                  "example": "any"
-                },
-                "dropTime": {
-                  "example": "any"
-                },
-                "dropLocation": {
-                  "example": "any"
-                },
-                "discount": {
-                  "example": "any"
-                },
-                "gstOn": {
-                  "example": "any"
-                },
-                "applyGst": {
-                  "example": "any"
-                },
-                "contactDetails": {
+                "signatureDetails": {
                   "example": "any"
                 }
               }
@@ -993,6 +957,145 @@
           },
           "500": {
             "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/flightQT/": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "tripType": {
+                  "example": "any"
+                },
+                "clientDetails": {
+                  "example": "any"
+                },
+                "flightDetails": {
+                  "example": "any"
+                },
+                "adults": {
+                  "example": "any"
+                },
+                "childs": {
+                  "example": "any"
+                },
+                "infants": {
+                  "example": "any"
+                },
+                "anyMessage": {
+                  "example": "any"
+                },
+                "personalDetails": {
+                  "example": "any"
+                },
+                "status": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/flightQT/{flightQuotationId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "flightQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "flightQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "flightQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/flightQT/confirm/{flightQuotationId}": {
+      "patch": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "flightQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "pnrList": {
+                  "example": "any"
+                },
+                "finalFare": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
