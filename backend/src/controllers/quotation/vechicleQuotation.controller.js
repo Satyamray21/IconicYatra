@@ -2,6 +2,7 @@ import { Vehicle } from "../../models/quotation/vehicle.model.js";
 import {asyncHandler} from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
+import {Lead} from "../../models/lead.model.js"
 
 const generateVehicleQuotationId = async () => {
   const lastVehicle = await Vehicle.findOne({})
@@ -129,10 +130,22 @@ export const getVehicleById = asyncHandler(async (req, res) => {
   if (!vehicle) {
     throw new ApiError(404, "Vehicle quotation not found");
   }
-
+  const lead = await Lead.findOne({
+          "personalDetails.fullName": vehicle.basicsDetails.clientName,
+      });
+if (!lead) {
+        throw new ApiError(
+            404,
+            `Lead not found for client ${vehicle.basicsDetails.clientName}`
+        );
+    }
+     const responseData = {
+            vehicle,
+            lead,
+        };
   return res
     .status(200)
-    .json(new ApiResponse(200, vehicle, "Vehicle quotation fetched successfully"));
+    .json(new ApiResponse(200, responseData, "Vehicle quotation fetched successfully"));
 });
 export const updateVehicle = asyncHandler(async (req, res) => {
   const { vehicleQuotationId } = req.params;
