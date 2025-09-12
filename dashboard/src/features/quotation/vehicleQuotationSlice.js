@@ -172,10 +172,19 @@ export const vehicleQuotationSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(getVehicleQuotationById.fulfilled, (state, action) => {
-        state.loading = false;
-        state.viewedVehicleQuotation = action.payload;
-      })
+      // In your extraReducers for getVehicleQuotationById.fulfilled
+.addCase(getVehicleQuotationById.fulfilled, (state, action) => {
+  state.loading = false;
+  // Transform the API response to match your expected structure
+  const transformedData = {
+    ...action.payload,
+    vehicle: {
+      ...action.payload.vehicle,
+      pickupDrop: action.payload.vehicle.pickupDropDetails
+    }
+  };
+  state.viewedVehicleQuotation = transformedData;
+})
       .addCase(getVehicleQuotationById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
