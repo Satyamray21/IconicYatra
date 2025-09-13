@@ -525,7 +525,7 @@ const VehicleQuotationPage = () => {
       </Box>
 
       <Grid container spacing={2}>
-        <Grid item xs={12} md={3}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Box sx={{ position: "sticky", top: 0 }}>
             <Card>
               <CardContent>
@@ -586,7 +586,7 @@ const VehicleQuotationPage = () => {
           </Box>
         </Grid>
 
-        <Grid item xs={12} md={9}>
+        <Grid  size={{ xs: 12, md: 9 }}>
           <Card>
             <CardContent>
               <Box
@@ -783,7 +783,7 @@ const VehicleQuotationPage = () => {
 
               <Grid container spacing={2} mt={1}>
                 {Policies.map((p, i) => (
-                  <Grid item xs={12} key={i}>
+                  <Grid size={{ xs: 12}} key={i}>
                     <Card variant="outlined">
                       <CardContent>
                         <Box
