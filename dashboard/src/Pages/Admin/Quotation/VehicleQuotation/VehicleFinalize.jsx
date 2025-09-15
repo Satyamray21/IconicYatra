@@ -70,6 +70,7 @@ const VehicleQuotationPage = () => {
     (state) => state.vehicleQuotation
   );
 
+
   const [editDialog, setEditDialog] = useState({
     open: false,
     field: "",
@@ -570,17 +571,56 @@ const VehicleQuotationPage = () => {
                   Margin & Taxes (B2C)
                 </Typography>
                 {Accordions.map((a, i) => (
-                  <Accordion key={i}>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography color="primary" fontWeight="bold">
-                        {a.title}
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Typography variant="body2">Details go here.</Typography>
-                    </AccordionDetails>
-                  </Accordion>
-                ))}
+  <Accordion key={i}>
+    <AccordionSummary expandIcon={<ExpandMore />}>
+      <Typography color="primary" fontWeight="bold">
+        {a.title}
+      </Typography>
+    </AccordionSummary>
+    <AccordionDetails>
+      {a.title === "Vehicle Details" ? (
+        <Box>
+          
+
+          <Typography variant="h5" color="primary" gutterBottom>
+            {Number(costDetails.totalCost || 0).toLocaleString("en-IN", {
+              style: "currency",
+              currency: "INR",
+              maximumFractionDigits: 0,
+            })}
+          </Typography>
+
+          <Typography variant="body1">
+            Pickup :{" "}
+            {pickupDropDetails.pickupDate
+              ? new Date(pickupDropDetails.pickupDate).toLocaleDateString(
+                  "en-GB",
+                  { day: "2-digit", month: "2-digit", year: "numeric" }
+                )
+              : "N/A"}
+          </Typography>
+
+          <Typography variant="body1">
+            Drop :{" "}
+            {pickupDropDetails.dropDate
+              ? new Date(pickupDropDetails.dropDate).toLocaleDateString(
+                  "en-GB",
+                  { day: "2-digit", month: "2-digit", year: "numeric" }
+                )
+              : "N/A"}
+          </Typography>
+        </Box>
+      ) : a.title === "Company Margin" ? (
+        <Typography variant="body2">
+          Company Margin details go here...
+        </Typography>
+      ) : (
+        <Typography variant="body2">Details go here.</Typography>
+      )}
+    </AccordionDetails>
+  </Accordion>
+))}
+
               </CardContent>
             </Card>
           </Box>

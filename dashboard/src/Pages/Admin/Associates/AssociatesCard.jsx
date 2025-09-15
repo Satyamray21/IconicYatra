@@ -39,7 +39,7 @@ const AssociateDashboard = () => {
 
   const handleAddClick = () => {
     navigate("/associatesform");
-  };
+  };  
 
   const handleEditClick = (row) => {
     navigate("/associates/associateseditform", { state: { associateData: row } });
