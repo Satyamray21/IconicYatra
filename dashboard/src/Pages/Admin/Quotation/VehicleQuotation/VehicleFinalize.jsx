@@ -526,126 +526,306 @@ const VehicleQuotationPage = () => {
   };
   const handleClientPdf = () => {
   const pdf = new jsPDF("p", "mm", "a4");
+  let y = 20;
+  
+  // Colors
+  const primaryColor = [0, 102, 204]; // Blue
+  const secondaryColor = [255, 153, 0]; // Orange
+  const darkColor = [51, 51, 51]; // Dark gray
+  
+  // Helper function to add text blocks
+  const addTextBlock = (lines, fontSize = 10, lineSpacing = 6, isBold = false, color = darkColor) => {
+    pdf.setFontSize(fontSize);
+    pdf.setTextColor(...color);
+    if (isBold) pdf.setFont(undefined, 'bold');
+    lines.forEach(line => {
+      pdf.text(line, 15, y, { maxWidth: 180 });
+      y += lineSpacing;
+    });
+    if (isBold) pdf.setFont(undefined, 'normal');
+    pdf.setTextColor(...darkColor);
+  };
 
-  // ---------- Header ----------
+  // ---------- Header with Logo Placeholder ----------
+  pdf.setFillColor(...primaryColor);
+  pdf.rect(0, 0, 210, 15, 'F');
+  
+  pdf.setFontSize(16);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text("ICONIC YATRA", 105, 10, { align: 'center' });
+  
+  // Add decorative line
+  pdf.setDrawColor(...secondaryColor);
+  pdf.setLineWidth(0.5);
+  pdf.line(15, 17, 195, 17);
+  
+  y = 25;
+
+  // ---------- Client Details ----------
+  pdf.setFillColor(240, 240, 240);
+  pdf.roundedRect(15, y, 180, 25, 3, 3, 'F');
+  
   pdf.setFontSize(12);
-  pdf.text("Kind Attention", 15, 20);
-  pdf.setFontSize(14);
-  pdf.text(basicsDetails.clientName || "N/A", 15, 28);
+  pdf.setTextColor(...primaryColor);
+  pdf.text("QUOTATION FOR", 20, y + 8);
+  
+  pdf.setFontSize(16);
+  pdf.setFont(undefined, 'bold');
+  pdf.setTextColor(...darkColor);
+  pdf.text(basicsDetails.clientName || "CLIENT NAME", 20, y + 16);
+  
   pdf.setFontSize(11);
-  pdf.text(location.state || "N/A", 15, 36);
+  pdf.setFont(undefined, 'normal');
+  pdf.setTextColor(100, 100, 100);
+  pdf.text(location.state || "Location", 20, y + 22);
+  
+  // Quotation details on right side
+  const today = new Date();
+  pdf.setFontSize(10);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text(`Date: ${today.toLocaleDateString()}`, 160, y + 8);
+  pdf.text(`Ref: ${vehicle.vehicleQuotationId || "N/A"}`, 160, y + 14);
+  pdf.text(`Valid Until: ${pickupDropDetails.validTo || "N/A"}`, 160, y + 20);
+  
+  y += 35;
 
   // ---------- About Us ----------
-  pdf.setFontSize(12);
-  pdf.text("About Us", 15, 50);
+  addTextBlock(["About Us"], 14, 8, true, primaryColor);
+  
   pdf.setFontSize(10);
-  pdf.text(
-    "Iconic Yatra is the main online Tour operator Platform. We are tour packages specialist for Domestic and International both, offering a wide range of services that include Domestic & International Tour Packages.",
-    15,
-    58,
-    { maxWidth: 180 }
-  );
+  pdf.setTextColor(80, 80, 80);
+  pdf.text("Iconic Yatra is a premier online tour operator platform specializing in both Domestic and", 15, y, { maxWidth: 180 });
+  y += 5;
+  pdf.text("International tour packages. We offer comprehensive travel services tailored to meet your needs.", 15, y, { maxWidth: 180 });
+  y += 8;
 
-  // ---------- Pickup / Drop ----------
+  // ---------- Travel Details Card ----------
+  pdf.setFillColor(245, 245, 245);
+  pdf.roundedRect(15, y, 180, 40, 3, 3, 'F');
+  
   pdf.setFontSize(12);
-  pdf.text("Pickup/Drop Details", 15, 90);
+  pdf.setTextColor(...primaryColor);
+  pdf.text("TRAVEL ITINERARY", 20, y + 8);
+  
   pdf.setFontSize(10);
-  pdf.text(
-    `This Quotation is valid For the period ${pickupDropDetails.validFrom || "N/A"} to ${pickupDropDetails.validTo || "N/A"}`,
-    15,
-    98
-  );
-  pdf.text(
-    `Arrival: ${pickupDropDetails.pickupLocation || "N/A"} (${pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A"}) at ${pickupDropDetails.pickupPoint || "N/A"}`,
-    15,
-    106
-  );
-  pdf.text(
-    `Departure: ${pickupDropDetails.dropLocation || "N/A"} (${pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A"}) from ${pickupDropDetails.dropPoint || "N/A"}`,
-    15,
-    114
-  );
+  pdf.setTextColor(...darkColor);
+  
+  // Arrival
+  pdf.text("Arrival", 20, y + 16);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text(`${pickupDropDetails.pickupLocation || "N/A"} | ${pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A"}`, 20, y + 22);
+  
+  // Departure
+  pdf.setTextColor(...darkColor);
+  pdf.text("Departure", 110, y + 16);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text(`${pickupDropDetails.dropLocation || "N/A"} | ${pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A"}`, 110, y + 22);
+  
+  // Guests
+  pdf.setTextColor(...darkColor);
+  pdf.text("Guests", 20, y + 32);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text(`${members.adults || 0} Adults`, 20, y + 38);
+  
+  y += 50;
 
-  // ---------- Vehicle Quotation ----------
-  pdf.setFontSize(12);
-  pdf.text(`Vehicle Quotation For ${basicsDetails.clientName || "N/A"}`, 15, 130);
+  // ---------- Vehicle & Pricing ----------
+  addTextBlock(["Vehicle & Pricing Details"], 14, 8, true, primaryColor);
+  
+  // Table with improved styling
+  autoTable(pdf, {
+    startY: y,
+    head: [
+      [
+        {content: "Vehicle", styles: {fillColor: primaryColor, textColor: 255, fontStyle: 'bold'}},
+        {content: "Pickup Date", styles: {fillColor: primaryColor, textColor: 255, fontStyle: 'bold'}},
+        {content: "Drop Date", styles: {fillColor: primaryColor, textColor: 255, fontStyle: 'bold'}},
+        {content: "Cost (₹)", styles: {fillColor: primaryColor, textColor: 255, fontStyle: 'bold'}}
+      ]
+    ],
+    body: [
+      [
+        basicsDetails.vehicleType || "N/A",
+        pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A",
+        pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A",
+        {content: (costDetails.totalCost || "0").toLocaleString('en-IN'), styles: {fontStyle: 'bold'}}
+      ]
+    ],
+    theme: 'grid',
+    styles: {fontSize: 10, cellPadding: 4},
+    headStyles: {halign: 'center'},
+    bodyStyles: {halign: 'center'},
+    margin: {left: 15, right: 15}
+  });
+  
+  // Total row with different styling
+  autoTable(pdf, {
+    startY: pdf.lastAutoTable.finalY + 2,
+    body: [
+      [
+        {content: "Total Package Cost", colSpan: 3, styles: {fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'right'}},
+        {content: `₹ ${(costDetails.totalCost || "0").toLocaleString('en-IN')}`, styles: {fillColor: secondaryColor, textColor: 255, fontStyle: 'bold', halign: 'center'}}
+      ]
+    ],
+    theme: 'grid',
+    styles: {fontSize: 11, cellPadding: 5},
+    margin: {left: 15, right: 15}
+  });
+  
+  y = pdf.lastAutoTable.finalY + 15;
+
+  // ---------- Policies Section ----------
+  // Create a new page if needed
+  if (y > 180) {
+    pdf.addPage();
+    y = 20;
+  }
+  
+  addTextBlock(["Package Policies"], 14, 8, true, primaryColor);
+  
+  // Inclusion Policy
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Inclusions:", 15, y);
+  y += 6;
+  
   pdf.setFontSize(10);
-  pdf.text("Itinerary Route Plan", 15, 138);
-  pdf.text(
-    vehicle.itineraryNote ||
-      "This is only tentative schedule for sightseeing and travel. Actual sightseeing may change due to weather, road, or local conditions.",
-    15,
-    146,
-    { maxWidth: 180 }
-  );
+  pdf.setTextColor(80, 80, 80);
+  pdf.setFont(undefined, 'normal');
+  const inclusions = defaultPolicies.inclusions;
+  if (Array.isArray(inclusions)) {
+    inclusions.forEach((item, index) => {
+      pdf.text(`• ${item}`, 18, y);
+      y += 5;
+    });
+  }
+  
+  // Special note
+  y += 3;
+  pdf.setTextColor(90, 90, 90);
+  pdf.text("* Due to low temperature, AC will be off during hill station tours.", 18, y);
+  y += 8;
 
-  // ---------- Table ----------
-  autoTable(pdf,{
-    startY: 165,
-    head: [["Vehicle Name", "Pickup", "Drop", "Cost"]],
-    body: [[
-      basicsDetails.vehicleType || "N/A",
-      pickupDropDetails.pickupDate
-        ? new Date(pickupDropDetails.pickupDate).toLocaleDateString()
-        : "N/A",
-      pickupDropDetails.dropDate
-        ? new Date(pickupDropDetails.dropDate).toLocaleDateString()
-        : "N/A",
-      `₹ ${costDetails.totalCost || "0"}`
-    ], ["", "", "Total Package Cost", `₹ ${costDetails.totalCost || "0"}`]],
-    theme: "grid",
-    headStyles: { fillColor: [0, 102, 204] }
+  // Exclusion Policy
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Exclusions:", 15, y);
+  y += 6;
+  
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.setFont(undefined, 'normal');
+  const exclusions = defaultPolicies.exclusions.split('\n');
+  exclusions.forEach((item) => {
+    pdf.text(`• ${item}`, 18, y);
+    y += 5;
+  });
+  y += 8;
+
+  // Payment Policy
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Payment Terms:", 15, y);
+  y += 6;
+  
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.setFont(undefined, 'normal');
+  pdf.text("• 50% advance at confirmation", 18, y);
+  y += 5;
+  pdf.text("• 50% balance 10 days before tour start", 18, y);
+  y += 8;
+
+  // Cancellation Policy
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Cancellation Policy:", 15, y);
+  y += 6;
+  
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.setFont(undefined, 'normal');
+  pdf.text("• Before 15 days: 50% retention", 18, y);
+  y += 5;
+  pdf.text("• Within 7 days: 100% charges applicable", 18, y);
+  y += 15;
+
+  // ---------- Terms & Conditions ----------
+  if (y > 170) {
+    pdf.addPage();
+    y = 20;
+  }
+  
+  addTextBlock(["Terms & Conditions"], 14, 8, true, primaryColor);
+  
+  pdf.setFontSize(9);
+  pdf.setTextColor(70, 70, 70);
+  
+  const terms = [
+    "1. This quotation is subject to vehicle availability at the time of confirmation.",
+    "2. Any route deviations or extra kilometers will incur additional charges payable directly to the driver.",
+    "3. Additional sightseeing locations require separate payment to local operators.",
+    "4. During peak seasons, traffic delays may occur. During winter, road conditions may be affected by snow.",
+    "5. We recommend keeping buffer time for connections to avoid missing flights/trains.",
+    "6. Company is not liable for missed connections due to unforeseen circumstances.",
+    "7. Please inform in advance if you require GST invoice."
+  ];
+  
+  terms.forEach((term, index) => {
+    pdf.text(term, 18, y, { maxWidth: 175 });
+    y += 6;
   });
 
-  // ---------- Policies ----------
-  pdf.addPage();
-  pdf.setFontSize(12);
-  pdf.text("Inclusion Policy", 15, 20);
-  pdf.setFontSize(10);
-  const inclusions = Array.isArray(defaultPolicies.inclusions)
-    ? defaultPolicies.inclusions
-    : [defaultPolicies.inclusions];
-  pdf.text(inclusions.join("\n"), 15, 28, { maxWidth: 180 });
-
-  pdf.setFontSize(12);
-  pdf.text("Exclusion Policy", 15, 70);
-  pdf.setFontSize(10);
-  pdf.text(defaultPolicies.exclusions || "N/A", 15, 78, { maxWidth: 180 });
-
-  pdf.setFontSize(12);
-  pdf.text("Payment Policy", 15, 130);
-  pdf.setFontSize(10);
-  pdf.text(defaultPolicies.paymentPolicy || "N/A", 15, 138, { maxWidth: 180 });
-
-  pdf.setFontSize(12);
-  pdf.text("Cancellation & Refund", 15, 155);
-  pdf.setFontSize(10);
-  pdf.text(defaultPolicies.cancellationPolicy || "N/A", 15, 163, { maxWidth: 180 });
-
-  // ---------- Terms ----------
-  pdf.addPage();
-  pdf.setFontSize(12);
-  pdf.text("Terms & Conditions", 15, 20);
-  pdf.setFontSize(10);
-  pdf.text(terms || "N/A", 15, 28, { maxWidth: 180 });
-
   // ---------- Footer ----------
-  pdf.setFontSize(11);
-  pdf.text("Thanks & Regards,", 15, 250);
-  pdf.text(`${footer.contact}`, 15, 258);
-  pdf.setFontSize(12);
-  pdf.text(`${footer.company}`, 15, 270);
+  const pageHeight = pdf.internal.pageSize.height;
+  y = pageHeight - 40;
+  
+  pdf.setDrawColor(...primaryColor);
+  pdf.setLineWidth(0.5);
+  pdf.line(15, y, 195, y);
+  y += 5;
+  
   pdf.setFontSize(10);
-  pdf.text(footer.address || "N/A", 15, 278, { maxWidth: 180 });
-  pdf.text(
-    `${footer.website || ""} | GST : 09EYCPK8832C1ZC`,
-    15,
-    286,
-    { maxWidth: 180 }
-  );
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Thanks & Regards,", 15, y);
+  y += 5;
+  
+  pdf.setTextColor(...darkColor);
+  pdf.setFont(undefined, 'normal');
+  pdf.text("Amit Jaiswal | +91 7053900957", 15, y);
+  y += 5;
+  
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("ICONIC YATRA", 15, y);
+  y += 5;
+  
+  pdf.setFontSize(9);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text("Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301", 15, y);
+  y += 4;
+  
+  pdf.setTextColor(...primaryColor);
+  pdf.text("https://www.iconicyatra.com | GST: 09EYCPK8832CIZC", 15, y);
 
-  pdf.save(`client_quotation_${vehicle.vehicleQuotationId || "sample"}.pdf`);
+  // Add page numbers
+  const pageCount = pdf.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(`Page ${i} of ${pageCount}`, 105, pageHeight - 10, { align: 'center' });
+  }
+
+  pdf.save(`IconicYatra_Quotation_${vehicle.vehicleQuotationId || "0000"}.pdf`);
 };
+
 
 
   return (
