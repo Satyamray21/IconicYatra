@@ -56,6 +56,9 @@ import AddServiceDialog from "./Dialog/AddServiceDialog";
 import { getVehicleQuotationById } from "../../../../features/quotation/vehicleQuotationSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
+import { useRef } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const VehicleQuotationPage = () => {
   const [activeInfo, setActiveInfo] = useState(null);
@@ -65,11 +68,10 @@ const VehicleQuotationPage = () => {
   const [invoiceGenerated, setInvoiceGenerated] = useState(false);
   const dispatch = useDispatch();
   const { id } = useParams();
-
+  const pdfRef = useRef();
   const { viewedVehicleQuotation: q, loading } = useSelector(
     (state) => state.vehicleQuotation
   );
-
 
   const [editDialog, setEditDialog] = useState({
     open: false,
@@ -220,6 +222,43 @@ const VehicleQuotationPage = () => {
   const handleAddBankOpen = () => {
     setOpenAddBankDialog(true);
   };
+  
+  const handlePreviewPdf = async () => {
+    const element = pdfRef.current;
+    if (!element) {
+      console.error("PDF ref not available");
+      return;
+    }
+    
+    const canvas = await html2canvas(element, { 
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const imgWidth = 210; // A4 width
+    const pageHeight = 297;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    // Use a safe reference for the filename
+    const vehicleQuotationId = q?.vehicle?.vehicleQuotationId || "preview";
+    pdf.save(`quotation_${vehicleQuotationId}.pdf`);
+  };
 
   const handleAddBankClose = () => {
     setOpenAddBankDialog(false);
@@ -348,7 +387,7 @@ const VehicleQuotationPage = () => {
         handleEmailOpen();
         break;
       case "Preview PDF":
-        console.log("Previewing PDF...");
+        handlePreviewPdf();
         break;
       case "Make Payment":
         handlePaymentOpen();
@@ -481,7 +520,7 @@ const VehicleQuotationPage = () => {
   };
 
   return (
-    <Box>
+    <Box ref={pdfRef} sx={{ backgroundColor: 'white', minHeight: '100vh' }} >
       <Box
         display="flex"
         justifyContent="flex-end"
@@ -526,7 +565,7 @@ const VehicleQuotationPage = () => {
       </Box>
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid item xs={12} md={3}>
           <Box sx={{ position: "sticky", top: 0 }}>
             <Card>
               <CardContent>
@@ -571,62 +610,59 @@ const VehicleQuotationPage = () => {
                   Margin & Taxes (B2C)
                 </Typography>
                 {Accordions.map((a, i) => (
-  <Accordion key={i}>
-    <AccordionSummary expandIcon={<ExpandMore />}>
-      <Typography color="primary" fontWeight="bold">
-        {a.title}
-      </Typography>
-    </AccordionSummary>
-    <AccordionDetails>
-      {a.title === "Vehicle Details" ? (
-        <Box>
-          
+                  <Accordion key={i}>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography color="primary" fontWeight="bold">
+                        {a.title}
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {a.title === "Vehicle Details" ? (
+                        <Box>
+                          <Typography variant="h5" color="primary" gutterBottom>
+                            {Number(costDetails.totalCost || 0).toLocaleString("en-IN", {
+                              style: "currency",
+                              currency: "INR",
+                              maximumFractionDigits: 0,
+                            })}
+                          </Typography>
 
-          <Typography variant="h5" color="primary" gutterBottom>
-            {Number(costDetails.totalCost || 0).toLocaleString("en-IN", {
-              style: "currency",
-              currency: "INR",
-              maximumFractionDigits: 0,
-            })}
-          </Typography>
+                          <Typography variant="body1">
+                            Pickup :{" "}
+                            {pickupDropDetails.pickupDate
+                              ? new Date(pickupDropDetails.pickupDate).toLocaleDateString(
+                                  "en-GB",
+                                  { day: "2-digit", month: "2-digit", year: "numeric" }
+                                )
+                              : "N/A"}
+                          </Typography>
 
-          <Typography variant="body1">
-            Pickup :{" "}
-            {pickupDropDetails.pickupDate
-              ? new Date(pickupDropDetails.pickupDate).toLocaleDateString(
-                  "en-GB",
-                  { day: "2-digit", month: "2-digit", year: "numeric" }
-                )
-              : "N/A"}
-          </Typography>
-
-          <Typography variant="body1">
-            Drop :{" "}
-            {pickupDropDetails.dropDate
-              ? new Date(pickupDropDetails.dropDate).toLocaleDateString(
-                  "en-GB",
-                  { day: "2-digit", month: "2-digit", year: "numeric" }
-                )
-              : "N/A"}
-          </Typography>
-        </Box>
-      ) : a.title === "Company Margin" ? (
-        <Typography variant="body2">
-          Company Margin details go here...
-        </Typography>
-      ) : (
-        <Typography variant="body2">Details go here.</Typography>
-      )}
-    </AccordionDetails>
-  </Accordion>
-))}
-
+                          <Typography variant="body1">
+                            Drop :{" "}
+                            {pickupDropDetails.dropDate
+                              ? new Date(pickupDropDetails.dropDate).toLocaleDateString(
+                                  "en-GB",
+                                  { day: "2-digit", month: "2-digit", year: "numeric" }
+                                )
+                              : "N/A"}
+                          </Typography>
+                        </Box>
+                      ) : a.title === "Company Margin" ? (
+                        <Typography variant="body2">
+                          Company Margin details go here...
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2">Details go here.</Typography>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
               </CardContent>
             </Card>
           </Box>
         </Grid>
 
-        <Grid  size={{ xs: 12, md: 9 }}>
+        <Grid item xs={12} md={9}>
           <Card>
             <CardContent>
               <Box
@@ -665,7 +701,7 @@ const VehicleQuotationPage = () => {
                 <Person sx={{ fontSize: 18, mr: 0.5 }} />
                 <Typography variant="subtitle1" fontWeight="bold">
                   Kind Attention: {basicsDetails.clientName || "N/A"}
-                </Typography>
+                  </Typography>
               </Box>
 
               <Box
@@ -823,7 +859,7 @@ const VehicleQuotationPage = () => {
 
               <Grid container spacing={2} mt={1}>
                 {Policies.map((p, i) => (
-                  <Grid size={{ xs: 12}} key={i}>
+                  <Grid item xs={12} key={i}>
                     <Card variant="outlined">
                       <CardContent>
                         <Box
