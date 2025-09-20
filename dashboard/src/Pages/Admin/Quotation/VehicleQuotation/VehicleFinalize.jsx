@@ -58,7 +58,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 import { useRef } from "react";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
+
 
 const VehicleQuotationPage = () => {
   const [activeInfo, setActiveInfo] = useState(null);
@@ -134,6 +136,7 @@ const VehicleQuotationPage = () => {
     "Add Service",
     "Email Quotation",
     "Preview PDF",
+    "Client PDF",
     "Make Payment",
   ];
 
@@ -389,6 +392,9 @@ const VehicleQuotationPage = () => {
       case "Preview PDF":
         handlePreviewPdf();
         break;
+        case "Client PDF":  // ✅ New dynamic client PDF
+        handleClientPdf();
+        break;
       case "Make Payment":
         handlePaymentOpen();
         break;
@@ -518,6 +524,129 @@ const VehicleQuotationPage = () => {
     address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
     website: "https://www.iconicyatra.com",
   };
+  const handleClientPdf = () => {
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  // ---------- Header ----------
+  pdf.setFontSize(12);
+  pdf.text("Kind Attention", 15, 20);
+  pdf.setFontSize(14);
+  pdf.text(basicsDetails.clientName || "N/A", 15, 28);
+  pdf.setFontSize(11);
+  pdf.text(location.state || "N/A", 15, 36);
+
+  // ---------- About Us ----------
+  pdf.setFontSize(12);
+  pdf.text("About Us", 15, 50);
+  pdf.setFontSize(10);
+  pdf.text(
+    "Iconic Yatra is the main online Tour operator Platform. We are tour packages specialist for Domestic and International both, offering a wide range of services that include Domestic & International Tour Packages.",
+    15,
+    58,
+    { maxWidth: 180 }
+  );
+
+  // ---------- Pickup / Drop ----------
+  pdf.setFontSize(12);
+  pdf.text("Pickup/Drop Details", 15, 90);
+  pdf.setFontSize(10);
+  pdf.text(
+    `This Quotation is valid For the period ${pickupDropDetails.validFrom || "N/A"} to ${pickupDropDetails.validTo || "N/A"}`,
+    15,
+    98
+  );
+  pdf.text(
+    `Arrival: ${pickupDropDetails.pickupLocation || "N/A"} (${pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A"}) at ${pickupDropDetails.pickupPoint || "N/A"}`,
+    15,
+    106
+  );
+  pdf.text(
+    `Departure: ${pickupDropDetails.dropLocation || "N/A"} (${pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A"}) from ${pickupDropDetails.dropPoint || "N/A"}`,
+    15,
+    114
+  );
+
+  // ---------- Vehicle Quotation ----------
+  pdf.setFontSize(12);
+  pdf.text(`Vehicle Quotation For ${basicsDetails.clientName || "N/A"}`, 15, 130);
+  pdf.setFontSize(10);
+  pdf.text("Itinerary Route Plan", 15, 138);
+  pdf.text(
+    vehicle.itineraryNote ||
+      "This is only tentative schedule for sightseeing and travel. Actual sightseeing may change due to weather, road, or local conditions.",
+    15,
+    146,
+    { maxWidth: 180 }
+  );
+
+  // ---------- Table ----------
+  autoTable(pdf,{
+    startY: 165,
+    head: [["Vehicle Name", "Pickup", "Drop", "Cost"]],
+    body: [[
+      basicsDetails.vehicleType || "N/A",
+      pickupDropDetails.pickupDate
+        ? new Date(pickupDropDetails.pickupDate).toLocaleDateString()
+        : "N/A",
+      pickupDropDetails.dropDate
+        ? new Date(pickupDropDetails.dropDate).toLocaleDateString()
+        : "N/A",
+      `₹ ${costDetails.totalCost || "0"}`
+    ], ["", "", "Total Package Cost", `₹ ${costDetails.totalCost || "0"}`]],
+    theme: "grid",
+    headStyles: { fillColor: [0, 102, 204] }
+  });
+
+  // ---------- Policies ----------
+  pdf.addPage();
+  pdf.setFontSize(12);
+  pdf.text("Inclusion Policy", 15, 20);
+  pdf.setFontSize(10);
+  const inclusions = Array.isArray(defaultPolicies.inclusions)
+    ? defaultPolicies.inclusions
+    : [defaultPolicies.inclusions];
+  pdf.text(inclusions.join("\n"), 15, 28, { maxWidth: 180 });
+
+  pdf.setFontSize(12);
+  pdf.text("Exclusion Policy", 15, 70);
+  pdf.setFontSize(10);
+  pdf.text(defaultPolicies.exclusions || "N/A", 15, 78, { maxWidth: 180 });
+
+  pdf.setFontSize(12);
+  pdf.text("Payment Policy", 15, 130);
+  pdf.setFontSize(10);
+  pdf.text(defaultPolicies.paymentPolicy || "N/A", 15, 138, { maxWidth: 180 });
+
+  pdf.setFontSize(12);
+  pdf.text("Cancellation & Refund", 15, 155);
+  pdf.setFontSize(10);
+  pdf.text(defaultPolicies.cancellationPolicy || "N/A", 15, 163, { maxWidth: 180 });
+
+  // ---------- Terms ----------
+  pdf.addPage();
+  pdf.setFontSize(12);
+  pdf.text("Terms & Conditions", 15, 20);
+  pdf.setFontSize(10);
+  pdf.text(terms || "N/A", 15, 28, { maxWidth: 180 });
+
+  // ---------- Footer ----------
+  pdf.setFontSize(11);
+  pdf.text("Thanks & Regards,", 15, 250);
+  pdf.text(`${footer.contact}`, 15, 258);
+  pdf.setFontSize(12);
+  pdf.text(`${footer.company}`, 15, 270);
+  pdf.setFontSize(10);
+  pdf.text(footer.address || "N/A", 15, 278, { maxWidth: 180 });
+  pdf.text(
+    `${footer.website || ""} | GST : 09EYCPK8832C1ZC`,
+    15,
+    286,
+    { maxWidth: 180 }
+  );
+
+  pdf.save(`client_quotation_${vehicle.vehicleQuotationId || "sample"}.pdf`);
+};
+
 
   return (
     <Box ref={pdfRef} sx={{ backgroundColor: 'white', minHeight: '100vh' }} >
