@@ -228,3 +228,80 @@ export const deleteVehicle = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, "Vehicle quotation deleted successfully"));
 });
+
+export const addItinerary = asyncHandler(async (req, res) => {
+  const { vehicleQuotationId } = req.params;
+  const { itinerary } = req.body; // should be array of {title, description}
+
+  if (!Array.isArray(itinerary) || itinerary.length === 0) {
+    throw new ApiError(400, "Please provide at least one itinerary entry");
+  }
+
+  const updatedVehicle = await Vehicle.findOneAndUpdate(
+    { vehicleQuotationId },
+    { $push: { itinerary: { $each: itinerary } } },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedVehicle) {
+    throw new ApiError(404, "Vehicle quotation not found");
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      updatedVehicle.itinerary,
+      "Itinerary added successfully"
+    )
+  );
+});
+
+export const editItinerary = asyncHandler(async (req, res) => {
+  const { vehicleQuotationId, itineraryId } = req.params;
+  const { title, description } = req.body;
+
+  const vehicle = await Vehicle.findOneAndUpdate(
+    { vehicleQuotationId, "itinerary._id": itineraryId },
+    {
+      $set: {
+        "itinerary.$.title": title,
+        "itinerary.$.description": description,
+      },
+    },
+    { new: true, runValidators: true }
+  );
+
+  if (!vehicle) {
+    throw new ApiError(404, "Vehicle or itinerary entry not found");
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      vehicle.itinerary,
+      "Itinerary entry updated successfully"
+    )
+  );
+});
+
+export const viewItinerary = asyncHandler(async (req, res) => {
+  const { vehicleQuotationId } = req.params;
+
+  const vehicle = await Vehicle.findOne(
+    { vehicleQuotationId },
+    { itinerary: 1, _id: 0 }
+  );
+
+  if (!vehicle) {
+    throw new ApiError(404, "Vehicle quotation not found");
+  }
+
+  const responseData = {
+    note: "Itinerary Route Plan: This is only a tentative schedule for sightseeing and travel. The actual sequence might change depending on the local conditions.",
+    itinerary: vehicle.itinerary,
+  };
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, responseData, "Itinerary fetched successfully"));
+});

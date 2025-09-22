@@ -75,7 +75,55 @@ export const deleteVehicleQuotation = createAsyncThunk(
     }
   }
 );
+// ========== ADD ITINERARY ==========
+export const addItinerary = createAsyncThunk(
+  "itinerary/addItinerary",
+  async ({ vehicleQuotationId, itinerary }, thunkApi) => {
+    try {
+      const res = await axios.post(`/vehicleQT/${vehicleQuotationId}/itinerary`, {
+        itinerary,
+      });
+      return res.data.data;
+    } catch (err) {
+      return thunkApi.rejectWithValue(
+        err?.response?.data?.message || "Failed to add itinerary"
+      );
+    }
+  }
+);
 
+// ========== EDIT ITINERARY ==========
+export const editItinerary = createAsyncThunk(
+  "itinerary/editItinerary",
+  async ({ vehicleQuotationId, itineraryId, data }, thunkApi) => {
+    try {
+      const res = await axios.put(
+        `/vehicleQT/${vehicleQuotationId}/itinerary/${itineraryId}`,
+        data
+      );
+      return res.data.data;
+    } catch (err) {
+      return thunkApi.rejectWithValue(
+        err?.response?.data?.message || "Failed to edit itinerary"
+      );
+    }
+  }
+);
+
+// ========== VIEW ITINERARY ==========
+export const viewItinerary = createAsyncThunk(
+  "itinerary/viewItinerary",
+  async (vehicleQuotationId, thunkApi) => {
+    try {
+      const res = await axios.get(`/vehicleQT/${vehicleQuotationId}/itinerary`);
+      return res.data.data;
+    } catch (err) {
+      return thunkApi.rejectWithValue(
+        err?.response?.data?.message || "Failed to fetch itinerary"
+      );
+    }
+  }
+);
 // ========== INITIAL STATE ==========
 const initialState = {
   list: [],
@@ -103,6 +151,10 @@ const initialState = {
   message: "",
   viewedVehicleQuotation: null,
   updatedVehicleQuotation: null,
+
+  // ✅ itinerary state
+  itinerary: [],
+  viewedItinerary: null,
 };
 
 // ========== SLICE ==========
@@ -132,6 +184,12 @@ export const vehicleQuotationSlice = createSlice({
       state.error = null;
       state.updatedVehicleQuotation = null;
       state.message = "";
+    },
+
+    // ✅ itinerary-specific reducers
+    clearItinerary: (state) => {
+      state.itinerary = [];
+      state.viewedItinerary = null;
     },
   },
   extraReducers: (builder) => {
@@ -172,19 +230,17 @@ export const vehicleQuotationSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      // In your extraReducers for getVehicleQuotationById.fulfilled
-.addCase(getVehicleQuotationById.fulfilled, (state, action) => {
-  state.loading = false;
-  // Transform the API response to match your expected structure
-  const transformedData = {
-    ...action.payload,
-    vehicle: {
-      ...action.payload.vehicle,
-      pickupDrop: action.payload.vehicle.pickupDropDetails
-    }
-  };
-  state.viewedVehicleQuotation = transformedData;
-})
+      .addCase(getVehicleQuotationById.fulfilled, (state, action) => {
+        state.loading = false;
+        const transformedData = {
+          ...action.payload,
+          vehicle: {
+            ...action.payload.vehicle,
+            pickupDrop: action.payload.vehicle.pickupDropDetails,
+          },
+        };
+        state.viewedVehicleQuotation = transformedData;
+      })
       .addCase(getVehicleQuotationById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
@@ -233,6 +289,59 @@ export const vehicleQuotationSlice = createSlice({
       .addCase(deleteVehicleQuotation.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      // ✅ ADD ITINERARY
+      .addCase(addItinerary.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addItinerary.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        state.itinerary.push(action.payload);
+        state.message = "Itinerary added successfully";
+      })
+      .addCase(addItinerary.rejected, (state, action) => {
+        state.loading = false;
+        state.success = false;
+        state.error = action.payload;
+      })
+
+      // ✅ EDIT ITINERARY
+      .addCase(editItinerary.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(editItinerary.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        state.itinerary = state.itinerary.map((item) =>
+          item._id === action.payload._id ? action.payload : item
+        );
+        state.message = "Itinerary updated successfully";
+      })
+      .addCase(editItinerary.rejected, (state, action) => {
+        state.loading = false;
+        state.success = false;
+        state.error = action.payload;
+      })
+
+      // ✅ VIEW ITINERARY
+      .addCase(viewItinerary.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+     // In your extraReducers for viewItinerary.fulfilled
+.addCase(viewItinerary.fulfilled, (state, action) => {
+  state.loading = false;
+  state.viewedItinerary = action.payload;
+  // Make sure this matches your API response structure
+  state.itinerary = action.payload?.itinerary || action.payload || [];
+})
+      .addCase(viewItinerary.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
@@ -244,6 +353,8 @@ export const {
   setVehicleQuotations,
   clearViewedVehicleQuotation,
   resetVehicleQuotationStatus,
+  clearItinerary, // ✅ itinerary reset
 } = vehicleQuotationSlice.actions;
 
 export default vehicleQuotationSlice.reducer;
+

@@ -78,6 +78,18 @@ const vehicleSchema = mongoose.Schema({
             type:String
         }
     },
+     itinerary: [
+      {
+        title: {
+          type: String,
+          required: true,
+        },
+        description: {
+          type: String,
+          default: "",
+        },
+      },
+    ],
    vehicleQuotationId:{
     type:String,
     unique:true
