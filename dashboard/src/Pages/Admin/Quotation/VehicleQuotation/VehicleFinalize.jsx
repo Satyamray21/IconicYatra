@@ -462,16 +462,25 @@ useEffect(() => {
 
   // Default policies if not provided in API response
   const defaultPolicies = {
-    inclusions: [
-      "All transfers tours in a Private AC cab.",
-      "Parking, Toll charges, Fuel and Driver expenses.",
-      "Hotel Taxes.",
-      "Car AC off during hill stations.",
-    ],
-    exclusions: "1. Any Cost change due to change in Government guidelines like GST, Fuel price, etc.\n2. Any personal expenses like laundry, telephone bills, tips, etc.\n3. Anything not mentioned in the inclusions.",
-    paymentPolicy: "50% amount to pay at confirmation, balance before 10 days.",
-    cancellationPolicy: "1. Before 15 days: 50%. 2. Within 7 days: 100%.",
-  };
+  inclusions: [
+    "All transfers and tours in a Private AC cab or similar vehicle.",
+    "Parking, toll charges, fuel, and driver expenses.",
+    "Hotel taxes.",
+    "Car AC will be off during hill station tours due to low temperatures."
+  ],
+  exclusions: [
+    "Any extra costs arising due to unavoidable circumstances like natural calamities, lockdowns, heavy snowfall/rains, local political issues, strikes, riots, bandh, bad weather conditions, vehicle malfunctions, or law & order problems.",
+    "Cancellations of flight, train, bus, etc. No refunds or adjustments possible if sightseeing is affected due to such reasons. Extra costs to be borne by the guest on the spot.",
+    "Any costs for COVID testing before, during, or after the tour. Mandatory quarantine expenses to be borne by guests.",
+    "Sightseeing entry tickets are not included in the package cost."
+  ],
+  paymentPolicy: "50% amount to be paid at the time of confirmation, balance 50% to be paid at least 10 days before the start date.",
+  cancellationPolicy: [
+    "Cancellations before 15 days: 50% of the total tour cost will be deducted.",
+    "Cancellations within 7 days: No refunds, 100% charges applicable."
+  ]
+};
+
 
   const Policies = [
     {
@@ -545,71 +554,85 @@ useEffect(() => {
 const handleClientPdf = () => {
   const pdf = new jsPDF("p", "mm", "a4");
   let y = 20;
-  
+
   // Colors
   const primaryColor = [0, 102, 204]; // Blue
   const secondaryColor = [255, 153, 0]; // Orange
   const darkColor = [51, 51, 51]; // Dark gray
-  
-  // Add logo function
-   const addLogo = (x, y, width = 40) => {
-      if (logoBase64) {
-        pdf.addImage(logoBase64, 'PNG', x, y, width, width * 0.3);
-      } else {
-        // Fallback to text if no logo
-        pdf.setFillColor(240, 240, 240);
-        pdf.roundedRect(x, y, width, width/3, 2, 2, 'F');
-        pdf.setFontSize(10);
-        pdf.setTextColor(primaryColor);
-        pdf.setFont(undefined, 'bold');
-        pdf.text("ICONIC YATRA", x + width/2, y + width/6, { align: 'center' });
-        pdf.setFontSize(6);
-        pdf.setTextColor(100, 100, 100);
-        pdf.setFont(undefined, 'normal');
-        pdf.text("TRAVEL AND TOURISM AGENCY", x + width/2, y + width/4, { align: 'center' });
-      }
-    };
 
-    // Add logo at the top
-    addLogo(15, 15, 40);
-  // Header with blue background
-  pdf.setFillColor(...primaryColor);
-  pdf.rect(60, 15, 135, 12, 'F');
+  // Safe setFillColor
+  const safeSetFillColor = (color) => {
+    if (Array.isArray(color) && color.length === 3) {
+      pdf.setFillColor(...color);
+    } else if (typeof color === 'string') {
+      pdf.setFillColor(color);
+    } else {
+      pdf.setFillColor(0, 0, 0); // fallback black
+    }
+  };
+
+  // Add logo function
+  const addLogo = (x, y, width = 40) => {
+    if (logoBase64) {
+      pdf.addImage(logoBase64, 'PNG', x, y, width, width * 0.3);
+    } else {
+      safeSetFillColor([240, 240, 240]);
+      pdf.rect(x, y, width, width / 3, 'F'); // filled rect
+      pdf.setFontSize(10);
+      pdf.setTextColor(...primaryColor);
+      pdf.setFont(undefined, 'bold');
+      pdf.text("ICONIC YATRA", x + width / 2, y + width / 6, { align: 'center' });
+      pdf.setFontSize(6);
+      pdf.setTextColor(100, 100, 100);
+      pdf.setFont(undefined, 'normal');
+      pdf.text("TRAVEL AND TOURISM AGENCY", x + width / 2, y + width / 4, { align: 'center' });
+    }
+  };
+
+  // ---------- HEADER WITH CENTERED LOGO AND TITLE ----------
+  // Center the logo
+  const logoWidth = 40;
+  const logoX = (210 - logoWidth) / 2; // Center horizontally (A4 width is 210mm)
   
+  // Add centered logo
+  addLogo(logoX, 15, logoWidth);
+  
+  // Add "TRAVEL QUOTATION" centered below the logo
   pdf.setFontSize(16);
-  pdf.setTextColor(255, 255, 255);
-  pdf.text("TRAVEL QUOTATION", 127.5, 22, { align: 'center' });
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("TRAVEL QUOTATION", 105, 15 + logoWidth * 0.3 + 10, { align: 'center' });
   
-  y = 35;
+  y = 15 + logoWidth * 0.3 + 20; // Position y after logo and title
 
   // ---------- Client Details ----------
-  pdf.setFillColor(250, 250, 250);
-  pdf.roundedRect(15, y, 180, 25, 3, 3, 'F');
+  safeSetFillColor([250, 250, 250]);
+  pdf.rect(15, y, 180, 25, 'F'); // filled rect
   pdf.setDrawColor(220, 220, 220);
-  pdf.roundedRect(15, y, 180, 25, 3, 3);
-  
+  pdf.rect(15, y, 180, 25); // border
+
   pdf.setFontSize(12);
   pdf.setTextColor(...primaryColor);
   pdf.text("QUOTATION FOR", 20, y + 8);
-  
+
   pdf.setFontSize(16);
   pdf.setFont(undefined, 'bold');
   pdf.setTextColor(...darkColor);
   pdf.text(basicsDetails.clientName || "CLIENT NAME", 20, y + 16);
-  
+
   pdf.setFontSize(11);
   pdf.setFont(undefined, 'normal');
   pdf.setTextColor(100, 100, 100);
   pdf.text(location.state || "Location", 20, y + 22);
-  
-  // Quotation details on right side
+
+  // Quotation details on right
   const today = new Date();
   pdf.setFontSize(9);
   pdf.setTextColor(100, 100, 100);
   pdf.text(`Date: ${today.toLocaleDateString()}`, 160, y + 8);
   pdf.text(`Ref: ${vehicle.vehicleQuotationId || "N/A"}`, 160, y + 13);
   pdf.text(`Valid Until: ${pickupDropDetails.validTo || "N/A"}`, 160, y + 18);
-  
+
   y += 35;
 
   // ---------- About Us ----------
@@ -618,7 +641,7 @@ const handleClientPdf = () => {
   pdf.setFont(undefined, 'bold');
   pdf.text("About Us", 15, y);
   y += 6;
-  
+
   pdf.setFontSize(10);
   pdf.setTextColor(80, 80, 80);
   pdf.setFont(undefined, 'normal');
@@ -627,39 +650,39 @@ const handleClientPdf = () => {
   pdf.text("International tour packages. We offer comprehensive travel services tailored to meet your needs.", 15, y, { maxWidth: 180 });
   y += 10;
 
-  // ---------- Travel Details Card ----------
-  pdf.setFillColor(248, 248, 248);
-  pdf.roundedRect(15, y, 180, 40, 3, 3, 'F');
+  // ---------- Travel Details ----------
+  safeSetFillColor([248, 248, 248]);
+  pdf.rect(15, y, 180, 40, 'F');
   pdf.setDrawColor(220, 220, 220);
-  pdf.roundedRect(15, y, 180, 40, 3, 3);
-  
+  pdf.rect(15, y, 180, 40);
+
   pdf.setFontSize(11);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
   pdf.text("TRAVEL ITINERARY", 20, y + 8);
-  
+
   pdf.setFontSize(10);
   pdf.setTextColor(...darkColor);
-  
+
   // Arrival
   pdf.text("Arrival", 20, y + 18);
   pdf.setTextColor(80, 80, 80);
   const arrivalText = `${pickupDropDetails.pickupLocation || "N/A"} | ${pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A"}`;
   pdf.text(arrivalText, 20, y + 24, { maxWidth: 70 });
-  
+
   // Departure
   pdf.setTextColor(...darkColor);
   pdf.text("Departure", 110, y + 18);
   pdf.setTextColor(80, 80, 80);
   const departureText = `${pickupDropDetails.dropLocation || "N/A"} | ${pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A"}`;
   pdf.text(departureText, 110, y + 24, { maxWidth: 70 });
-  
+
   // Guests
   pdf.setTextColor(...darkColor);
   pdf.text("Guests", 20, y + 34);
   pdf.setTextColor(80, 80, 80);
   pdf.text(`${members.adults || 0} Adults`, 20, y + 40);
-  
+
   y += 50;
 
   // ---------- Vehicle & Pricing ----------
@@ -669,113 +692,99 @@ const handleClientPdf = () => {
   pdf.text("Vehicle & Pricing Details", 15, y);
   y += 8;
 
-  // Table with improved styling
-  autoTable(pdf, {
-    startY: y,
-    head: [
-      [
-        {content: "Vehicle", styles: {fillColor: primaryColor, textColor: 255, fontStyle: 'bold', halign: 'center'}},
-        {content: "Pickup Date", styles: {fillColor: primaryColor, textColor: 255, fontStyle: 'bold', halign: 'center'}},
-        {content: "Drop Date", styles: {fillColor: primaryColor, textColor: 255, fontStyle: 'bold', halign: 'center'}},
-        {content: "Cost (₹)", styles: {fillColor: primaryColor, textColor: 255, fontStyle: 'bold', halign: 'center'}}
-      ]
-    ],
-    body: [
-      [
-        {content: basicsDetails.vehicleType || "N/A", styles: {halign: 'center'}},
-        {content: pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A", styles: {halign: 'center'}},
-        {content: pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A", styles: {halign: 'center'}},
-        {content: (costDetails.totalCost || "0").toLocaleString('en-IN'), styles: {fontStyle: 'bold', halign: 'center'}}
-      ]
-    ],
-    theme: 'grid',
-    styles: {fontSize: 10, cellPadding: 4, lineColor: [200, 200, 200]},
-    headStyles: {halign: 'center'},
-    margin: {left: 15, right: 15}
-  });
-  
-  // Total row with different styling - FIXED to be in the same table
-  autoTable(pdf, {
-    startY: pdf.lastAutoTable.finalY,
-    body: [
-      [
-        {content: "Total Package Cost", colSpan: 3, styles: {fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'right', cellPadding: 5}},
-        {content: `₹ ${(costDetails.totalCost || "0").toLocaleString('en-IN')}`, styles: {fillColor: secondaryColor, textColor: 255, fontStyle: 'bold', halign: 'center', cellPadding: 5}}
-      ]
-    ],
-    theme: 'grid',
-    styles: {fontSize: 11, lineColor: [200, 200, 200]},
-    margin: {left: 15, right: 15}
-  });
-  
-  y = pdf.lastAutoTable.finalY + 15;
+  const tableTop = y;
 
-  // ---------- Policies Section ----------
-  // Create a new page if needed
+  // Table header
+  safeSetFillColor(primaryColor);
+  pdf.rect(15, tableTop, 180, 8, 'F');
+
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Vehicle", 25, tableTop + 5);
+  pdf.text("Pickup Date", 70, tableTop + 5);
+  pdf.text("Drop Date", 115, tableTop + 5);
+  pdf.text("Cost ", 160, tableTop + 5);
+
+  // Table row
+  pdf.setTextColor(...darkColor);
+  pdf.setFont(undefined, 'normal');
+  pdf.text(basicsDetails.vehicleType || "N/A", 25, tableTop + 15);
+  pdf.text(pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A", 70, tableTop + 15);
+  pdf.text(pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A", 115, tableTop + 15);
+  
+  pdf.text("INR" + (costDetails.totalCost || "0").toLocaleString('en-IN'), 160, tableTop + 15);
+
+  // Total row
+  safeSetFillColor([240, 240, 240]);
+  pdf.rect(15, tableTop + 20, 180, 10, 'F');
+  safeSetFillColor(secondaryColor);
+  pdf.rect(135, tableTop + 20, 60, 10, 'F');
+
+  pdf.setTextColor(...darkColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Total Package Cost", 25, tableTop + 26);
+
+  pdf.setTextColor(255, 255, 255);
+  pdf.text("INR" + (costDetails.totalCost || "0").toLocaleString('en-IN'), 160, tableTop + 26);
+
+  y = tableTop + 35;
+
   if (y > 180) {
     pdf.addPage();
-    // Add logo on the new page
-    addLogo(15, 15, 40);
+    // Add centered logo on new page
+    addLogo(logoX, 15, logoWidth);
     y = 35;
   }
-  
+
+  // ---------- Policies ----------
   pdf.setFontSize(12);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
   pdf.text("Package Policies", 15, y);
   y += 8;
-  
-  // Inclusion Policy
+
+  // Inclusions
   pdf.setFontSize(11);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
   pdf.text("Inclusions:", 15, y);
   y += 6;
-  
+
   pdf.setFontSize(10);
   pdf.setTextColor(80, 80, 80);
   pdf.setFont(undefined, 'normal');
-  const inclusions = defaultPolicies.inclusions;
-  if (Array.isArray(inclusions)) {
-    inclusions.forEach((item, index) => {
-      pdf.text(`• ${item}`, 18, y);
-      y += 5;
-    });
-  }
-  
-  // Special note
-  y += 3;
-  pdf.setTextColor(90, 90, 90);
+  defaultPolicies.inclusions.forEach(item => {
+    pdf.text(`• ${item}`, 18, y);
+    y += 5;
+  });
+
   pdf.text("* Due to low temperature, AC will be off during hill station tours.", 18, y);
   y += 8;
 
-  // Exclusion Policy
+  // Exclusions
   pdf.setFontSize(11);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
   pdf.text("Exclusions:", 15, y);
   y += 6;
-  
+
   pdf.setFontSize(10);
   pdf.setTextColor(80, 80, 80);
   pdf.setFont(undefined, 'normal');
-  const exclusions = defaultPolicies.exclusions.split('\n');
-  exclusions.forEach((item) => {
+  defaultPolicies.exclusions.forEach(item => {
     pdf.text(`• ${item}`, 18, y);
     y += 5;
   });
-  y += 8;
 
-  // Payment Policy
+  // Payment Terms
   pdf.setFontSize(11);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
   pdf.text("Payment Terms:", 15, y);
   y += 6;
-  
+
   pdf.setFontSize(10);
   pdf.setTextColor(80, 80, 80);
-  pdf.setFont(undefined, 'normal');
   pdf.text("• 50% advance at confirmation", 18, y);
   y += 5;
   pdf.text("• 50% balance 10 days before tour start", 18, y);
@@ -787,20 +796,19 @@ const handleClientPdf = () => {
   pdf.setFont(undefined, 'bold');
   pdf.text("Cancellation Policy:", 15, y);
   y += 6;
-  
+
   pdf.setFontSize(10);
   pdf.setTextColor(80, 80, 80);
-  pdf.setFont(undefined, 'normal');
   pdf.text("• Before 15 days: 50% retention", 18, y);
   y += 5;
   pdf.text("• Within 7 days: 100% charges applicable", 18, y);
   y += 15;
-
+  
   // ---------- Terms & Conditions ----------
   if (y > 170) {
     pdf.addPage();
-    // Add logo on the new page
-    addLogo(15, 15, 40);
+    // Add centered logo on new page
+    addLogo(logoX, 15, logoWidth);
     y = 35;
   }
   
@@ -828,48 +836,54 @@ const handleClientPdf = () => {
     y += 6;
   });
 
-  // ---------- Footer ----------
+  // Footer
   const pageHeight = pdf.internal.pageSize.height;
-  
-  // Add logo above footer if there's space
-  if (y < pageHeight - 50) {
-    addLogo(15, y + 10, 30);
-    y += 20;
-  }
-  
   y = pageHeight - 40;
-  
+
+  safeSetFillColor(primaryColor);
   pdf.setDrawColor(...primaryColor);
   pdf.setLineWidth(0.5);
   pdf.line(15, y, 195, y);
   y += 5;
-  
+
   pdf.setFontSize(10);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
   pdf.text("Thanks & Regards,", 15, y);
   y += 5;
-  
+
   pdf.setTextColor(...darkColor);
   pdf.setFont(undefined, 'normal');
   pdf.text("Amit Jaiswal | +91 7053900957", 15, y);
   y += 5;
+
+  // Fix footer logo placement
+  if (logoBase64) {
+    // Calculate proper logo dimensions for footer
+    const footerLogoWidth = 20;
+    const footerLogoHeight = footerLogoWidth * 0.3; // Maintain aspect ratio
+    pdf.addImage(logoBase64, 'PNG', 15, y, footerLogoWidth, footerLogoHeight);
+    pdf.setFontSize(11);
+    pdf.setTextColor(...primaryColor);
+    pdf.setFont(undefined, 'bold');
+    pdf.text("ICONIC YATRA", 15 + footerLogoWidth + 5, y + footerLogoHeight/2);
+  } else {
+    pdf.setFontSize(11);
+    pdf.setTextColor(...primaryColor);
+    pdf.setFont(undefined, 'bold');
+    pdf.text("ICONIC YATRA", 15, y);
+  }
   
-  pdf.setFontSize(11);
-  pdf.setTextColor(...primaryColor);
-  pdf.setFont(undefined, 'bold');
-  pdf.text("ICONIC YATRA", 15, y);
-  y += 5;
-  
+  y += 8;
+
   pdf.setFontSize(9);
   pdf.setTextColor(100, 100, 100);
-  pdf.text("Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301", 15, y);
+  pdf.text("B-25 2nd Floor Sector 64, Noida, Uttar Pradesh – 201301", 15, y);
   y += 4;
-  
   pdf.setTextColor(...primaryColor);
   pdf.text("https://www.iconicyatra.com | GST: 09EYCPK8832CIZC", 15, y);
 
-  // Add page numbers
+  // Page numbers
   const pageCount = pdf.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     pdf.setPage(i);
@@ -880,6 +894,7 @@ const handleClientPdf = () => {
 
   pdf.save(`IconicYatra_Quotation_${vehicle.vehicleQuotationId || "0000"}.pdf`);
 };
+
 
 
   return (
