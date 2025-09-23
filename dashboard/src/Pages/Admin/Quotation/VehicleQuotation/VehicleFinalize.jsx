@@ -681,42 +681,61 @@ const handleClientPdf = () => {
   const pdf = new jsPDF("p", "mm", "a4");
   let y = 20;
 
-  const primaryColor = [0, 102, 204];
-  const secondaryColor = [255, 153, 0];
-  const darkColor = [51, 51, 51];
+  // Colors
+  const primaryColor = [0, 102, 204]; // Blue
+  const secondaryColor = [255, 153, 0]; // Orange
+  const darkColor = [51, 51, 51]; // Dark gray
 
+  // Safe setFillColor
   const safeSetFillColor = (color) => {
     if (Array.isArray(color) && color.length === 3) {
       pdf.setFillColor(...color);
     } else if (typeof color === 'string') {
       pdf.setFillColor(color);
     } else {
-      pdf.setFillColor(0, 0, 0);
+      pdf.setFillColor(0, 0, 0); // fallback black
     }
   };
 
+  // Add logo function
   const addLogo = (x, y, width = 40) => {
     if (logoBase64) {
       pdf.addImage(logoBase64, 'PNG', x, y, width, width * 0.3);
+    } else {
+      safeSetFillColor([240, 240, 240]);
+      pdf.rect(x, y, width, width / 3, 'F'); // filled rect
+      pdf.setFontSize(10);
+      pdf.setTextColor(...primaryColor);
+      pdf.setFont(undefined, 'bold');
+      pdf.text("ICONIC YATRA", x + width / 2, y + width / 6, { align: 'center' });
+      pdf.setFontSize(6);
+      pdf.setTextColor(100, 100, 100);
+      pdf.setFont(undefined, 'normal');
+      pdf.text("TRAVEL AND TOURISM AGENCY", x + width / 2, y + width / 4, { align: 'center' });
     }
   };
 
+  // ---------- HEADER WITH CENTERED LOGO AND TITLE ----------
+  // Center the logo
   const logoWidth = 40;
-  const logoX = (210 - logoWidth) / 2;
+  const logoX = (210 - logoWidth) / 2; // Center horizontally (A4 width is 210mm)
   
+  // Add centered logo
   addLogo(logoX, 15, logoWidth);
   
+  // Add "TRAVEL QUOTATION" centered below the logo
   pdf.setFontSize(16);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
-  pdf.text("VEHICLE QUOTATION", 105, 15 + logoWidth * 0.3 + 10, { align: 'center' });
+  pdf.text("TRAVEL QUOTATION", 105, 15 + logoWidth * 0.3 + 10, { align: 'center' });
   
-  y = 15 + logoWidth * 0.3 + 20;
+  y = 15 + logoWidth * 0.3 + 20; // Position y after logo and title
 
+  // ---------- Client Details ----------
   safeSetFillColor([250, 250, 250]);
-  pdf.rect(15, y, 180, 45, 'F');
+  pdf.rect(15, y, 180, 25, 'F'); // filled rect
   pdf.setDrawColor(220, 220, 220);
-  pdf.rect(15, y, 180, 45);
+  pdf.rect(15, y, 180, 25); // border
 
   pdf.setFontSize(12);
   pdf.setTextColor(...primaryColor);
@@ -727,25 +746,281 @@ const handleClientPdf = () => {
   pdf.setTextColor(...darkColor);
   pdf.text(basicsDetails.clientName || "CLIENT NAME", 20, y + 16);
 
-  pdf.text(`Destination: ${lead.tourDetails.tourDestination || "N/A"}`, 20, y + 28);
+  pdf.setFontSize(11);
+  pdf.setFont(undefined, 'normal');
+  pdf.setTextColor(100, 100, 100);
+  pdf.text(location.state || "Location", 20, y + 22);
 
+  // Quotation details on right
   const today = new Date();
   pdf.setFontSize(9);
   pdf.setTextColor(100, 100, 100);
-  
-  pdf.text(`Date: ${today.toLocaleDateString()}`, 120, y + 8);
-  pdf.text(`Ref: ${vehicle.vehicleQuotationId || "N/A"}`, 120, y + 13);
-  
-  pdf.text(`Mobile: ${lead.personalDetails.mobile || "N/A"}`, 160, y + 8);
-  pdf.text(`Email: ${lead.personalDetails.emailId || "N/A"}`, 160, y + 13);
+  pdf.text(`Date: ${today.toLocaleDateString()}`, 160, y + 8);
+  pdf.text(`Ref: ${vehicle.vehicleQuotationId || "N/A"}`, 160, y + 13);
+  pdf.text(`Valid Until: ${pickupDropDetails.validTo || "N/A"}`, 160, y + 18);
 
-  y += 55;
+  y += 35;
 
-  // ... rest of PDF generation code remains the same
-  // (shortened for brevity, but you can keep your existing PDF code)
+  // ---------- About Us ----------
+  pdf.setFontSize(12);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("About Us", 15, y);
+  y += 6;
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.setFont(undefined, 'normal');
+  pdf.text("Iconic Yatra is a premier online tour operator platform specializing in both Domestic and", 15, y, { maxWidth: 180 });
+  y += 5;
+  pdf.text("International tour packages. We offer comprehensive travel services tailored to meet your needs.", 15, y, { maxWidth: 180 });
+  y += 10;
+
+  // ---------- Travel Details ----------
+  safeSetFillColor([248, 248, 248]);
+  pdf.rect(15, y, 180, 40, 'F');
+  pdf.setDrawColor(220, 220, 220);
+  pdf.rect(15, y, 180, 40);
+
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("TRAVEL ITINERARY", 20, y + 8);
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(...darkColor);
+
+  // Arrival
+  pdf.text("Arrival", 20, y + 18);
+  pdf.setTextColor(80, 80, 80);
+  const arrivalText = `${pickupDropDetails.pickupLocation || "N/A"} | ${pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A"}`;
+  pdf.text(arrivalText, 20, y + 24, { maxWidth: 70 });
+
+  // Departure
+  pdf.setTextColor(...darkColor);
+  pdf.text("Departure", 110, y + 18);
+  pdf.setTextColor(80, 80, 80);
+  const departureText = `${pickupDropDetails.dropLocation || "N/A"} | ${pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A"}`;
+  pdf.text(departureText, 110, y + 24, { maxWidth: 70 });
+
+  // Guests
+  pdf.setTextColor(...darkColor);
+  pdf.text("Guests", 20, y + 34);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text(`${members.adults || 0} Adults`, 20, y + 40);
+
+  y += 50;
+
+  // ---------- Vehicle & Pricing ----------
+  pdf.setFontSize(12);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Vehicle & Pricing Details", 15, y);
+  y += 8;
+
+  const tableTop = y;
+
+  // Table header
+  safeSetFillColor(primaryColor);
+  pdf.rect(15, tableTop, 180, 8, 'F');
+
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Vehicle", 25, tableTop + 5);
+  pdf.text("Pickup Date", 70, tableTop + 5);
+  pdf.text("Drop Date", 115, tableTop + 5);
+  pdf.text("Cost ", 160, tableTop + 5);
+
+  // Table row
+  pdf.setTextColor(...darkColor);
+  pdf.setFont(undefined, 'normal');
+  pdf.text(basicsDetails.vehicleType || "N/A", 25, tableTop + 15);
+  pdf.text(pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A", 70, tableTop + 15);
+  pdf.text(pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A", 115, tableTop + 15);
+  
+  pdf.text("INR" + (costDetails.totalCost || "0").toLocaleString('en-IN'), 160, tableTop + 15);
+
+  // Total row
+  safeSetFillColor([240, 240, 240]);
+  pdf.rect(15, tableTop + 20, 180, 10, 'F');
+  safeSetFillColor(secondaryColor);
+  pdf.rect(135, tableTop + 20, 60, 10, 'F');
+
+  pdf.setTextColor(...darkColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Total Package Cost", 25, tableTop + 26);
+
+  pdf.setTextColor(255, 255, 255);
+  pdf.text("INR" + (costDetails.totalCost || "0").toLocaleString('en-IN'), 160, tableTop + 26);
+
+  y = tableTop + 35;
+
+  if (y > 180) {
+    pdf.addPage();
+    // Add centered logo on new page
+    addLogo(logoX, 15, logoWidth);
+    y = 35;
+  }
+
+  // ---------- Policies ----------
+  pdf.setFontSize(12);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Package Policies", 15, y);
+  y += 8;
+
+  // Inclusions
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Inclusions:", 15, y);
+  y += 6;
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.setFont(undefined, 'normal');
+  defaultPolicies.inclusions.forEach(item => {
+    pdf.text(`• ${item}`, 18, y);
+    y += 5;
+  });
+
+  pdf.text("* Due to low temperature, AC will be off during hill station tours.", 18, y);
+  y += 8;
+
+  // Exclusions
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Exclusions:", 15, y);
+  y += 6;
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.setFont(undefined, 'normal');
+  defaultPolicies.exclusions.forEach(item => {
+    pdf.text(`• ${item}`, 18, y);
+    y += 5;
+  });
+
+  // Payment Terms
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Payment Terms:", 15, y);
+  y += 6;
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text("• 50% advance at confirmation", 18, y);
+  y += 5;
+  pdf.text("• 50% balance 10 days before tour start", 18, y);
+  y += 8;
+
+  // Cancellation Policy
+  pdf.setFontSize(11);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Cancellation Policy:", 15, y);
+  y += 6;
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text("• Before 15 days: 50% retention", 18, y);
+  y += 5;
+  pdf.text("• Within 7 days: 100% charges applicable", 18, y);
+  y += 15;
+  
+  // ---------- Terms & Conditions ----------
+  if (y > 170) {
+    pdf.addPage();
+    // Add centered logo on new page
+    addLogo(logoX, 15, logoWidth);
+    y = 35;
+  }
+  
+  pdf.setFontSize(12);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Terms & Conditions", 15, y);
+  y += 8;
+  
+  pdf.setFontSize(9);
+  pdf.setTextColor(70, 70, 70);
+  
+  const terms = [
+    "1. This quotation is subject to vehicle availability at the time of confirmation.",
+    "2. Any route deviations or extra kilometers will incur additional charges payable directly to the driver.",
+    "3. Additional sightseeing locations require separate payment to local operators.",
+    "4. During peak seasons, traffic delays may occur. During winter, road conditions may be affected by snow.",
+    "5. We recommend keeping buffer time for connections to avoid missing flights/trains.",
+    "6. Company is not liable for missed connections due to unforeseen circumstances.",
+    "7. Please inform in advance if you require GST invoice."
+  ];
+  
+  terms.forEach((term, index) => {
+    pdf.text(term, 18, y, { maxWidth: 175 });
+    y += 6;
+  });
+
+  // Footer
+  const pageHeight = pdf.internal.pageSize.height;
+  y = pageHeight - 40;
+
+  safeSetFillColor(primaryColor);
+  pdf.setDrawColor(...primaryColor);
+  pdf.setLineWidth(0.5);
+  pdf.line(15, y, 195, y);
+  y += 5;
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(...primaryColor);
+  pdf.setFont(undefined, 'bold');
+  pdf.text("Thanks & Regards,", 15, y);
+  y += 5;
+
+  pdf.setTextColor(...darkColor);
+  pdf.setFont(undefined, 'normal');
+  pdf.text("Amit Jaiswal | +91 7053900957", 15, y);
+  y += 5;
+
+  // Fix footer logo placement
+  if (logoBase64) {
+    // Calculate proper logo dimensions for footer
+    const footerLogoWidth = 20;
+    const footerLogoHeight = footerLogoWidth * 0.3; // Maintain aspect ratio
+    pdf.addImage(logoBase64, 'PNG', 15, y, footerLogoWidth, footerLogoHeight);
+    pdf.setFontSize(11);
+    pdf.setTextColor(...primaryColor);
+    pdf.setFont(undefined, 'bold');
+    pdf.text("ICONIC YATRA", 15 + footerLogoWidth + 5, y + footerLogoHeight/2);
+  } else {
+    pdf.setFontSize(11);
+    pdf.setTextColor(...primaryColor);
+    pdf.setFont(undefined, 'bold');
+    pdf.text("ICONIC YATRA", 15, y);
+  }
+  
+  y += 8;
+
+  pdf.setFontSize(9);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text("B-25 2nd Floor Sector 64, Noida, Uttar Pradesh – 201301", 15, y);
+  y += 4;
+  pdf.setTextColor(...primaryColor);
+  pdf.text("https://www.iconicyatra.com | GST: 09EYCPK8832CIZC", 15, y);
+
+  // Page numbers
+  const pageCount = pdf.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(`Page ${i} of ${pageCount}`, 105, pageHeight - 10, { align: 'center' });
+  }
 
   pdf.save(`IconicYatra_Quotation_${vehicle.vehicleQuotationId || "0000"}.pdf`);
 };
+
 
   return (
     <Box ref={pdfRef} sx={{ backgroundColor: 'white', minHeight: '100vh' }} >
