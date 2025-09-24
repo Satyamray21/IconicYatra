@@ -67,6 +67,7 @@ import { useParams } from "react-router-dom";
 import { useRef } from "react";
 import logo from "../../../../assets/logo.png";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
 
 const VehicleQuotationPage = () => {
@@ -413,357 +414,225 @@ const VehicleQuotationPage = () => {
     return services.reduce((total, service) => total + service.totalAmount, 0);
   };
 
-  const handleInvoicePdf = () => {
+
+
+
+const handleInvoicePdf = (logoBase64) => {
   const pdf = new jsPDF("p", "mm", "a4");
-  let y = 20;
 
-  // Colors - Iconic Yatra Theme
-  const primaryColor = [0, 102, 204]; // Blue
-  const secondaryColor = [255, 153, 0]; // Orange
-  const darkColor = [51, 51, 51]; // Dark gray
-  const borderColor = [220, 220, 220];
-
-  // Safe setFillColor
-  const safeSetFillColor = (color) => {
-    if (Array.isArray(color) && color.length === 3) {
-      pdf.setFillColor(...color);
-    } else if (typeof color === 'string') {
-      pdf.setFillColor(color);
-    } else {
-      pdf.setFillColor(0, 0, 0);
-    }
-  };
-
-  // Add logo function
-  const addLogo = (x, y, width = 40) => {
-    if (logoBase64) {
-      pdf.addImage(logoBase64, 'PNG', x, y, width, width * 0.3);
-    } else {
-      safeSetFillColor([240, 240, 240]);
-      pdf.rect(x, y, width, width / 3, 'F');
-      pdf.setFontSize(10);
-      pdf.setTextColor(...primaryColor);
-      pdf.setFont(undefined, 'bold');
-      pdf.text("ICONIC YATRA", x + width / 2, y + width / 6, { align: 'center' });
-      pdf.setFontSize(6);
-      pdf.setTextColor(100, 100, 100);
-      pdf.setFont(undefined, 'normal');
-      pdf.text("TRAVEL AND TOURISM AGENCY", x + width / 2, y + width / 4, { align: 'center' });
-    }
-  };
-
-  // Generate invoice number
-  const generateInvoiceNumber = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    return `ICYR-INV-${year}${month}${vehicle.vehicleQuotationId?.split('_').pop() || '001'}`;
-  };
-
-  // ---------- HEADER WITH LOGO ----------
-  const logoWidth = 40;
-  const logoX = 15;
-  
-  // Add logo
-  addLogo(logoX, 15, logoWidth);
-  
-  // Company Info next to logo
-  pdf.setTextColor(...primaryColor);
-  pdf.setFontSize(16);
-  pdf.setFont(undefined, 'bold');
-  pdf.text("ICONIC YATRA", logoX + logoWidth + 10, 25);
-  
-  pdf.setFontSize(9);
-  pdf.setTextColor(100, 100, 100);
-  pdf.setFont(undefined, 'normal');
-  pdf.text("B-25 2nd Floor Sector 64, Noida, Uttar Pradesh - 201301", logoX + logoWidth + 10, 30);
-  pdf.text("Phone: +91 7053900957 | Email: info@iconicyatra.com", logoX + logoWidth + 10, 35);
-  pdf.text("GST: 09EYCPK8832CIZC | State: 9 - Uttar Pradesh", logoX + logoWidth + 10, 40);
-
-  y = 50;
-
-  // ---------- INVOICE TITLE ----------
-  pdf.setTextColor(...primaryColor);
-  pdf.setFontSize(20);
-  pdf.setFont(undefined, 'bold');
-  pdf.text("TAX INVOICE", 105, y, { align: 'center' });
-  
-  // Horizontal line under title
-  pdf.setDrawColor(...primaryColor);
-  pdf.setLineWidth(0.5);
-  pdf.line(50, y + 3, 160, y + 3);
-  
-  y += 15;
-
-  // ---------- BILLING & INVOICE DETAILS (Two Columns) ----------
-  const col1X = 15;
-  const col2X = 120;
-
-  // Billing To Section
-  pdf.setFontSize(12);
-  pdf.setTextColor(...darkColor);
-  pdf.setFont(undefined, 'bold');
-  pdf.text("Bill To:", col1X, y);
-
-  pdf.setFontSize(10);
-  pdf.setFont(undefined, 'normal');
-  const clientName = `${lead.personalDetails.title || "Mr"} ${basicsDetails.clientName || "Client Name"}`;
-  pdf.text(clientName, col1X, y + 7);
-  pdf.text(`Mobile: ${lead.personalDetails.mobile || "N/A"}`, col1X, y + 12);
-  pdf.text(`Email: ${lead.personalDetails.emailId || "N/A"}`, col1X, y + 17, { maxWidth: 80 });
-  pdf.text(`State: ${lead.location.state || "N/A"}`, col1X, y + 22);
-
-  // Address if available
-  if (lead.address?.addressLine1) {
-    pdf.text(`Address: ${lead.address.addressLine1}`, col1X, y + 27, { maxWidth: 80 });
+  // ---------- HEADER ----------
+  if (logoBase64) {
+    pdf.addImage(logoBase64, "PNG", 15, 10, 25, 20); // left corner logo
   }
 
-  // Invoice Details
-  pdf.setFont(undefined, 'bold');
-  pdf.text("Invoice Details:", col2X, y);
+  pdf.setFontSize(16);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("ICONIC YATRA", 105, 18, { align: "center" });
 
-  const invoiceDate = new Date().toLocaleDateString('en-GB');
-  const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB');
+  pdf.setFontSize(10);
+  pdf.setFont("helvetica", "normal");
+  pdf.text("Noida - 201301, Uttar Pradesh - India", 105, 24, { align: "center" });
+  pdf.text(
+    "Phone No : +917053900957   Email Id : info@iconicyatra.com   State : 9 - Uttar Pradesh",
+    105,
+    30,
+    { align: "center" }
+  );
 
-  pdf.setFont(undefined, 'normal');
-  pdf.text(`Invoice No: ${generateInvoiceNumber()}`, col2X, y + 7);
-  pdf.text(`Date: ${invoiceDate}`, col2X, y + 12);
-  pdf.text(`Due Date: ${dueDate}`, col2X, y + 17);
-  pdf.text(`Place of Supply: Uttar Pradesh`, col2X, y + 22);
-  pdf.text(`Quotation Ref: ${vehicle.vehicleQuotationId || "N/A"}`, col2X, y + 27);
+  // ---------- INVOICE NO & TITLE ----------
+  const invoiceNo = `I-${new Date().toISOString().slice(0, 7).replace("-", "")}`;
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.text(`Invoice No : ${invoiceNo}`, 15, 42);
 
-  y += 40;
+  pdf.setFontSize(14);
+  pdf.text("Invoice", 105, 50, { align: "center" });
+
+  // ---------- BILLING TO & INVOICE DETAILS ----------
+  const invoiceDate = new Date().toLocaleDateString("en-GB");
+  const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB");
+
+  autoTable(pdf, {
+    startY: 55,
+    theme: "grid",
+    styles: { fontSize: 9, halign: "left", valign: "middle" },
+    headStyles: { fillColor: [240, 240, 240], textColor: 0 },
+    body: [
+      [
+        {
+          content: `Billing To\n\n${lead.personalDetails.title || "Mr"} ${
+            basicsDetails.clientName || "Client Name"
+          }\nMobile No : ${lead.personalDetails.mobile || "N/A"}\nState : ${
+            lead.location.state || "N/A"
+          }`,
+        },
+        {
+          content: `Invoice Details\n\nPlace of supply : 9 - Uttar Pradesh\nInvoice No : ${invoiceNo}\nDate : ${invoiceDate}\nDue Date : ${dueDate}`,
+        },
+      ],
+    ],
+    columnStyles: { 0: { cellWidth: 95 }, 1: { cellWidth: 95 } },
+  });
 
   // ---------- ITEMS TABLE ----------
-  // Table Header
-  safeSetFillColor(primaryColor);
-  pdf.rect(15, y, 180, 10, 'F');
-  
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFontSize(11);
-  pdf.setFont(undefined, 'bold');
-  pdf.text("#", 20, y + 7);
-  pdf.text("Particulars", 30, y + 7);
-  pdf.text("HSN/SAC", 130, y + 7);
-  pdf.text("Price (₹)", 150, y + 7);
-  pdf.text("Amount (₹)", 170, y + 7);
+  const subtotal = costDetails.totalCost || 20000;
 
-  y += 10;
-
-  // Table Rows
-  pdf.setTextColor(...darkColor);
-  pdf.setFont(undefined, 'normal');
-
-  // Main Item Row
-  const itemDescription = `Vehicle Rental Services - ${basicsDetails.vehicleType || "Vehicle"} for ${basicsDetails.noOfDays || "N/A"} days`;
-  const subtotal = costDetails.totalCost || 0;
-  const gstRate = vehicle.tax?.applyGst ? parseInt(vehicle.tax.applyGst) : 5;
-  const gstAmount = (subtotal * gstRate) / 100;
-  const totalAmount = subtotal + gstAmount;
-
-  // Item row with background
-  safeSetFillColor([248, 250, 252]);
-  pdf.rect(15, y, 180, 10, 'F');
-  
-  pdf.text("1", 20, y + 7);
-  pdf.text(itemDescription, 30, y + 7, { maxWidth: 95 });
-  pdf.text("9966", 130, y + 7); // HSN code for vehicle rental services
-  pdf.text(subtotal.toLocaleString('en-IN'), 150, y + 7);
-  pdf.text(subtotal.toLocaleString('en-IN'), 170, y + 7);
-
-  y += 10;
-
-  // GST Breakdown
-  if (gstAmount > 0) {
-    pdf.text("", 20, y + 7);
-    pdf.text(`CGST @ ${gstRate/2}%`, 30, y + 7);
-    pdf.text("9966", 130, y + 7);
-    pdf.text((gstAmount/2).toLocaleString('en-IN'), 150, y + 7);
-    pdf.text((gstAmount/2).toLocaleString('en-IN'), 170, y + 7);
-    y += 10;
-
-    pdf.text("", 20, y + 7);
-    pdf.text(`SGST @ ${gstRate/2}%`, 30, y + 7);
-    pdf.text("9966", 130, y + 7);
-    pdf.text((gstAmount/2).toLocaleString('en-IN'), 150, y + 7);
-    pdf.text((gstAmount/2).toLocaleString('en-IN'), 170, y + 7);
-    y += 10;
-  }
-
-  // Total Row
-  safeSetFillColor([240, 240, 240]);
-  pdf.rect(15, y, 180, 12, 'F');
-  pdf.setDrawColor(...borderColor);
-  pdf.rect(15, y, 180, 12);
-
-  pdf.setFont(undefined, 'bold');
-  pdf.text("TOTAL", 30, y + 8);
-  pdf.text(totalAmount.toLocaleString('en-IN'), 170, y + 8);
-
-  y += 20;
+  autoTable(pdf, {
+    startY: pdf.lastAutoTable.finalY + 8,
+    theme: "grid",
+    styles: { fontSize: 9, halign: "center", valign: "middle" },
+    headStyles: { fillColor: [240, 240, 240], textColor: 0 },
+    head: [["#", "Particulars", "HSN/SAC", "Price (₹)", "Amount (₹)"]],
+    body: [
+      [
+        "1",
+        `Vehicle Quotation For ${basicsDetails.clientName || "Client"}`,
+        "9966",
+        subtotal.toLocaleString("en-IN"),
+        subtotal.toLocaleString("en-IN"),
+      ],
+      [
+        { content: "Total", colSpan: 3, styles: { halign: "right", fontStyle: "bold" } },
+        { content: subtotal.toLocaleString("en-IN"), styles: { fontStyle: "bold" } },
+        { content: subtotal.toLocaleString("en-IN"), styles: { fontStyle: "bold" } },
+      ],
+    ],
+  });
 
   // ---------- AMOUNT SUMMARY ----------
-  const summaryX = 120;
-  pdf.setFontSize(10);
-  pdf.setTextColor(...darkColor);
-
-  // Box for amount summary
-  safeSetFillColor([248, 248, 248]);
-  pdf.rect(summaryX - 10, y - 5, 85, 30, 'F');
-  pdf.setDrawColor(...borderColor);
-  pdf.rect(summaryX - 10, y - 5, 85, 30);
-
-  pdf.text(`Sub Total: ₹${subtotal.toLocaleString('en-IN')}`, summaryX, y);
-  if (gstAmount > 0) {
-    pdf.text(`CGST: ₹${(gstAmount/2).toLocaleString('en-IN')}`, summaryX, y + 5);
-    pdf.text(`SGST: ₹${(gstAmount/2).toLocaleString('en-IN')}`, summaryX, y + 10);
-  }
-  pdf.setFont(undefined, 'bold');
-  pdf.text(`Grand Total: ₹${totalAmount.toLocaleString('en-IN')}`, summaryX, y + 15);
-  pdf.setFont(undefined, 'normal');
-  pdf.text(`Amount Due: ₹${totalAmount.toLocaleString('en-IN')}`, summaryX, y + 20);
-
-  y += 35;
-
-  // ---------- AMOUNT IN WORDS ----------
-  pdf.setFontSize(10);
-  pdf.setTextColor(...primaryColor);
-  pdf.setFont(undefined, 'bold');
-  pdf.text("Amount in Words:", 15, y);
-
-  pdf.setFontSize(9);
-  pdf.setTextColor(...darkColor);
-  pdf.setFont(undefined, 'normal');
-  
-  const amountInWords = convertNumberToWords(totalAmount);
-  pdf.text(`Indian Rupees ${amountInWords}`, 15, y + 5, { maxWidth: 180 });
-
-  y += 15;
-
-  // ---------- SERVICE DETAILS ----------
-  pdf.setTextColor(...primaryColor);
-  pdf.setFont(undefined, 'bold');
-  pdf.text("Service Details:", 15, y);
-
-  pdf.setFontSize(9);
-  pdf.setTextColor(...darkColor);
-  pdf.setFont(undefined, 'normal');
-  
-  const serviceDetails = [
-    `• Vehicle Type: ${basicsDetails.vehicleType || "N/A"}`,
-    `• Trip Type: ${basicsDetails.tripType || "N/A"}`,
-    `• Duration: ${basicsDetails.noOfDays || "N/A"} days (${pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A"} to ${pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A"})`,
-    `• Pickup: ${pickupDropDetails.pickupLocation || "N/A"}`,
-    `• Drop: ${pickupDropDetails.dropLocation || "N/A"}`,
-    `• Passengers: ${lead.tourDetails.members.adults || 0} Adults`
-  ];
-
-  serviceDetails.forEach((line, index) => {
-    pdf.text(line, 18, y + 10 + (index * 4));
+  autoTable(pdf, {
+    startY: pdf.lastAutoTable.finalY + 8,
+    theme: "plain",
+    styles: { fontSize: 9, halign: "left" },
+    body: [
+      ["Amount"],
+      ["Sub Total", `₹ ${subtotal.toLocaleString("en-IN")}`],
+      ["Total", `₹ ${subtotal.toLocaleString("en-IN")}`],
+      ["Received", "₹ 0"],
+      ["Balance", `₹ ${subtotal.toLocaleString("en-IN")}`],
+    ],
+    columnStyles: {
+      0: { cellWidth: 50 },
+      1: { cellWidth: 60, halign: "right" },
+    },
   });
 
-  y += 45;
+  // ---------- INVOICE AMOUNT IN WORDS + DESCRIPTION ----------
+  const amountInWords = convertNumberToWords(subtotal);
+  autoTable(pdf, {
+    startY: pdf.lastAutoTable.finalY + 8,
+    theme: "grid",
+    styles: { fontSize: 9, halign: "left" },
+    body: [
+      [
+        { content: `Invoice Amount In Words\n${amountInWords} INR` },
+        {
+          content: `Description\nVehicle Quotation For ${basicsDetails.clientName || "Client"}`,
+        },
+      ],
+    ],
+    columnStyles: { 0: { cellWidth: 95 }, 1: { cellWidth: 95 } },
+  });
 
   // ---------- TERMS & CONDITIONS ----------
-  pdf.setTextColor(...primaryColor);
-  pdf.setFont(undefined, 'bold');
-  pdf.text("Terms & Conditions:", 15, y);
-
-  pdf.setFontSize(8);
-  pdf.setTextColor(...darkColor);
-  pdf.setFont(undefined, 'normal');
-  
-  const terms = [
-    "1. Payment due within 15 days from invoice date.",
-    "2. 50% advance required at the time of booking confirmation.",
-    "3. Balance 50% to be paid 10 days before service start date.",
-    "4. GST invoice will be provided upon full payment.",
-    "5. Cancellation policy applies as per company terms.",
-    "6. This is a computer generated invoice."
-  ];
-
-  terms.forEach((term, index) => {
-    pdf.text(term, 18, y + 6 + (index * 3.5), { maxWidth: 180 });
+  autoTable(pdf, {
+    startY: pdf.lastAutoTable.finalY + 8,
+    theme: "plain",
+    styles: { fontSize: 9 },
+    body: [
+      [
+        {
+          content:
+            "Terms and Conditions\nThis is invoice payment. Thanks for doing business with us!",
+        },
+      ],
+    ],
   });
 
-  y += 30;
-
-  // ---------- SIGNATURE SECTION ----------
+  // ---------- FOOTER ----------
   const pageHeight = pdf.internal.pageSize.height;
-  
-  // Footer separator
-  pdf.setDrawColor(...primaryColor);
-  pdf.setLineWidth(0.3);
-  pdf.line(15, pageHeight - 40, 195, pageHeight - 40);
+  pdf.setFontSize(9);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("For, Iconic Yatra", 15, pageHeight - 40);
+  pdf.text("ICONIC YATRA", 15, pageHeight - 30);
 
-  // Company Bank Details
-  pdf.setTextColor(...darkColor);
   pdf.setFontSize(8);
-  pdf.text("Bank Details: ICICI Bank | A/C No: XXXXXXXXXX | IFSC: ICIC000XXXX", 15, pageHeight - 35);
-  pdf.text("Visit: https://www.iconicyatra.com | Contact: +91 7053900957", 15, pageHeight - 30);
+  pdf.setFont("helvetica", "normal");
+  pdf.text("Authorized Signatory", 15, pageHeight - 25);
 
-  // Signature
-  const signatureY = pageHeight - 25;
-  
-  pdf.setFontSize(10);
-  pdf.setTextColor(...primaryColor);
-  pdf.text("For ICONIC YATRA", 130, signatureY);
-  
-  pdf.setDrawColor(...darkColor);
-  pdf.setLineWidth(0.3);
-  pdf.line(130, signatureY + 2, 170, signatureY + 2);
-  
-  pdf.setFontSize(8);
-  pdf.setTextColor(100, 100, 100);
-  pdf.text("Authorized Signatory", 130, signatureY + 8);
+  pdf.setTextColor(150, 150, 150);
+  pdf.text("This document is digitally signed.", 15, pageHeight - 20);
+  pdf.text("Powered by jsPDF (www.jspdf.org)", 15, pageHeight - 15);
 
   // Page Number
-  pdf.setTextColor(150, 150, 150);
-  pdf.text("Page 1 of 1", 105, pageHeight - 10, { align: 'center' });
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(9);
+  pdf.text("1 / 1", 105, pageHeight - 10, { align: "center" });
 
-  pdf.save(`${generateInvoiceNumber()}_IconicYatra.pdf`);
+  pdf.save(`${invoiceNo}_IconicYatra.pdf`);
 };
 
-// Helper function to convert numbers to words (same as before)
+// ---------- NUMBER TO WORDS ----------
 const convertNumberToWords = (amount) => {
-  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-  const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-  
-  if (amount === 0) return 'Zero';
-  
-  let words = '';
-  
-  // Handle thousands
-  if (amount >= 1000) {
-    words += convertNumberToWords(Math.floor(amount / 1000)) + ' Thousand ';
-    amount %= 1000;
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const teens = [
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
+  ];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  if (amount === 0) return "Zero";
+
+  let num = amount;
+  let words = "";
+
+  if (num >= 1000) {
+    const thousands = Math.floor(num / 1000);
+    if (thousands > 0) {
+      if (thousands >= 20) {
+        words += tens[Math.floor(thousands / 10)] + " ";
+        if (thousands % 10 > 0) words += ones[thousands % 10] + " ";
+      } else if (thousands >= 10) {
+        words += teens[thousands - 10] + " ";
+      } else {
+        words += ones[thousands] + " ";
+      }
+      words += "Thousand ";
+    }
+    num %= 1000;
   }
-  
-  // Handle hundreds
-  if (amount >= 100) {
-    words += ones[Math.floor(amount / 100)] + ' Hundred ';
-    amount %= 100;
+
+  if (num >= 100) {
+    words += ones[Math.floor(num / 100)] + " Hundred ";
+    num %= 100;
   }
-  
-  // Handle tens and ones
-  if (amount >= 20) {
-    words += tens[Math.floor(amount / 10)] + ' ';
-    amount %= 10;
-  } else if (amount >= 10) {
-    words += teens[amount - 10] + ' ';
-    amount = 0;
+
+  if (num >= 20) {
+    words += tens[Math.floor(num / 10)] + " ";
+    num %= 10;
+  } else if (num >= 10) {
+    words += teens[num - 10] + " ";
+    num = 0;
   }
-  
-  if (amount > 0) {
-    words += ones[amount] + ' ';
+
+  if (num > 0) {
+    words += ones[num] + " ";
   }
-  
-  return words.trim() + ' Only';
+
+  return words.trim();
 };
+
 
   const handleViewInvoice = () => {
-    console.log("View Invoice clicked");
+   handleInvoicePdf(logoBase64);
   };
 
   const handleActionClick = (action) => {
@@ -1484,7 +1353,7 @@ const handleClientPdf = () => {
             variant="contained"
             color="success"
             startIcon={<Receipt />}
-            onClick={handleGenerateInvoice}
+            onClick={handleInvoicePdf(logoBase64)}
           >
             Generate Invoice
           </Button>
