@@ -685,6 +685,8 @@ const handleClientPdf = () => {
   const primaryColor = [0, 102, 204]; // Blue
   const secondaryColor = [255, 153, 0]; // Orange
   const darkColor = [51, 51, 51]; // Dark gray
+  const lightBlue = [240, 248, 255];
+  const borderColor = [220, 220, 220];
 
   // Safe setFillColor
   const safeSetFillColor = (color) => {
@@ -716,26 +718,23 @@ const handleClientPdf = () => {
   };
 
   // ---------- HEADER WITH CENTERED LOGO AND TITLE ----------
-  // Center the logo
   const logoWidth = 40;
-  const logoX = (210 - logoWidth) / 2; // Center horizontally (A4 width is 210mm)
+  const logoX = (210 - logoWidth) / 2;
   
-  // Add centered logo
   addLogo(logoX, 15, logoWidth);
   
-  // Add "TRAVEL QUOTATION" centered below the logo
   pdf.setFontSize(16);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
   pdf.text("VEHICLE QUOTATION", 105, 15 + logoWidth * 0.3 + 10, { align: 'center' });
   
-  y = 15 + logoWidth * 0.3 + 20; // Position y after logo and title
+  y = 15 + logoWidth * 0.3 + 20;
 
   // ---------- Client Details ----------
   safeSetFillColor([250, 250, 250]);
-  pdf.rect(15, y, 180, 45, 'F'); // Increased height to accommodate all info
-  pdf.setDrawColor(220, 220, 220);
-  pdf.rect(15, y, 180, 45); // border
+  pdf.rect(15, y, 180, 45, 'F');
+  pdf.setDrawColor(...borderColor);
+  pdf.rect(15, y, 180, 45);
 
   // Left side - Client info
   pdf.setFontSize(12);
@@ -746,8 +745,6 @@ const handleClientPdf = () => {
   pdf.setFont(undefined, 'bold');
   pdf.setTextColor(...darkColor);
   pdf.text(basicsDetails.clientName || "CLIENT NAME", 20, y + 16);
-
- 
   
   // Add tour destination
   pdf.text(`Destination: ${lead.tourDetails.tourDestination || "N/A"}`, 20, y + 28);
@@ -757,19 +754,16 @@ const handleClientPdf = () => {
   pdf.setFontSize(9);
   pdf.setTextColor(100, 100, 100);
   
-  // First column - Quotation details
   pdf.text(`Date: ${today.toLocaleDateString()}`, 120, y + 8);
   pdf.text(`Ref: ${vehicle.vehicleQuotationId || "N/A"}`, 120, y + 13);
   pdf.text(`Valid Until: ${pickupDropDetails.validTo || "N/A"}`, 120, y + 18);
   
-  // Second column - Contact info
   pdf.text(`Mobile: ${lead.personalDetails.mobile || "N/A"}`, 160, y + 8);
   if (lead.personalDetails.alternateNumber) {
     pdf.text(`Alt: ${lead.personalDetails.alternateNumber}`, 160, y + 13);
   }
   pdf.text(`Email:`, 160, y + 18);
   
-  // Email on a new line with smaller font to fit
   pdf.setFontSize(8);
   pdf.text(lead.personalDetails.emailId || "N/A", 160, y + 22, { maxWidth: 40 });
 
@@ -792,8 +786,8 @@ const handleClientPdf = () => {
 
   // ---------- Travel Details ----------
   safeSetFillColor([248, 248, 248]);
-  pdf.rect(15, y, 180, 60, 'F'); // Increased height to accommodate duration
-  pdf.setDrawColor(220, 220, 220);
+  pdf.rect(15, y, 180, 60, 'F');
+  pdf.setDrawColor(...borderColor);
   pdf.rect(15, y, 180, 60);
 
   pdf.setFontSize(11);
@@ -840,7 +834,76 @@ const handleClientPdf = () => {
   pdf.setTextColor(80, 80, 80);
   pdf.text(`${members.adults || 0} Adults`, 110, y + 46);
 
-  y += 70; // Increased to account for larger itinerary box
+  y += 70;
+
+  // ---------- ITINERARY SECTION (NEW) ----------
+  if (vehicle.itinerary && vehicle.itinerary.length > 0) {
+    pdf.setFontSize(12);
+    pdf.setTextColor(...primaryColor);
+    pdf.setFont(undefined, 'bold');
+    pdf.text("Daily Itinerary", 15, y);
+    y += 8;
+
+    // Itinerary header
+    safeSetFillColor(primaryColor);
+    pdf.rect(15, y, 180, 8, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont(undefined, 'bold');
+    pdf.text("Day", 25, y + 5);
+    pdf.text("Activities & Description", 60, y + 5);
+    y += 8;
+
+    // Itinerary items
+    vehicle.itinerary.forEach((day, index) => {
+      // Check if we need a new page
+      if (y > 250) {
+        pdf.addPage();
+        addLogo(logoX, 15, logoWidth);
+        y = 35;
+        
+        // Add header again on new page
+        safeSetFillColor(primaryColor);
+        pdf.rect(15, y, 180, 8, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.text("Day", 25, y + 5);
+        pdf.text("Activities & Description", 60, y + 5);
+        y += 8;
+      }
+
+      // Alternate row colors
+      const rowColor = index % 2 === 0 ? [255, 255, 255] : [248, 250, 252];
+      safeSetFillColor(rowColor);
+      pdf.rect(15, y, 180, 25, 'F');
+      pdf.setDrawColor(...borderColor);
+      pdf.rect(15, y, 180, 25);
+
+      // Day number with circle background
+      safeSetFillColor(secondaryColor);
+      pdf.circle(25, y + 12.5, 4, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(8);
+      pdf.setFont(undefined, 'bold');
+      pdf.text(day.title || `Day ${index + 1}`, 25, y + 13.5, { align: 'center' });
+
+      // Description
+      pdf.setTextColor(...darkColor);
+      pdf.setFontSize(9);
+      pdf.setFont(undefined, 'normal');
+      
+      // Split description into multiple lines if too long
+      const description = day.description || "Day activities will be shared separately";
+      const lines = pdf.splitTextToSize(description, 120);
+      
+      // Calculate vertical position for centered text
+      const textY = y + 8 + (25 - (lines.length * 4)) / 2;
+      
+      pdf.text(lines, 40, textY, { maxWidth: 120, lineHeightFactor: 1.2 });
+
+      y += 27; // Increased height for better spacing
+    });
+
+    y += 5;
+  }
 
   // ---------- Vehicle & Pricing ----------
   pdf.setFontSize(12);
@@ -888,7 +951,6 @@ const handleClientPdf = () => {
 
   if (y > 180) {
     pdf.addPage();
-    // Add centered logo on new page
     addLogo(logoX, 15, logoWidth);
     y = 35;
   }
@@ -964,7 +1026,6 @@ const handleClientPdf = () => {
   // ---------- Terms & Conditions ----------
   if (y > 170) {
     pdf.addPage();
-    // Add centered logo on new page
     addLogo(logoX, 15, logoWidth);
     y = 35;
   }
@@ -1016,9 +1077,8 @@ const handleClientPdf = () => {
 
   // Fix footer logo placement
   if (logoBase64) {
-    // Calculate proper logo dimensions for footer
     const footerLogoWidth = 20;
-    const footerLogoHeight = footerLogoWidth * 0.3; // Maintain aspect ratio
+    const footerLogoHeight = footerLogoWidth * 0.3;
     pdf.addImage(logoBase64, 'PNG', 15, y, footerLogoWidth, footerLogoHeight);
     pdf.setFontSize(11);
     pdf.setTextColor(...primaryColor);
