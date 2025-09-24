@@ -727,16 +727,17 @@ const handleClientPdf = () => {
   pdf.setFontSize(16);
   pdf.setTextColor(...primaryColor);
   pdf.setFont(undefined, 'bold');
-  pdf.text("TRAVEL QUOTATION", 105, 15 + logoWidth * 0.3 + 10, { align: 'center' });
+  pdf.text("VEHICLE QUOTATION", 105, 15 + logoWidth * 0.3 + 10, { align: 'center' });
   
   y = 15 + logoWidth * 0.3 + 20; // Position y after logo and title
 
   // ---------- Client Details ----------
   safeSetFillColor([250, 250, 250]);
-  pdf.rect(15, y, 180, 25, 'F'); // filled rect
+  pdf.rect(15, y, 180, 45, 'F'); // Increased height to accommodate all info
   pdf.setDrawColor(220, 220, 220);
-  pdf.rect(15, y, 180, 25); // border
+  pdf.rect(15, y, 180, 45); // border
 
+  // Left side - Client info
   pdf.setFontSize(12);
   pdf.setTextColor(...primaryColor);
   pdf.text("QUOTATION FOR", 20, y + 8);
@@ -746,20 +747,33 @@ const handleClientPdf = () => {
   pdf.setTextColor(...darkColor);
   pdf.text(basicsDetails.clientName || "CLIENT NAME", 20, y + 16);
 
-  pdf.setFontSize(11);
-  pdf.setFont(undefined, 'normal');
-  pdf.setTextColor(100, 100, 100);
-  pdf.text(location.state || "Location", 20, y + 22);
+ 
+  
+  // Add tour destination
+  pdf.text(`Destination: ${lead.tourDetails.tourDestination || "N/A"}`, 20, y + 28);
 
-  // Quotation details on right
+  // Right side - Quotation details
   const today = new Date();
   pdf.setFontSize(9);
   pdf.setTextColor(100, 100, 100);
-  pdf.text(`Date: ${today.toLocaleDateString()}`, 160, y + 8);
-  pdf.text(`Ref: ${vehicle.vehicleQuotationId || "N/A"}`, 160, y + 13);
-  pdf.text(`Valid Until: ${pickupDropDetails.validTo || "N/A"}`, 160, y + 18);
+  
+  // First column - Quotation details
+  pdf.text(`Date: ${today.toLocaleDateString()}`, 120, y + 8);
+  pdf.text(`Ref: ${vehicle.vehicleQuotationId || "N/A"}`, 120, y + 13);
+  pdf.text(`Valid Until: ${pickupDropDetails.validTo || "N/A"}`, 120, y + 18);
+  
+  // Second column - Contact info
+  pdf.text(`Mobile: ${lead.personalDetails.mobile || "N/A"}`, 160, y + 8);
+  if (lead.personalDetails.alternateNumber) {
+    pdf.text(`Alt: ${lead.personalDetails.alternateNumber}`, 160, y + 13);
+  }
+  pdf.text(`Email:`, 160, y + 18);
+  
+  // Email on a new line with smaller font to fit
+  pdf.setFontSize(8);
+  pdf.text(lead.personalDetails.emailId || "N/A", 160, y + 22, { maxWidth: 40 });
 
-  y += 35;
+  y += 55;
 
   // ---------- About Us ----------
   pdf.setFontSize(12);
@@ -778,9 +792,9 @@ const handleClientPdf = () => {
 
   // ---------- Travel Details ----------
   safeSetFillColor([248, 248, 248]);
-  pdf.rect(15, y, 180, 40, 'F');
+  pdf.rect(15, y, 180, 60, 'F'); // Increased height to accommodate duration
   pdf.setDrawColor(220, 220, 220);
-  pdf.rect(15, y, 180, 40);
+  pdf.rect(15, y, 180, 60);
 
   pdf.setFontSize(11);
   pdf.setTextColor(...primaryColor);
@@ -790,26 +804,43 @@ const handleClientPdf = () => {
   pdf.setFontSize(10);
   pdf.setTextColor(...darkColor);
 
+  // Calculate duration
+  const pickupDate = pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate) : null;
+  const dropDate = pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate) : null;
+  let duration = "N/A";
+  
+  if (pickupDate && dropDate) {
+    const timeDiff = dropDate.getTime() - pickupDate.getTime();
+    const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    duration = `${dayDiff} Days`;
+  }
+
   // Arrival
   pdf.text("Arrival", 20, y + 18);
   pdf.setTextColor(80, 80, 80);
-  const arrivalText = `${pickupDropDetails.pickupLocation || "N/A"} | ${pickupDropDetails.pickupDate ? new Date(pickupDropDetails.pickupDate).toLocaleDateString() : "N/A"}`;
-  pdf.text(arrivalText, 20, y + 24, { maxWidth: 70 });
+  pdf.text(pickupDropDetails.pickupLocation || "N/A", 20, y + 24, { maxWidth: 70 });
+  pdf.text(pickupDate ? pickupDate.toLocaleDateString() : "N/A", 20, y + 30, { maxWidth: 70 });
 
   // Departure
   pdf.setTextColor(...darkColor);
   pdf.text("Departure", 110, y + 18);
   pdf.setTextColor(80, 80, 80);
-  const departureText = `${pickupDropDetails.dropLocation || "N/A"} | ${pickupDropDetails.dropDate ? new Date(pickupDropDetails.dropDate).toLocaleDateString() : "N/A"}`;
-  pdf.text(departureText, 110, y + 24, { maxWidth: 70 });
+  pdf.text(pickupDropDetails.dropLocation || "N/A", 110, y + 24, { maxWidth: 70 });
+  pdf.text(dropDate ? dropDate.toLocaleDateString() : "N/A", 110, y + 30, { maxWidth: 70 });
+
+  // Duration
+  pdf.setTextColor(...darkColor);
+  pdf.text("Duration", 20, y + 40);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text(duration, 20, y + 46);
 
   // Guests
   pdf.setTextColor(...darkColor);
-  pdf.text("Guests", 20, y + 34);
+  pdf.text("Guests", 110, y + 40);
   pdf.setTextColor(80, 80, 80);
-  pdf.text(`${members.adults || 0} Adults`, 20, y + 40);
+  pdf.text(`${members.adults || 0} Adults`, 110, y + 46);
 
-  y += 50;
+  y += 70; // Increased to account for larger itinerary box
 
   // ---------- Vehicle & Pricing ----------
   pdf.setFontSize(12);
