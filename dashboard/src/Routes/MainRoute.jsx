@@ -31,6 +31,7 @@ import FullQuotation from "../Pages/Admin/Quotation/FullQuotation/fullquotation"
 import CustomQuotation from "../Pages/Admin/Quotation/CustomQuotation/customquotation";
 import FlightFinalize from "../Pages/Admin/Quotation/FlightQuotation/FlightFinalize";
 import VehicleFinalize from "../Pages/Admin/Quotation/VehicleQuotation/VehicleFinalize";
+import HotelFinalize from "../Pages/Admin/Quotation/HotelQuotation/HotelFinalize";
 const MainRoute = () => {
     const isAuthenticated = true;
 
@@ -48,6 +49,7 @@ const MainRoute = () => {
                 <Route path='/hotel' element={<HotelCard />} />
                 <Route path='/hotelform' element={<HotelForm />} />
                 <Route path='/hotel/hoteleditform' element={<HotelEditForm />} />
+
 
                 {/* Package Routing */}
                 <Route path='/tourpackage' element={<PackageCard />} />
@@ -80,6 +82,7 @@ const MainRoute = () => {
         <Route path="/customquotation" element={<CustomQuotation />} />
         <Route path="/flightfinalize/:id" element={<FlightFinalize />} />
         <Route path="/vehiclefinalize/:id" element={<VehicleFinalize />} />
+        <Route path="/hotelfinalize" element={<HotelFinalize />} />
             </Routes>
         </DashboardLayout>
     ) : (

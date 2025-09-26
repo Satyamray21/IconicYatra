@@ -894,6 +894,91 @@
         }
       }
     },
+    "/api/v1/vehicleQT/{vehicleQuotationId}/itinerary": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "vehicleQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "itinerary": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "vehicleQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/vehicleQT/{vehicleQuotationId}/itinerary/{itineraryId}": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "vehicleQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "itineraryId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "example": "any"
+                },
+                "description": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/countryStateAndCity/countries": {
       "get": {
         "description": "",
@@ -964,55 +1049,17 @@
     "/api/v1/flightQT/": {
       "post": {
         "description": "",
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "tripType": {
-                  "example": "any"
-                },
-                "clientDetails": {
-                  "example": "any"
-                },
-                "flightDetails": {
-                  "example": "any"
-                },
-                "adults": {
-                  "example": "any"
-                },
-                "childs": {
-                  "example": "any"
-                },
-                "infants": {
-                  "example": "any"
-                },
-                "anyMessage": {
-                  "example": "any"
-                },
-                "personalDetails": {
-                  "example": "any"
-                },
-                "status": {
-                  "example": "any"
-                }
-              }
-            }
-          }
-        ],
         "responses": {
-          "201": {
-            "description": "Created"
+          "default": {
+            "description": ""
           }
         }
       },
       "get": {
         "description": "",
         "responses": {
-          "200": {
-            "description": "OK"
+          "default": {
+            "description": ""
           }
         }
       }
@@ -1029,8 +1076,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "default": {
+            "description": ""
           }
         }
       },
@@ -1039,6 +1086,76 @@
         "parameters": [
           {
             "name": "flightQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "flightQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/flightQT/confirm/{flightQuotationId}": {
+      "patch": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "flightQuotationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/hotelQT/": {
+      "post": {
+        "description": "",
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/hotelQT/{id}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
             "in": "path",
             "required": true,
             "type": "string"
@@ -1054,43 +1171,10 @@
         "description": "",
         "parameters": [
           {
-            "name": "flightQuotationId",
+            "name": "id",
             "in": "path",
             "required": true,
             "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/v1/flightQT/confirm/{flightQuotationId}": {
-      "patch": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "flightQuotationId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "pnrList": {
-                  "example": "any"
-                },
-                "finalFare": {
-                  "example": "any"
-                }
-              }
-            }
           }
         ],
         "responses": {
