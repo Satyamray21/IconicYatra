@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import {
   Box,
   Grid,
@@ -21,6 +21,12 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  getAllLeads,
+  getLeadOptions,
+  addLeadOption,
+} from "../../../../features/leads/leadSlice";
 
 import HotelQuotationStep2 from "./HotelQuotationStep2";
 
@@ -100,7 +106,8 @@ const QuotationForm = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [newService, setNewService] = useState("");
   const [showStep2, setShowStep2] = useState(false);
-  const formik = useFormik({
+   const dispatch = useDispatch();
+    const formik = useFormik({
     initialValues: {
       clientName: "",
       tourType: "Domestic",
@@ -139,6 +146,175 @@ const QuotationForm = () => {
       setShowStep2(true);
     },
   });
+   const {
+    list: leadList = [],     // main array of leads
+    status,
+    options = [],
+    loading,
+    error,
+  } = useSelector((state) => state.leads);
+   useEffect(() => {
+    dispatch(getAllLeads());
+  }, [dispatch]);
+  const clientOptions = [
+    ...new Set(leadList?.map((lead) => lead.personalDetails.fullName) || []),
+  ];
+  const tourTypeOptions = [
+    ...new Set(leadList?.map((lead) => lead.tourDetails.tourType) || []),
+  ];
+ const selectedLead = leadList.find(
+  (lead) => lead.personalDetails?.fullName === formik.values.clientName
+);
+
+const sectorOptions = selectedLead
+  ? [
+      selectedLead.tourDetails?.tourDestination ||
+      selectedLead.location?.state ||
+      ""
+    ].filter(Boolean) // remove empty values
+  : [];
+const dynamicData = {
+  hotelTypes: [
+    ...new Set(
+      leadList?.flatMap(
+        (lead) => lead.tourDetails?.accommodation?.hotelType || []
+      )
+    ),
+  ],
+  mealPlans: [
+    ...new Set(
+      leadList
+        ?.map((lead) => lead.tourDetails?.accommodation?.mealPlan)
+        .filter(Boolean)
+    ),
+  ],
+  sharingTypes: [
+    ...new Set(
+      leadList
+        ?.map((lead) => lead.tourDetails?.accommodation?.sharingType)
+        .filter(Boolean)
+    ),
+  ],
+};
+
+
+
+  useEffect(() => {
+  if (selectedLead) {
+    formik.setFieldValue(
+      "sector",
+      selectedLead.tourDetails?.tourDestination || selectedLead.location?.state || ""
+    );
+  }
+}, [formik.values.clientName, leadList]);
+
+useEffect(() => {
+  if (formik.values.clientName && formik.values.tourType) {
+    const lead = leadList.find(
+      (l) =>
+        l.personalDetails?.fullName === formik.values.clientName &&
+        l.tourDetails?.tourType === formik.values.tourType
+    );
+
+    if (lead) {
+      formik.setFieldValue(
+        "sector",
+        lead.tourDetails?.tourDestination || lead.location?.state || ""
+      );
+
+      formik.setFieldValue(
+        "services",
+        lead.tourDetails?.servicesRequired || []
+      );
+      formik.setFieldValue(
+        "adults",
+        lead.tourDetails?.members?.adults || 0
+      );
+      formik.setFieldValue(
+        "children",
+        lead.tourDetails?.members?.children || 0
+      );
+      formik.setFieldValue(
+        "kids",
+        lead.tourDetails?.members?.kidsWithoutMattress || 0
+      );
+      formik.setFieldValue(
+        "infants",
+        lead.tourDetails?.members?.infants || 0
+      );
+      formik.setFieldValue(
+        "hotelType",
+        lead.tourDetails?.accommodation?.hotelType?.[0] || ""
+      );
+      formik.setFieldValue(
+        "mealPlan",
+        lead.tourDetails?.accommodation?.mealPlan || ""
+      );
+      formik.setFieldValue(
+        "sharingType",
+        lead.tourDetails?.accommodation?.sharingType || ""
+      );
+      formik.setFieldValue(
+        "noOfRooms",
+        lead.tourDetails?.accommodation?.noOfRooms || ""
+      );
+      formik.setFieldValue(
+        "noOfMattress",
+        lead.tourDetails?.accommodation?.noOfMattress || 0
+      );
+      formik.setFieldValue(
+        "nights",
+        lead.tourDetails?.accommodation?.noOfNights || ""
+      );
+
+      // Dates
+      formik.setFieldValue(
+        "arrivalDate",
+        lead.tourDetails?.pickupDrop?.arrivalDate
+          ? new Date(lead.tourDetails.pickupDrop.arrivalDate)
+          : null
+      );
+      formik.setFieldValue(
+        "departureDate",
+        lead.tourDetails?.pickupDrop?.departureDate
+          ? new Date(lead.tourDetails.pickupDrop.departureDate)
+          : null
+      );
+
+      // Arrival / Departure details
+      formik.setFieldValue(
+        "arrivalCity",
+        lead.tourDetails?.pickupDrop?.arrivalCity || ""
+      );
+      formik.setFieldValue(
+        "arrivalLocation",
+        lead.tourDetails?.pickupDrop?.arrivalLocation || ""
+      );
+      formik.setFieldValue(
+        "departureCity",
+        lead.tourDetails?.pickupDrop?.departureCity || ""
+      );
+      formik.setFieldValue(
+        "departureLocation",
+        lead.tourDetails?.pickupDrop?.departureLocation || ""
+      );
+      formik.setFieldValue(
+        "hotelType",
+        lead.tourDetails?.accommodation?.hotelType?.[0] || ""
+      );
+      formik.setFieldValue(
+        "mealPlan",
+        lead.tourDetails?.accommodation?.mealPlan || ""
+      );
+      formik.setFieldValue(
+        "sharingType",
+        lead.tourDetails?.accommodation?.sharingType || ""
+      );
+    }
+  }
+}, [formik.values.clientName, formik.values.tourType, leadList]);
+
+ 
 
   const handleAddService = () => {
     if (newService && !servicesList.includes(newService)) {
@@ -151,21 +327,46 @@ const QuotationForm = () => {
   };
 
   const pickupDropFields = [
-    { name: "arrivalDate", label: "Arrival Date", type: "date" },
-    { name: "arrivalCity", label: "Arrival City", options: data.cities },
-    {
-      name: "arrivalLocation",
-      label: "Arrival Location",
-      options: data.locations,
-    },
-    { name: "departureDate", label: "Departure Date", type: "date" },
-    { name: "departureCity", label: "Departure City", options: data.cities },
-    {
-      name: "departureLocation",
-      label: "Departure Location",
-      options: data.locations,
-    },
-  ];
+  {
+    name: "arrivalDate",
+    label: "Arrival Date",
+    type: "date",
+  },
+  {
+    name: "arrivalCity",
+    label: "Arrival City",
+    options: Array.from(
+      new Set([...data.cities, formik.values.arrivalCity].filter(Boolean))
+    ),
+  },
+  {
+    name: "arrivalLocation",
+    label: "Arrival Location",
+    options: Array.from(
+      new Set([...data.locations, formik.values.arrivalLocation].filter(Boolean))
+    ),
+  },
+  {
+    name: "departureDate",
+    label: "Departure Date",
+    type: "date",
+  },
+  {
+    name: "departureCity",
+    label: "Departure City",
+    options: Array.from(
+      new Set([...data.cities, formik.values.departureCity].filter(Boolean))
+    ),
+  },
+  {
+    name: "departureLocation",
+    label: "Departure Location",
+    options: Array.from(
+      new Set([...data.locations, formik.values.departureLocation].filter(Boolean))
+    ),
+  },
+];
+
 
   if (showStep2) {
     return <HotelQuotationStep2 />;
@@ -187,7 +388,7 @@ const QuotationForm = () => {
               error={formik.touched.clientName && !!formik.errors.clientName}
               helperText={formik.touched.clientName && formik.errors.clientName}
             >
-              {data.clients.map((c) => (
+              {clientOptions.map((c) => (
                 <MenuItem key={c} value={c}>
                   {c}
                 </MenuItem>
@@ -204,7 +405,7 @@ const QuotationForm = () => {
               value={formik.values.tourType}
               onChange={formik.handleChange}
             >
-              {["Domestic", "International"].map((t) => (
+             {tourTypeOptions.map((t) => (
                 <FormControlLabel
                   key={t}
                   value={t}
@@ -225,10 +426,7 @@ const QuotationForm = () => {
               error={formik.touched.sector && !!formik.errors.sector}
               helperText={formik.touched.sector && formik.errors.sector}
             >
-              {(formik.values.tourType === "Domestic"
-                ? data.sectors
-                : data.countries
-              ).map((s) => (
+              {sectorOptions.map((s) => (
                 <MenuItem key={s} value={s}>
                   {s}
                 </MenuItem>
@@ -308,13 +506,13 @@ const QuotationForm = () => {
             {
               name: "hotelType",
               label: "Hotel Type",
-              options: data.hotelTypes,
+              options: dynamicData.hotelTypes,
             },
-            { name: "mealPlan", label: "Meal Plan", options: data.mealPlans },
+            { name: "mealPlan", label: "Meal Plan", options: dynamicData.mealPlans },
             {
               name: "sharingType",
               label: "Sharing Type",
-              options: data.sharingTypes,
+              options: dynamicData.sharingTypes,
             },
           ].map((f) => (
             <Grid key={f.name} size={{ xs: 4 }}>
@@ -370,52 +568,53 @@ const QuotationForm = () => {
         </Section>
 
         {/* Pickup / Drop */}
-        <Section title="Pickup / Drop">
-          {pickupDropFields.map((f) => (
-            <Grid key={f.name} size={{ xs: 4 }}>
-              {f.type === "date" ? (
-                <DatePicker
-                  label={f.label}
-                  value={formik.values[f.name]}
-                  onChange={(v) => formik.setFieldValue(f.name, v)}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      error: formik.touched[f.name] && !!formik.errors[f.name],
-                      helperText:
-                        formik.touched[f.name] && formik.errors[f.name],
-                    },
-                  }}
-                />
-              ) : (
-                <TextField
-                  select
-                  fullWidth
-                  name={f.name}
-                  label={f.label}
-                  value={formik.values[f.name]}
-                  onChange={formik.handleChange}
-                >
-                  {f.options.map((o) => (
-                    <MenuItem key={o} value={o}>
-                      {o}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              )}
-            </Grid>
+       {/* Pickup / Drop */}
+<Section title="Pickup / Drop">
+  {pickupDropFields.map((f) => (
+    <Grid key={f.name} size={{ xs: 4 }}>
+      {f.type === "date" ? (
+        <DatePicker
+          label={f.label}
+          value={formik.values[f.name]}
+          onChange={(v) => formik.setFieldValue(f.name, v)}
+          slotProps={{
+            textField: {
+              fullWidth: true,
+              error: formik.touched[f.name] && !!formik.errors[f.name],
+              helperText: formik.touched[f.name] && formik.errors[f.name],
+            },
+          }}
+        />
+      ) : (
+        <TextField
+          select
+          fullWidth
+          name={f.name}
+          label={f.label}
+          value={formik.values[f.name] || ""} // ← ensures prefill
+          onChange={formik.handleChange}
+        >
+          {f.options.map((o) => (
+            <MenuItem key={o} value={o}>
+              {o}
+            </MenuItem>
           ))}
-          <Grid size={{ xs: 4 }}>
-            <TextField
-              fullWidth
-              name="nights"
-              label="Nights"
-              type="number"
-              value={formik.values.nights}
-              onChange={formik.handleChange}
-            />
-          </Grid>
-        </Section>
+        </TextField>
+      )}
+    </Grid>
+  ))}
+  <Grid size={{ xs: 4 }}>
+    <TextField
+      fullWidth
+      name="nights"
+      label="Nights"
+      type="number"
+      value={formik.values.nights || ""}
+      onChange={formik.handleChange}
+    />
+  </Grid>
+</Section>
+
 
         {/* Validity */}
         <Section title="Quotation Validity">
