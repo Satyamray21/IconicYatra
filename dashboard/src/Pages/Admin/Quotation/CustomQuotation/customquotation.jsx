@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import {
   Box,
   Button,
@@ -15,6 +15,12 @@ import {
 
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  getAllLeads,
+  getLeadOptions,
+  addLeadOption,
+} from "../../../../features/leads/leadSlice";
 import CustomQuotationStep2 from "./customquotationStep2";
 
 const clients = ["Client A", "Client B", "Client C"];
@@ -24,7 +30,7 @@ const internationalSectors = ["USA", "UK", "France", "Australia"];
 
 const CustomQuotation = () => {
   const [showStep2, setShowStep2] = useState(false);
-
+  const dispatch = useDispatch();
   const formik = useFormik({
     initialValues: {
       clientName: "",
@@ -50,7 +56,37 @@ const CustomQuotation = () => {
   if (showStep2) {
     return <CustomQuotationStep2 />;
   }
-
+const {
+    list: leadList = [],     // main array of leads
+    status,
+    options = [],
+    loading,
+    error,
+  } = useSelector((state) => state.leads);
+   useEffect(() => {
+    dispatch(getAllLeads());
+  }, [dispatch]);
+  const clientOptions = [
+    ...new Set(leadList?.map((lead) => lead.personalDetails.fullName) || []),
+  ];
+  const selectedLead = leadList.find(
+    (lead) => lead.personalDetails?.fullName === formik.values.clientName
+  );
+  const sectorOptions = selectedLead
+  ? [
+      selectedLead.tourDetails?.tourDestination ||
+      selectedLead.location?.state ||
+      ""
+    ].filter(Boolean) // remove empty values
+  : [];
+  useEffect(() => {
+    if (selectedLead) {
+      formik.setFieldValue(
+        "sector",
+        selectedLead.tourDetails?.tourDestination || selectedLead.location?.state || ""
+      );
+    }
+  }, [formik.values.clientName, leadList])
   return (
     <Paper
       elevation={1}
@@ -123,10 +159,10 @@ const CustomQuotation = () => {
               }
               helperText={formik.touched.clientName && formik.errors.clientName}
             >
-              {clients.map((client) => (
-                <MenuItem key={client} value={client}>
-                  {client}
-                </MenuItem>
+              {clientOptions.map((c) => (
+                              <MenuItem key={c} value={c}>
+                                {c}
+                              </MenuItem>
               ))}
             </TextField>
           </Grid>
@@ -144,10 +180,10 @@ const CustomQuotation = () => {
               error={formik.touched.sector && Boolean(formik.errors.sector)}
               helperText={formik.touched.sector && formik.errors.sector}
             >
-              {sectors.map((sector) => (
-                <MenuItem key={sector} value={sector}>
-                  {sector}
-                </MenuItem>
+              {sectorOptions.map((s) => (
+                              <MenuItem key={s} value={s}>
+                                {s}
+                              </MenuItem>
               ))}
             </TextField>
           </Grid>
