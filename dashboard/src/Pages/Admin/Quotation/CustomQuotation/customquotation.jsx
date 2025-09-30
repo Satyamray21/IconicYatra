@@ -53,9 +53,7 @@ const CustomQuotation = () => {
       ? domesticSectors
       : internationalSectors;
 
-  if (showStep2) {
-    return <CustomQuotationStep2 />;
-  }
+ 
 const {
     list: leadList = [],     // main array of leads
     status,
@@ -87,6 +85,9 @@ const {
       );
     }
   }, [formik.values.clientName, leadList])
+   if (showStep2) {
+    return <CustomQuotationStep2 />;
+  }
   return (
     <Paper
       elevation={1}
