@@ -32,6 +32,8 @@ import CustomQuotation from "../Pages/Admin/Quotation/CustomQuotation/customquot
 import FlightFinalize from "../Pages/Admin/Quotation/FlightQuotation/FlightFinalize";
 import VehicleFinalize from "../Pages/Admin/Quotation/VehicleQuotation/VehicleFinalize";
 import HotelFinalize from "../Pages/Admin/Quotation/HotelQuotation/HotelFinalize";
+import CustomFinalize from "../Pages/Admin/Quotation/CustomQuotation/CustomFinalize";
+
 const MainRoute = () => {
     const isAuthenticated = true;
 
@@ -83,6 +85,7 @@ const MainRoute = () => {
         <Route path="/flightfinalize/:id" element={<FlightFinalize />} />
         <Route path="/vehiclefinalize/:id" element={<VehicleFinalize />} />
         <Route path="/hotelfinalize" element={<HotelFinalize />} />
+        <Route path="/customfinalize" element={<CustomFinalize />} />
             </Routes>
         </DashboardLayout>
     ) : (

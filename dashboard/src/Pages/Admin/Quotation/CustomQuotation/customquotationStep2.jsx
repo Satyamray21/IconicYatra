@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Button,
@@ -9,30 +9,47 @@ import {
   Paper,
   IconButton,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import { useFormik } from "formik";
+
+import DeleteIcon from "@mui/icons-material/Delete";
+import { useFormik, FieldArray, FormikProvider } from "formik";
 import * as Yup from "yup";
+import CustomQuotationStep3 from "./customquotationStep3";
 
 const cities = ["Delhi", "Mumbai", "Bangalore", "Kolkata"];
 
-const CustomQuotationStep2 = ({ onClose }) => {
+const CustomQuotationStep2 = () => {
+  const [showStep3, setShowStep3] = useState(false);
+
   const formik = useFormik({
     initialValues: {
-      cityName: "",
-      nights: "",
+      cities: [
+        {
+          cityName: "",
+          nights: "",
+        },
+      ],
     },
     validationSchema: Yup.object({
-      cityName: Yup.string().required("City Name is required"),
-      nights: Yup.number()
-        .typeError("Must be a number")
-        .positive("Must be positive")
-        .integer("Must be an integer")
-        .required("No. of Nights is required"),
+      cities: Yup.array().of(
+        Yup.object({
+          cityName: Yup.string().required("City Name is required"),
+          nights: Yup.number()
+            .typeError("Must be a number")
+            .positive("Must be positive")
+            .integer("Must be an integer")
+            .required("No. of Nights is required"),
+        })
+      ),
     }),
     onSubmit: (values) => {
-      console.log("Form Submitted:", values);
+      console.log("Step 2 Submitted:", values);
+      setShowStep3(true); // open Step 3 form
     },
   });
+
+  if (showStep3) {
+    return <CustomQuotationStep3 />;
+  }
 
   return (
     <Paper
@@ -45,14 +62,6 @@ const CustomQuotationStep2 = ({ onClose }) => {
         margin: "auto",
       }}
     >
-      {/* Close Button */}
-      <IconButton
-        onClick={onClose}
-        sx={{ position: "absolute", top: 8, right: 8 }}
-      >
-        <CloseIcon color="primary" />
-      </IconButton>
-
       {/* Title */}
       <Typography variant="h6" fontWeight="bold" gutterBottom>
         Custom Quotation
@@ -67,62 +76,106 @@ const CustomQuotationStep2 = ({ onClose }) => {
         Pickup/Drop
       </Typography>
 
-      <form onSubmit={formik.handleSubmit}>
-        <Grid container spacing={2}>
-          {/* City Name */}
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              select
-              label="City Name"
-              name="cityName"
-              value={formik.values.cityName}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={formik.touched.cityName && Boolean(formik.errors.cityName)}
-              helperText={formik.touched.cityName && formik.errors.cityName}
-            >
-              {cities.map((city) => (
-                <MenuItem key={city} value={city}>
-                  {city}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
+      <FormikProvider value={formik}>
+        <form onSubmit={formik.handleSubmit}> 
+          <FieldArray
+            name="cities"
+            render={(arrayHelpers) => (
+              <>
+                {formik.values.cities.map((city, index) => (
+                  <Grid
+                    container
+                    spacing={2}
+                    key={index}
+                    alignItems="center"
+                    sx={{ mb: 1 }}
+                  >
+                    {/* City Name */}
+                    <Grid size={{xs:12, md:5}}>
+                      <TextField
+                        fullWidth
+                        select
+                        label="City Name"
+                        name={`cities[${index}].cityName`}
+                        value={city.cityName}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        error={
+                          formik.touched.cities?.[index]?.cityName &&
+                          Boolean(formik.errors.cities?.[index]?.cityName)
+                        }
+                        helperText={
+                          formik.touched.cities?.[index]?.cityName &&
+                          formik.errors.cities?.[index]?.cityName
+                        }
+                      >
+                        {cities.map((c) => (
+                          <MenuItem key={c} value={c}>
+                            {c}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
 
-          {/* No. of Nights */}
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              type="number"
-              label="No. of Nights"
-              name="nights"
-              value={formik.values.nights}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={formik.touched.nights && Boolean(formik.errors.nights)}
-              helperText={formik.touched.nights && formik.errors.nights}
-            />
-          </Grid>
+                    {/* No. of Nights */}
+                    <Grid size={{xs:12, md:5}}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="No. of Nights"
+                        name={`cities[${index}].nights`}
+                        value={city.nights}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        error={
+                          formik.touched.cities?.[index]?.nights &&
+                          Boolean(formik.errors.cities?.[index]?.nights)
+                        }
+                        helperText={
+                          formik.touched.cities?.[index]?.nights &&
+                          formik.errors.cities?.[index]?.nights
+                        }
+                      />
+                    </Grid>
 
-          {/* Buttons */}
-          <Grid item xs={12}>
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Button
-                type="button"
-                variant="contained"
-                color="primary"
-                onClick={() => alert("Add City clicked")}
-              >
-                Add City
-              </Button>
-              <Button type="submit" variant="contained" color="info">
-                Next
-              </Button>
-            </Box>
-          </Grid>
-        </Grid>
-      </form>
+                    {/* Delete Button */}
+                    <Grid size={{xs:12, md:2}}>
+                      <IconButton
+                        color="error"
+                        onClick={() => arrayHelpers.remove(index)}
+                        disabled={formik.values.cities.length === 1}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Grid>
+                  </Grid>
+                ))}
+
+                {/* Add City Button */}
+                <Box sx={{ mb: 2 }}>
+                  <Button
+                    type="button"
+                    variant="contained"
+                    color="primary"
+                    onClick={() =>
+                      arrayHelpers.push({ cityName: "", nights: "" })
+                    }
+                  >
+                    Add City
+                  </Button>
+                </Box>
+              </>
+            )}
+          />
+
+          {/* Next Button */}
+          <Box textAlign="center">
+            <Button type="submit" variant="contained" color="info">
+              Next
+            </Button>
+          </Box>
+        </form>
+      </FormikProvider>
     </Paper>
   );
 };

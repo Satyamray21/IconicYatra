@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Button,
@@ -12,16 +12,19 @@ import {
   Paper,
   IconButton,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
+
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import CustomQuotationStep2 from "./customquotationStep2";
 
 const clients = ["Client A", "Client B", "Client C"];
 
 const domesticSectors = ["Delhi", "Mumbai", "Bangalore", "Kolkata"];
 const internationalSectors = ["USA", "UK", "France", "Australia"];
 
-const CustomQuotation = ({ onClose }) => {
+const CustomQuotation = () => {
+  const [showStep2, setShowStep2] = useState(false);
+
   const formik = useFormik({
     initialValues: {
       clientName: "",
@@ -34,6 +37,7 @@ const CustomQuotation = ({ onClose }) => {
     }),
     onSubmit: (values) => {
       console.log("Form Submitted:", values);
+      setShowStep2(true);
     },
   });
 
@@ -42,6 +46,10 @@ const CustomQuotation = ({ onClose }) => {
     formik.values.tourType === "Domestic"
       ? domesticSectors
       : internationalSectors;
+
+  if (showStep2) {
+    return <CustomQuotationStep2 />;
+  }
 
   return (
     <Paper
@@ -55,14 +63,7 @@ const CustomQuotation = ({ onClose }) => {
         justifyContent: "center",
       }}
     >
-      {/* Close Button */}
-      <IconButton
-        onClick={onClose}
-        sx={{ position: "absolute", top: 8, right: 8 }}
-      >
-        <CloseIcon color="primary" />
-      </IconButton>
-
+      
       {/* Title */}
       <Typography variant="h6" fontWeight="bold" gutterBottom>
         Custom Quotation
@@ -153,9 +154,15 @@ const CustomQuotation = ({ onClose }) => {
 
           {/* Save Button */}
           <Grid size={{ xs: 12 }}>
-            <Button type="submit" variant="contained" color="primary">
-              Save
-            </Button>
+            <Box textAlign="center" sx={{ mt: 3 }}>
+              <Button
+                type="submit"
+                variant="contained"
+                sx={{ px: 4, py: 1.5, borderRadius: 2 }}
+              >
+                 Save & Continue
+              </Button>
+            </Box>
           </Grid>
         </Grid>
       </form>

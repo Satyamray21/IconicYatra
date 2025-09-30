@@ -51,6 +51,9 @@ app.use("/api/v1/flightQT",FlightQuotationRouter);
 import hotelQuotationRouter from "./src/routers/quotation/hotelQuotation.router.js";
 app.use("/api/v1/hotelQT",hotelQuotationRouter);
 
+import customQuotationRouter from "./src/routers/quotation/customQuotation.router.js";  
+app.use("/api/v1/customQT",customQuotationRouter);
+
 // ✅ Fix: Load JSON without import
 const swaggerDocument = JSON.parse(fs.readFileSync("./swagger-output.json", "utf-8"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
