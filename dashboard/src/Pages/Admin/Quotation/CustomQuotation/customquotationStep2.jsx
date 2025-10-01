@@ -18,9 +18,10 @@ import { useDispatch, useSelector } from "react-redux";
 import {fetchCitiesByState} from "../../../../features/location/locationSlice";
 
 
-const CustomQuotationStep2 = ({sector}) => {
+const CustomQuotationStep2 = ({sector,clientName}) => {
   const [showStep3, setShowStep3] = useState(false);
   const dispatch = useDispatch();
+
    const { cities = [], loading, error }= useSelector((state) => state.location);
    useEffect(() => {
     if (sector) {
@@ -56,7 +57,7 @@ const CustomQuotationStep2 = ({sector}) => {
   });
 
   if (showStep3) {
-    return <CustomQuotationStep3 />;
+    return <CustomQuotationStep3 clientName={clientName} sector={sector}/>;
   }
 
   return (

@@ -83,15 +83,12 @@ const {
 ];
 
   useEffect(() => {
-    if (selectedLead) {
-      formik.setFieldValue(
-        "sector",
-        selectedLead.tourDetails?.tourDestination || selectedLead.location?.state || ""
-      );
-    }
-  }, [formik.values.clientName, leadList])
+    formik.setFieldValue("sector", "");
+    console.log("Current Client:", formik.values.clientName);
+  console.log("Current Sector:", formik.values.sector);
+  }, [formik.values.clientName]);
    if (showStep2) {
-    return <CustomQuotationStep2 sector={formik.values.sector} />;
+    return <CustomQuotationStep2 sector={formik.values.sector} clientName={formik.values.clientName} />;
   }
   return (
     <Paper
@@ -156,6 +153,7 @@ const {
               fullWidth
               select
               label="Client Name"
+               id="clientName"
               name="clientName"
               value={formik.values.clientName}
               onChange={formik.handleChange}
@@ -178,6 +176,7 @@ const {
             <TextField
               fullWidth
               select
+               id="sector"
               label="Sector"
               name="sector"
               value={formik.values.sector}

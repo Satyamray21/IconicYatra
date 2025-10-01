@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -15,26 +15,54 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { getAllLeads } from "../../../../features/leads/leadSlice";
+import { useDispatch, useSelector } from "react-redux";
+
 import CustomQuotationStep4 from "./customquotationStep4";
 
-const cities = ["Delhi", "Mumbai", "Bangalore", "Kolkata"];
-
-const TourDetailsForm = () => {
+const TourDetailsForm = ({ clientName, sector }) => {
   const [showStep4, setShowStep4] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const dispatch = useDispatch();
+  const { list: leadList = [] } = useSelector((state) => state.leads);
+  
+  useEffect(() => {
+    dispatch(getAllLeads());
+  }, [dispatch]);
+
+  // Find matching lead - FIXED LOGIC
+ useEffect(() => {
+  const lead = leadList.find((lead) => {
+    const nameMatch = lead.personalDetails?.fullName?.trim().toLowerCase() === clientName?.trim().toLowerCase();
+    
+    // Check multiple possible sector fields
+    const sectorMatch = 
+      lead.tourDetails?.tourDestination?.trim().toLowerCase() === sector?.trim().toLowerCase() ||
+      lead.location?.state?.trim().toLowerCase() === sector?.trim().toLowerCase();
+    
+    return nameMatch && sectorMatch;
+  });
+
+  setSelectedLead(lead || null);
+}, [clientName, sector, leadList]);
 
   const formik = useFormik({
+    enableReinitialize: true,
     initialValues: {
-      arrivalCity: "",
-      departureCity: "",
+      arrivalCity: selectedLead?.tourDetails?.pickupDrop?.arrivalCity || "",
+      departureCity: selectedLead?.tourDetails?.pickupDrop?.departureCity || "",
+      arrivalDate: selectedLead?.tourDetails?.pickupDrop?.arrivalDate
+        ? new Date(selectedLead.tourDetails.pickupDrop.arrivalDate)
+        : null,
+      departureDate: selectedLead?.tourDetails?.pickupDrop?.departureDate
+        ? new Date(selectedLead.tourDetails.pickupDrop.departureDate)
+        : null,
       quotationTitle: "",
-      notes:
-        "This is only tentative schedule for sightseeing and travel. Actual sightseeing may get affected due to weather, road conditions, local authority notices, shortage of timing, or off days.",
+      notes: "This is only tentative schedule for sightseeing and travel. Actual sightseeing may get affected due to weather, road conditions, local authority notices, shortage of timing, or off days.",
       bannerImage: null,
       transport: "Yes",
       validFrom: null,
       validTill: null,
-      arrivalDate: null,
-      departureDate: null,
     },
     validationSchema: Yup.object({
       arrivalCity: Yup.string().required("Arrival City is required"),
@@ -50,9 +78,15 @@ const TourDetailsForm = () => {
     }),
     onSubmit: (values) => {
       console.log("Step 3 Submitted:", values);
-      setShowStep4(true); // open Step 4 form
+      setShowStep4(true);
     },
   });
+
+  // Debug: Check what values are available
+  useEffect(() => {
+    console.log("Selected Lead:", selectedLead);
+    console.log("Formik values:", formik.values);
+  }, [selectedLead, formik.values]);
 
   if (showStep4) {
     return <CustomQuotationStep4 />;
@@ -64,57 +98,35 @@ const TourDetailsForm = () => {
         Tour Details
       </Typography>
 
+
       <form onSubmit={formik.handleSubmit}>
         <Grid container spacing={2}>
           {/* Arrival City */}
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              select
               fullWidth
               label="Arrival City"
               name="arrivalCity"
-              value={formik.values.arrivalCity}
+              value={formik.values.arrivalCity || ""}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              error={
-                formik.touched.arrivalCity && Boolean(formik.errors.arrivalCity)
-              }
-              helperText={
-                formik.touched.arrivalCity && formik.errors.arrivalCity
-              }
-            >
-              {cities.map((city) => (
-                <MenuItem key={city} value={city}>
-                  {city}
-                </MenuItem>
-              ))}
-            </TextField>
+              error={formik.touched.arrivalCity && Boolean(formik.errors.arrivalCity)}
+              helperText={formik.touched.arrivalCity && formik.errors.arrivalCity}
+            />
           </Grid>
 
           {/* Departure City */}
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              select
               fullWidth
               label="Departure City"
               name="departureCity"
-              value={formik.values.departureCity}
+              value={formik.values.departureCity || ""}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              error={
-                formik.touched.departureCity &&
-                Boolean(formik.errors.departureCity)
-              }
-              helperText={
-                formik.touched.departureCity && formik.errors.departureCity
-              }
-            >
-              {cities.map((city) => (
-                <MenuItem key={city} value={city}>
-                  {city}
-                </MenuItem>
-              ))}
-            </TextField>
+              error={formik.touched.departureCity && Boolean(formik.errors.departureCity)}
+              helperText={formik.touched.departureCity && formik.errors.departureCity}
+            />
           </Grid>
 
           {/* Quotation Title */}
