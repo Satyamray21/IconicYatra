@@ -70,13 +70,18 @@ const {
   const selectedLead = leadList.find(
     (lead) => lead.personalDetails?.fullName === formik.values.clientName
   );
-  const sectorOptions = selectedLead
-  ? [
-      selectedLead.tourDetails?.tourDestination ||
-      selectedLead.location?.state ||
-      ""
-    ].filter(Boolean) // remove empty values
-  : [];
+  const sectorOptions = [
+  ...new Set(
+    leadList
+      .filter((lead) => lead.personalDetails?.fullName === formik.values.clientName)
+      .map(
+        (lead) =>
+          lead.tourDetails?.tourDestination || lead.location?.state || ""
+      )
+      .filter(Boolean)
+  ),
+];
+
   useEffect(() => {
     if (selectedLead) {
       formik.setFieldValue(
