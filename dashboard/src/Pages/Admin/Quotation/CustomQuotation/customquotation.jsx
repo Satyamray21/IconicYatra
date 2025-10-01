@@ -86,7 +86,7 @@ const {
     }
   }, [formik.values.clientName, leadList])
    if (showStep2) {
-    return <CustomQuotationStep2 />;
+    return <CustomQuotationStep2 sector={formik.values.sector} />;
   }
   return (
     <Paper

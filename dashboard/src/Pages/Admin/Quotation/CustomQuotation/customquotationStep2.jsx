@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -14,12 +14,20 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useFormik, FieldArray, FormikProvider } from "formik";
 import * as Yup from "yup";
 import CustomQuotationStep3 from "./customquotationStep3";
+import { useDispatch, useSelector } from "react-redux";
+import {fetchCitiesByState} from "../../../../features/location/locationSlice";
 
-const cities = ["Delhi", "Mumbai", "Bangalore", "Kolkata"];
 
-const CustomQuotationStep2 = () => {
+const CustomQuotationStep2 = ({sector}) => {
   const [showStep3, setShowStep3] = useState(false);
-
+  const dispatch = useDispatch();
+   const { cities = [], loading, error }= useSelector((state) => state.location);
+   useEffect(() => {
+    if (sector) {
+      // assuming country is India for domestic tours, else pass dynamically
+      dispatch(fetchCitiesByState({ countryName: "India", stateName: sector }));
+    }
+  }, [dispatch, sector]);
   const formik = useFormik({
     initialValues: {
       cities: [
@@ -77,7 +85,7 @@ const CustomQuotationStep2 = () => {
       </Typography>
 
       <FormikProvider value={formik}>
-        <form onSubmit={formik.handleSubmit}> 
+        <form onSubmit={formik.handleSubmit}>
           <FieldArray
             name="cities"
             render={(arrayHelpers) => (
@@ -91,34 +99,35 @@ const CustomQuotationStep2 = () => {
                     sx={{ mb: 1 }}
                   >
                     {/* City Name */}
-                    <Grid size={{xs:12, md:5}}>
+                    <Grid size={{ xs: 12, md: 5 }}>
                       <TextField
-                        fullWidth
-                        select
-                        label="City Name"
-                        name={`cities[${index}].cityName`}
-                        value={city.cityName}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        error={
-                          formik.touched.cities?.[index]?.cityName &&
-                          Boolean(formik.errors.cities?.[index]?.cityName)
-                        }
-                        helperText={
-                          formik.touched.cities?.[index]?.cityName &&
-                          formik.errors.cities?.[index]?.cityName
-                        }
-                      >
-                        {cities.map((c) => (
-                          <MenuItem key={c} value={c}>
-                            {c}
-                          </MenuItem>
-                        ))}
-                      </TextField>
+  fullWidth
+  select
+  label="City Name"
+  name={`cities[${index}].cityName`}
+  value={city.cityName}
+  onChange={formik.handleChange}
+  onBlur={formik.handleBlur}
+  error={
+    formik.touched.cities?.[index]?.cityName &&
+    Boolean(formik.errors.cities?.[index]?.cityName)
+  }
+  helperText={
+    formik.touched.cities?.[index]?.cityName &&
+    formik.errors.cities?.[index]?.cityName
+  }
+>
+  {cities.map((c, idx) => (
+    <MenuItem key={idx} value={c.name}>
+      {c.name}
+    </MenuItem>
+  ))}
+</TextField>
+
                     </Grid>
 
                     {/* No. of Nights */}
-                    <Grid size={{xs:12, md:5}}>
+                    <Grid size={{ xs: 12, md: 5 }}>
                       <TextField
                         fullWidth
                         type="number"
@@ -139,7 +148,7 @@ const CustomQuotationStep2 = () => {
                     </Grid>
 
                     {/* Delete Button */}
-                    <Grid size={{xs:12, md:2}}>
+                    <Grid size={{ xs: 12, md: 2 }}>
                       <IconButton
                         color="error"
                         onClick={() => arrayHelpers.remove(index)}
