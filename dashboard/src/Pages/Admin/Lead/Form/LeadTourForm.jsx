@@ -507,7 +507,7 @@ const getOptionsForField = (fieldName) => {
                 label="Arrival Date *"
                 value={values.arrivalDate}
                 onChange={(val) => setFieldValue("arrivalDate", val)}
-                minDate={dayjs()}
+                
                 renderInput={(params) => (
                   <TextField
                     fullWidth

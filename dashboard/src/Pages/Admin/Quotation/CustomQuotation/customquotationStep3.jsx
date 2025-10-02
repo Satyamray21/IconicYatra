@@ -23,6 +23,7 @@ import CustomQuotationStep4 from "./customquotationStep4";
 const TourDetailsForm = ({ clientName, sector }) => {
   const [showStep4, setShowStep4] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
+  const [initialValuesSet, setInitialValuesSet] = useState(false);
   const dispatch = useDispatch();
   const { list: leadList = [] } = useSelector((state) => state.leads);
   
@@ -30,33 +31,28 @@ const TourDetailsForm = ({ clientName, sector }) => {
     dispatch(getAllLeads());
   }, [dispatch]);
 
-  // Find matching lead - FIXED LOGIC
- useEffect(() => {
-  const lead = leadList.find((lead) => {
-    const nameMatch = lead.personalDetails?.fullName?.trim().toLowerCase() === clientName?.trim().toLowerCase();
-    
-    // Check multiple possible sector fields
-    const sectorMatch = 
-      lead.tourDetails?.tourDestination?.trim().toLowerCase() === sector?.trim().toLowerCase() ||
-      lead.location?.state?.trim().toLowerCase() === sector?.trim().toLowerCase();
-    
-    return nameMatch && sectorMatch;
-  });
+  // Find matching lead
+  useEffect(() => {
+    const lead = leadList.find((lead) => {
+      const nameMatch = lead.personalDetails?.fullName?.trim().toLowerCase() === clientName?.trim().toLowerCase();
+      
+      const sectorMatch = 
+        lead.tourDetails?.tourDestination?.trim().toLowerCase() === sector?.trim().toLowerCase() ||
+        lead.location?.state?.trim().toLowerCase() === sector?.trim().toLowerCase();
+      
+      return nameMatch && sectorMatch;
+    });
 
-  setSelectedLead(lead || null);
-}, [clientName, sector, leadList]);
+    setSelectedLead(lead || null);
+  }, [clientName, sector, leadList]);
 
   const formik = useFormik({
     enableReinitialize: true,
     initialValues: {
-      arrivalCity: selectedLead?.tourDetails?.pickupDrop?.arrivalCity || "",
-      departureCity: selectedLead?.tourDetails?.pickupDrop?.departureCity || "",
-      arrivalDate: selectedLead?.tourDetails?.pickupDrop?.arrivalDate
-        ? new Date(selectedLead.tourDetails.pickupDrop.arrivalDate)
-        : null,
-      departureDate: selectedLead?.tourDetails?.pickupDrop?.departureDate
-        ? new Date(selectedLead.tourDetails.pickupDrop.departureDate)
-        : null,
+      arrivalCity: "",
+      departureCity: "",
+      arrivalDate: null,
+      departureDate: null,
       quotationTitle: "",
       notes: "This is only tentative schedule for sightseeing and travel. Actual sightseeing may get affected due to weather, road conditions, local authority notices, shortage of timing, or off days.",
       bannerImage: null,
@@ -82,14 +78,36 @@ const TourDetailsForm = ({ clientName, sector }) => {
     },
   });
 
-  // Debug: Check what values are available
+  // Auto-fill from lead data only once when lead is found
   useEffect(() => {
-    console.log("Selected Lead:", selectedLead);
-    console.log("Formik values:", formik.values);
-  }, [selectedLead, formik.values]);
+    if (selectedLead && !initialValuesSet) {
+      const leadData = selectedLead.tourDetails?.pickupDrop;
+      if (leadData) {
+        formik.setValues({
+          ...formik.values,
+          arrivalCity: leadData.arrivalCity || "",
+          departureCity: leadData.departureCity || "",
+          arrivalDate: leadData.arrivalDate ? new Date(leadData.arrivalDate) : null,
+          departureDate: leadData.departureDate ? new Date(leadData.departureDate) : null,
+          transport: selectedLead.tourDetails?.accommodation?.transport === false ? "No" : "Yes"
+        });
+        setInitialValuesSet(true);
+      }
+    }
+  }, [selectedLead, initialValuesSet]);
 
   if (showStep4) {
-    return <CustomQuotationStep4 />;
+    return (
+      <CustomQuotationStep4 
+        clientName={clientName}
+        sector={sector}
+        arrivalCity={formik.values.arrivalCity}
+        departureCity={formik.values.departureCity}
+        arrivalDate={formik.values.arrivalDate}
+        departureDate={formik.values.departureDate}
+        transport={formik.values.transport}
+      />
+    );
   }
 
   return (
@@ -97,7 +115,6 @@ const TourDetailsForm = ({ clientName, sector }) => {
       <Typography variant="h6" fontWeight="bold" gutterBottom>
         Tour Details
       </Typography>
-
 
       <form onSubmit={formik.handleSubmit}>
         <Grid container spacing={2}>

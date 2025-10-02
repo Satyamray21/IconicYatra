@@ -24,7 +24,13 @@ const validationSchema = Yup.object({
   ),
 });
 
-const CustomQuotationForm = () => {
+const CustomQuotationForm = ({clientName,
+  sector,
+  arrivalCity,
+  departureCity,
+  arrivalDate,
+  departureDate,
+  transport}) => {
   const [showStep5, setShowStep5] = useState(false);
 
   const formik = useFormik({
@@ -47,7 +53,17 @@ const CustomQuotationForm = () => {
 
   // when Save & Continue clicked, show Step 5
   if (showStep5) {
-    return <CustomQuotationStep5 />;
+     return (
+      <CustomQuotationStep5 
+        clientName={clientName}
+        sector={sector}
+        arrivalCity={arrivalCity}
+        departureCity={departureCity}
+        arrivalDate={arrivalDate}
+        departureDate={departureDate}
+        transport={transport}
+      />
+     );
   }
 
   return (
