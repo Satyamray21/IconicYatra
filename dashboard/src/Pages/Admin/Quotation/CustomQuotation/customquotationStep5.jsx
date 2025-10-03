@@ -20,6 +20,7 @@ import {
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import CustomQuotationStep6 from "../CustomQuotation/customquotationStep6";
 
 // Validation Schema
 const validationSchema = Yup.object({
@@ -49,7 +50,7 @@ const CustomQuotationStep5 = ({
     "Bus",
     "Tempo Traveller",
   ]);
-
+  const [showStep6, setShowStep6] = useState(false);
   // Dialog state
   const [openDialog, setOpenDialog] = useState(false);
   const [newValue, setNewValue] = useState("");
@@ -66,16 +67,17 @@ const CustomQuotationStep5 = ({
       driverAllowance: "",
       tollParking: "",
       totalCost: "",
-      pickupDate: arrivalDate || null,        // Changed from departureDate to arrivalDate
-    pickupTime: null,
-    pickupLocation: arrivalCity || "",      // Changed from departureCity to arrivalCity
-    dropDate: departureDate || null,        // Changed from arrivalDate to departureDate
-    dropTime: null,
-    dropLocation: departureCity || "",
+      pickupDate: arrivalDate || null,
+      pickupTime: null,
+      pickupLocation: arrivalCity || "",
+      dropDate: departureDate || null,
+      dropTime: null,
+      dropLocation: departureCity || "",
     },
     validationSchema,
     onSubmit: (values) => {
-      console.log("Form submitted:", values);
+      console.log("Step 5 Submitted:", values);
+      setShowStep6(true); // switch to Step 6
     },
     enableReinitialize: true,
   });
@@ -140,6 +142,11 @@ const CustomQuotationStep5 = ({
     }
     setOpenDialog(false);
   };
+
+  // MOVE THE CONDITIONAL RETURN HERE - AFTER ALL HOOKS
+  if (showStep6) {
+    return <CustomQuotationStep6 />;
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -376,7 +383,7 @@ const CustomQuotationStep5 = ({
           {/* Submit */}
           <Box textAlign="center" mt={2}>
             <Button type="submit" variant="contained" color="primary">
-              Submit
+              Save & Continue 
             </Button>
           </Box>
         </form>
@@ -400,7 +407,7 @@ const CustomQuotationStep5 = ({
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleDialogSave}>
-            Save
+            Save&Next
           </Button>
         </DialogActions>
       </Dialog>
