@@ -31,7 +31,7 @@ const validationSchema = Yup.object({
     .required("Total Costing is required"),
 });
 
-const tripTypes = ["OneWay", "RoundTrip"];
+const tripTypes = ["One Way", "Round Trip"];
 
 const CustomQuotationStep5 = ({ 
   clientName, 
@@ -66,12 +66,12 @@ const CustomQuotationStep5 = ({
       driverAllowance: "",
       tollParking: "",
       totalCost: "",
-      pickupDate: departureDate || null,
-      pickupTime: null,
-      pickupLocation: departureCity || "",
-      dropDate: arrivalDate || null,
-      dropTime: null,
-      dropLocation: arrivalCity || "",
+      pickupDate: arrivalDate || null,        // Changed from departureDate to arrivalDate
+    pickupTime: null,
+    pickupLocation: arrivalCity || "",      // Changed from departureCity to arrivalCity
+    dropDate: departureDate || null,        // Changed from arrivalDate to departureDate
+    dropTime: null,
+    dropLocation: departureCity || "",
     },
     validationSchema,
     onSubmit: (values) => {
