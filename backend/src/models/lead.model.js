@@ -9,7 +9,7 @@ personalDetails:{
     mobile:{
         type:String,
         required:true,
-        unique:true
+        
 
     },
     alternateNumber:{
