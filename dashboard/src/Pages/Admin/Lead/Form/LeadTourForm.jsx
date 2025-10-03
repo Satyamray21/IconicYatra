@@ -126,6 +126,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     transport: values.transport === "Yes",
     servicesRequired: [values.services],               // ✅ Fix 2
     hotelType: [values.hotelType], 
+     tourDestination: values.destination,
     arrivalDate: values.arrivalDate
       ? dayjs(values.arrivalDate).format("YYYY-MM-DD")
       : null,
