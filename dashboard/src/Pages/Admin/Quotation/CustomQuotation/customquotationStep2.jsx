@@ -20,6 +20,7 @@ import {fetchCitiesByState} from "../../../../features/location/locationSlice";
 
 const CustomQuotationStep2 = ({sector,clientName}) => {
   const [showStep3, setShowStep3] = useState(false);
+  const [citiesData, setCitiesData] = useState([]);
   const dispatch = useDispatch();
 
    const { cities = [], loading, error }= useSelector((state) => state.location);
@@ -51,13 +52,16 @@ const CustomQuotationStep2 = ({sector,clientName}) => {
       ),
     }),
     onSubmit: (values) => {
-      console.log("Step 2 Submitted:", values);
+     console.log("Step 2 Submitted - Cities:", values.cities); // Debug
+      setCitiesData(values.cities);
       setShowStep3(true); // open Step 3 form
     },
   });
 
   if (showStep3) {
-    return <CustomQuotationStep3 clientName={clientName} sector={sector}/>;
+        console.log("Passing to Step 3 - Cities:", citiesData); // Debug
+
+    return <CustomQuotationStep3 clientName={clientName} sector={sector}  cities={citiesData}/>;
   }
 
   return (

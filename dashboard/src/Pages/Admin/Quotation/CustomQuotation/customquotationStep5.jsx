@@ -41,7 +41,8 @@ const CustomQuotationStep5 = ({
   departureCity, 
   arrivalDate, 
   departureDate,
-  transport 
+  transport ,
+  cities
 }) => {
   const [clients, setClients] = useState(["Client A", "Client B"]);
   const [vehicleTypes, setVehicleTypes] = useState([
@@ -145,7 +146,7 @@ const CustomQuotationStep5 = ({
 
   // MOVE THE CONDITIONAL RETURN HERE - AFTER ALL HOOKS
   if (showStep6) {
-    return <CustomQuotationStep6 />;
+    return <CustomQuotationStep6  cities={cities}/>;
   }
 
   return (

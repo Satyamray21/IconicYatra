@@ -20,7 +20,11 @@ import { useDispatch, useSelector } from "react-redux";
 
 import CustomQuotationStep4 from "./customquotationStep4";
 
-const TourDetailsForm = ({ clientName, sector }) => {
+const TourDetailsForm = ({ clientName, sector,cities}) => {
+  console.log("Step 3 - Received cities:", cities);
+    console.log("🔍 Step 3 - Received cities prop:", cities);
+  console.log("🔍 Step 3 - cities type:", typeof cities);
+  console.log("🔍 Step 3 - cities length:", cities ? cities.length : 0);
   const [showStep4, setShowStep4] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [initialValuesSet, setInitialValuesSet] = useState(false);
@@ -99,6 +103,7 @@ const TourDetailsForm = ({ clientName, sector }) => {
   if (showStep4) {
     return (
       <CustomQuotationStep4 
+      
         clientName={clientName}
         sector={sector}
         arrivalCity={formik.values.arrivalCity}
@@ -106,6 +111,7 @@ const TourDetailsForm = ({ clientName, sector }) => {
         arrivalDate={formik.values.arrivalDate}
         departureDate={formik.values.departureDate}
         transport={formik.values.transport}
+         cities={cities}
       />
     );
   }

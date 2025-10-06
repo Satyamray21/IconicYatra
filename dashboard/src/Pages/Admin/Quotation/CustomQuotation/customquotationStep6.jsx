@@ -51,7 +51,7 @@ const validationSchema = yup.object({
   taxPercent: yup.number().min(0, 'Must be positive').max(100, 'Cannot exceed 100%'),
 });
 
-const CustomQuotationForm = () => {
+const CustomQuotationForm = ({cities}) => {
   const formik = useFormik({
     initialValues: {
       // Quotation Details
@@ -172,80 +172,90 @@ const CustomQuotationForm = () => {
           </Grid>
 
           {/* Destination Table */}
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Destination</TableCell>
-                  <TableCell>Nights</TableCell>
-                  <TableCell>Standard</TableCell>
-                  <TableCell>Deluxe</TableCell>
-                  <TableCell>Superior</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                <TableRow>
-                  <TableCell>Baba Mandir</TableCell>
-                  <TableCell>5</TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      placeholder="Hotel Name"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      placeholder="Hotel Name"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      placeholder="Hotel Name"
-                    />
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Total Cost</TableCell>
-                  <TableCell>5</TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="standardPrice"
-                      value={formik.values.standardPrice}
-                      onChange={formik.handleChange}
-                      placeholder="Price"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="deluxePrice"
-                      value={formik.values.deluxePrice}
-                      onChange={formik.handleChange}
-                      placeholder="Price"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      name="superiorPrice"
-                      value={formik.values.superiorPrice}
-                      onChange={formik.handleChange}
-                      placeholder="Price"
-                    />
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </TableContainer>
+          {/* Destination Table */}
+<TableContainer component={Paper} variant="outlined">
+  <Table>
+    <TableHead>
+      <TableRow>
+        <TableCell>Destination</TableCell>
+        <TableCell>Nights</TableCell>
+        <TableCell>Standard</TableCell>
+        <TableCell>Deluxe</TableCell>
+        <TableCell>Superior</TableCell>
+      </TableRow>
+    </TableHead>
+    <TableBody>
+      {/* Dynamic cities rows */}
+      {cities && cities.map((city, index) => (
+        <TableRow key={index}>
+          <TableCell>{city.cityName}</TableCell>
+          <TableCell>{city.nights}</TableCell>
+          <TableCell>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Hotel Name"
+            />
+          </TableCell>
+          <TableCell>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Hotel Name"
+            />
+          </TableCell>
+          <TableCell>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Hotel Name"
+            />
+          </TableCell>
+        </TableRow>
+      ))}
+      
+      {/* Total Cost Row */}
+      <TableRow>
+        <TableCell><strong>Total Cost</strong></TableCell>
+        <TableCell>
+          <strong>
+            {cities ? cities.reduce((total, city) => total + (parseInt(city.nights) || 0), 0) : 0}
+          </strong>
+        </TableCell>
+        <TableCell>
+          <TextField
+            fullWidth
+            size="small"
+            name="standardPrice"
+            value={formik.values.standardPrice}
+            onChange={formik.handleChange}
+            placeholder="Price"
+          />
+        </TableCell>
+        <TableCell>
+          <TextField
+            fullWidth
+            size="small"
+            name="deluxePrice"
+            value={formik.values.deluxePrice}
+            onChange={formik.handleChange}
+            placeholder="Price"
+          />
+        </TableCell>
+        <TableCell>
+          <TextField
+            fullWidth
+            size="small"
+            name="superiorPrice"
+            value={formik.values.superiorPrice}
+            onChange={formik.handleChange}
+            placeholder="Price"
+          />
+        </TableCell>
+      </TableRow>
+    </TableBody>
+  </Table>
+</TableContainer>
 
           {/* Room Details */}
           <Grid container spacing={3} sx={{ mt: 2 }}>

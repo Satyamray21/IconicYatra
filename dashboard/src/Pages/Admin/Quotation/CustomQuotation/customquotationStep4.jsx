@@ -30,7 +30,8 @@ const CustomQuotationForm = ({clientName,
   departureCity,
   arrivalDate,
   departureDate,
-  transport}) => {
+  transport,
+cities}) => {
   const [showStep5, setShowStep5] = useState(false);
 
   const formik = useFormik({
@@ -62,6 +63,7 @@ const CustomQuotationForm = ({clientName,
         arrivalDate={arrivalDate}
         departureDate={departureDate}
         transport={transport}
+         cities={cities}
       />
      );
   }
