@@ -31,7 +31,8 @@ const CustomQuotationForm = ({clientName,
   arrivalDate,
   departureDate,
   transport,
-cities}) => {
+cities,
+onNext}) => {
   const [showStep5, setShowStep5] = useState(false);
 
   const formik = useFormik({
@@ -47,26 +48,14 @@ cities}) => {
     },
     validationSchema,
     onSubmit: (values) => {
-      console.log("Step 4 Submitted:", values);
-      setShowStep5(true); // switch to Step 5
+      
+      onNext(values); // switch to Step 5
     },
   });
 
   // when Save & Continue clicked, show Step 5
-  if (showStep5) {
-     return (
-      <CustomQuotationStep5 
-        clientName={clientName}
-        sector={sector}
-        arrivalCity={arrivalCity}
-        departureCity={departureCity}
-        arrivalDate={arrivalDate}
-        departureDate={departureDate}
-        transport={transport}
-         cities={cities}
-      />
-     );
-  }
+ 
+  
 
   return (
     <FormikProvider value={formik}>

@@ -18,7 +18,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {fetchCitiesByState} from "../../../../features/location/locationSlice";
 
 
-const CustomQuotationStep2 = ({sector,clientName}) => {
+const CustomQuotationStep2 = ({sector,clientName,onNext}) => {
   const [showStep3, setShowStep3] = useState(false);
   const [citiesData, setCitiesData] = useState([]);
   const dispatch = useDispatch();
@@ -52,17 +52,13 @@ const CustomQuotationStep2 = ({sector,clientName}) => {
       ),
     }),
     onSubmit: (values) => {
-     console.log("Step 2 Submitted - Cities:", values.cities); // Debug
-      setCitiesData(values.cities);
+    console.log("Step 2 Submitted - Cities:", values.cities);
+      onNext(values.cities); 
       setShowStep3(true); // open Step 3 form
     },
   });
 
-  if (showStep3) {
-        console.log("Passing to Step 3 - Cities:", citiesData); // Debug
-
-    return <CustomQuotationStep3 clientName={clientName} sector={sector}  cities={citiesData}/>;
-  }
+ 
 
   return (
     <Paper

@@ -42,7 +42,8 @@ const CustomQuotationStep5 = ({
   arrivalDate, 
   departureDate,
   transport ,
-  cities
+  cities,
+  onNext
 }) => {
   const [clients, setClients] = useState(["Client A", "Client B"]);
   const [vehicleTypes, setVehicleTypes] = useState([
@@ -78,7 +79,7 @@ const CustomQuotationStep5 = ({
     validationSchema,
     onSubmit: (values) => {
       console.log("Step 5 Submitted:", values);
-      setShowStep6(true); // switch to Step 6
+     onNext(values) // switch to Step 6
     },
     enableReinitialize: true,
   });
@@ -144,10 +145,6 @@ const CustomQuotationStep5 = ({
     setOpenDialog(false);
   };
 
-  // MOVE THE CONDITIONAL RETURN HERE - AFTER ALL HOOKS
-  if (showStep6) {
-    return <CustomQuotationStep6  cities={cities}/>;
-  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>

@@ -1,4 +1,5 @@
-import React, { useState,useEffect } from "react";
+// customquotation.jsx - FIXED VERSION
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -10,7 +11,6 @@ import {
   FormControlLabel,
   Radio,
   Paper,
-  IconButton,
 } from "@mui/material";
 
 import { useFormik } from "formik";
@@ -18,19 +18,12 @@ import * as Yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getAllLeads,
-  getLeadOptions,
-  addLeadOption,
 } from "../../../../features/leads/leadSlice";
-import CustomQuotationStep2 from "./customquotationStep2";
 
-const clients = ["Client A", "Client B", "Client C"];
-
-const domesticSectors = ["Delhi", "Mumbai", "Bangalore", "Kolkata"];
-const internationalSectors = ["USA", "UK", "France", "Australia"];
-
-const CustomQuotation = () => {
-  const [showStep2, setShowStep2] = useState(false);
+// Make sure to accept onNext prop
+const CustomQuotation = ({ onNext }) => {
   const dispatch = useDispatch();
+  
   const formik = useFormik({
     initialValues: {
       clientName: "",
@@ -42,54 +35,44 @@ const CustomQuotation = () => {
       sector: Yup.string().required("Sector is required"),
     }),
     onSubmit: (values) => {
-      console.log("Form Submitted:", values);
-      setShowStep2(true);
+      console.log("✅ Step 1 Submitted:", values);
+      console.log("👉 onNext function:", typeof onNext);
+      
+      // Check if onNext is a function before calling it
+      if (typeof onNext === 'function') {
+        onNext(values);
+      } else {
+        console.error("❌ onNext is not a function:", onNext);
+      }
     },
   });
 
-  // Dynamic options for sector
-  const sectors =
-    formik.values.tourType === "Domestic"
-      ? domesticSectors
-      : internationalSectors;
-
- 
-const {
-    list: leadList = [],     // main array of leads
-    status,
-    options = [],
-    loading,
-    error,
-  } = useSelector((state) => state.leads);
-   useEffect(() => {
+  const { list: leadList = [] } = useSelector((state) => state.leads);
+  
+  useEffect(() => {
     dispatch(getAllLeads());
   }, [dispatch]);
+
   const clientOptions = [
     ...new Set(leadList?.map((lead) => lead.personalDetails.fullName) || []),
   ];
-  const selectedLead = leadList.find(
-    (lead) => lead.personalDetails?.fullName === formik.values.clientName
-  );
+
   const sectorOptions = [
-  ...new Set(
-    leadList
-      .filter((lead) => lead.personalDetails?.fullName === formik.values.clientName)
-      .map(
-        (lead) =>
-          lead.tourDetails?.tourDestination || lead.location?.state || ""
-      )
-      .filter(Boolean)
-  ),
-];
+    ...new Set(
+      leadList
+        .filter((lead) => lead.personalDetails?.fullName === formik.values.clientName)
+        .map(
+          (lead) =>
+            lead.tourDetails?.tourDestination || lead.location?.state || ""
+        )
+        .filter(Boolean)
+    ),
+  ];
 
   useEffect(() => {
     formik.setFieldValue("sector", "");
-    console.log("Current Client:", formik.values.clientName);
-  console.log("Current Sector:", formik.values.sector);
   }, [formik.values.clientName]);
-   if (showStep2) {
-    return <CustomQuotationStep2 sector={formik.values.sector} clientName={formik.values.clientName} />;
-  }
+
   return (
     <Paper
       elevation={1}
@@ -102,7 +85,6 @@ const {
         justifyContent: "center",
       }}
     >
-      
       {/* Title */}
       <Typography variant="h6" fontWeight="bold" gutterBottom>
         Custom Quotation
@@ -130,7 +112,6 @@ const {
               value={formik.values.tourType}
               onChange={(e) => {
                 formik.handleChange(e);
-                // reset sector when tour type changes
                 formik.setFieldValue("sector", "");
               }}
             >
@@ -153,7 +134,7 @@ const {
               fullWidth
               select
               label="Client Name"
-               id="clientName"
+              id="clientName"
               name="clientName"
               value={formik.values.clientName}
               onChange={formik.handleChange}
@@ -164,9 +145,9 @@ const {
               helperText={formik.touched.clientName && formik.errors.clientName}
             >
               {clientOptions.map((c) => (
-                              <MenuItem key={c} value={c}>
-                                {c}
-                              </MenuItem>
+                <MenuItem key={c} value={c}>
+                  {c}
+                </MenuItem>
               ))}
             </TextField>
           </Grid>
@@ -176,7 +157,7 @@ const {
             <TextField
               fullWidth
               select
-               id="sector"
+              id="sector"
               label="Sector"
               name="sector"
               value={formik.values.sector}
@@ -186,9 +167,9 @@ const {
               helperText={formik.touched.sector && formik.errors.sector}
             >
               {sectorOptions.map((s) => (
-                              <MenuItem key={s} value={s}>
-                                {s}
-                              </MenuItem>
+                <MenuItem key={s} value={s}>
+                  {s}
+                </MenuItem>
               ))}
             </TextField>
           </Grid>
@@ -200,8 +181,9 @@ const {
                 type="submit"
                 variant="contained"
                 sx={{ px: 4, py: 1.5, borderRadius: 2 }}
+                disabled={!formik.isValid}
               >
-                 Save & Continue
+                Save & Continue
               </Button>
             </Box>
           </Grid>

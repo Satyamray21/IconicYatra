@@ -20,7 +20,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import CustomQuotationStep4 from "./customquotationStep4";
 
-const TourDetailsForm = ({ clientName, sector,cities}) => {
+const TourDetailsForm = ({ clientName, sector,cities,onNext }) => {
   console.log("Step 3 - Received cities:", cities);
     console.log("🔍 Step 3 - Received cities prop:", cities);
   console.log("🔍 Step 3 - cities type:", typeof cities);
@@ -76,9 +76,9 @@ const TourDetailsForm = ({ clientName, sector,cities}) => {
       arrivalDate: Yup.date().nullable().required("Arrival Date is required"),
       departureDate: Yup.date().nullable(),
     }),
-    onSubmit: (values) => {
+   onSubmit: (values) => {
       console.log("Step 3 Submitted:", values);
-      setShowStep4(true);
+      onNext(values); 
     },
   });
 
@@ -100,21 +100,7 @@ const TourDetailsForm = ({ clientName, sector,cities}) => {
     }
   }, [selectedLead, initialValuesSet]);
 
-  if (showStep4) {
-    return (
-      <CustomQuotationStep4 
-      
-        clientName={clientName}
-        sector={sector}
-        arrivalCity={formik.values.arrivalCity}
-        departureCity={formik.values.departureCity}
-        arrivalDate={formik.values.arrivalDate}
-        departureDate={formik.values.departureDate}
-        transport={formik.values.transport}
-         cities={cities}
-      />
-    );
-  }
+  
 
   return (
     <Paper sx={{ p: 3, maxWidth: 900, mx: "auto" }}>

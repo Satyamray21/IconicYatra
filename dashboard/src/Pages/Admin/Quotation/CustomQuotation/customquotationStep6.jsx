@@ -23,6 +23,9 @@ import {
 } from '@mui/material';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
+import { useDispatch, useSelector } from "react-redux";
+import {createCustomQuotation} from "../../../../features/quotation/customQuotationSlice";
+import { toast } from "react-toastify";
 
 // Validation schema
 const validationSchema = yup.object({
@@ -31,7 +34,7 @@ const validationSchema = yup.object({
   child: yup.number().min(0, 'Must be positive'),
   kid: yup.number().min(0, 'Must be positive'),
   infants: yup.number().min(0, 'Must be positive'),
-  mediPlan: yup.string(),
+  mediPlan: yup.string().required('Required'),
   
   // Room Details
   noOfRooms: yup.number().min(1, 'At least 1 room required').required('Required'),
@@ -51,7 +54,24 @@ const validationSchema = yup.object({
   taxPercent: yup.number().min(0, 'Must be positive').max(100, 'Cannot exceed 100%'),
 });
 
-const CustomQuotationForm = ({cities}) => {
+const CustomQuotationForm = ({ 
+  formData, // Receive all collected data
+  onSubmit, 
+  loading 
+}) => {
+  // Destructure what you need
+  const { 
+    clientDetails, 
+    pickupDrop, 
+    tourDetails, 
+    quotationDetails, 
+    vehicleDetails 
+  } = formData;
+  const clientName = clientDetails?.clientName || "N/A";
+const sector = clientDetails?.sector || "N/A";
+const arrivalCity = pickupDrop?.[0]?.from || "N/A"; // adjust based on your actual field
+const departureCity = pickupDrop?.[pickupDrop.length - 1]?.to || "N/A"; // adjust based on your data
+const cities = pickupDrop || [];
   const formik = useFormik({
     initialValues: {
       // Quotation Details
@@ -80,13 +100,67 @@ const CustomQuotationForm = ({cities}) => {
       discount: 0,
       
       // Taxes
-      gstOn: 'full',
+      gstOn: 'Full',
       taxPercent: 0,
+      applyGST: false,
     },
     validationSchema: validationSchema,
-    onSubmit: (values) => {
-      console.log('Form submitted:', values);
-      // Handle form submission here
+   onSubmit: async (values) => {
+      try {
+        // Combine step 6 data with all previous data
+      const finalData = {
+  ...formData,
+  tourDetails: {
+    ...formData.tourDetails,
+    quotationDetails: {
+      adults: values.adult,
+      children: values.child,
+      kids: values.kid,
+      infants: values.infants,
+      mealPlan: values.mediPlan,
+
+      destinations: formData.pickupDrop.map(city => ({
+        cityName: city.cityName,
+        nights: city.nights,
+        prices: {
+          standard: values.standardPrice || 0,
+          deluxe: values.deluxePrice || 0,
+          superior: values.superiorPrice || 0,
+        },
+      })),
+
+      rooms: {
+        numberOfRooms: values.noOfRooms,
+        roomType: values.roomType,
+        sharingType: values.sharingType,
+        showCostPerAdult: values.showCostPerAdult,
+      },
+
+      companyMargin: {
+        marginPercent: values.marginPercent || 0,
+        marginAmount: values.marginAmount || 0,
+      },
+
+      discount: values.discount || 0,
+
+      taxes: {
+        gstOn: values.gstOn || "None",
+        applyGST: values.applyGST || false,
+      },
+
+      signatureDetails: {
+        regardsText: "Best Regards",
+        signedBy: "", // optional
+      },
+    },
+  },
+};
+
+        
+        await onSubmit(finalData);
+      } catch (error) {
+        console.error("Submission error:", error);
+      }
     },
   });
 
@@ -97,6 +171,27 @@ const CustomQuotationForm = ({cities}) => {
         <Typography variant="h4" component="h1" gutterBottom align="center">
           Custom Quotation
         </Typography>
+
+        {/* Client Summary */}
+        <Paper sx={{ p: 2, mb: 3, backgroundColor: '#f5f5f5' }}>
+          <Typography variant="h6" gutterBottom>
+            Client Summary
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid size={{xs:12, sm:6, md:3}}>
+              <Typography variant="body2"><strong>Client:</strong> {clientName}</Typography>
+            </Grid>
+            <Grid size={{xs:12, sm:6, md:3}}>
+              <Typography variant="body2"><strong>Sector:</strong> {sector}</Typography>
+            </Grid>
+            <Grid size={{xs:12, sm:6, md:3}}>
+              <Typography variant="body2"><strong>Arrival:</strong> {arrivalCity}</Typography>
+            </Grid>
+            <Grid size={{xs:12, sm:6, md:3}}>
+              <Typography variant="body2"><strong>Departure:</strong> {departureCity}</Typography>
+            </Grid>
+          </Grid>
+        </Paper>
 
         {/* Quotation Details Section */}
         <Paper sx={{ p: 3, mb: 3 }}>
@@ -116,9 +211,10 @@ const CustomQuotationForm = ({cities}) => {
                 onChange={formik.handleChange}
                 error={formik.touched.adult && Boolean(formik.errors.adult)}
                 helperText={formik.touched.adult && formik.errors.adult}
+                required
               />
             </Grid>
-            <Grid  size={{xs:12, sm:6, md:2.4}}>
+            <Grid size={{xs:12, sm:6, md:2.4}}>
               <TextField
                 fullWidth
                 id="child"
@@ -162,104 +258,73 @@ const CustomQuotationForm = ({cities}) => {
                 fullWidth
                 id="mediPlan"
                 name="mediPlan"
-                label="Medi Plan"
+                label="Meal Plan"
                 value={formik.values.mediPlan}
                 onChange={formik.handleChange}
                 error={formik.touched.mediPlan && Boolean(formik.errors.mediPlan)}
                 helperText={formik.touched.mediPlan && formik.errors.mediPlan}
+                required
               />
             </Grid>
           </Grid>
 
           {/* Destination Table */}
-          {/* Destination Table */}
-<TableContainer component={Paper} variant="outlined">
-  <Table>
-    <TableHead>
-      <TableRow>
-        <TableCell>Destination</TableCell>
-        <TableCell>Nights</TableCell>
-        <TableCell>Standard</TableCell>
-        <TableCell>Deluxe</TableCell>
-        <TableCell>Superior</TableCell>
-      </TableRow>
-    </TableHead>
-    <TableBody>
-      {/* Dynamic cities rows */}
-      {cities && cities.map((city, index) => (
-        <TableRow key={index}>
-          <TableCell>{city.cityName}</TableCell>
-          <TableCell>{city.nights}</TableCell>
-          <TableCell>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Hotel Name"
-            />
-          </TableCell>
-          <TableCell>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Hotel Name"
-            />
-          </TableCell>
-          <TableCell>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Hotel Name"
-            />
-          </TableCell>
-        </TableRow>
-      ))}
-      
-      {/* Total Cost Row */}
-      <TableRow>
-        <TableCell><strong>Total Cost</strong></TableCell>
-        <TableCell>
-          <strong>
-            {cities ? cities.reduce((total, city) => total + (parseInt(city.nights) || 0), 0) : 0}
-          </strong>
-        </TableCell>
-        <TableCell>
-          <TextField
-            fullWidth
-            size="small"
-            name="standardPrice"
-            value={formik.values.standardPrice}
-            onChange={formik.handleChange}
-            placeholder="Price"
-          />
-        </TableCell>
-        <TableCell>
-          <TextField
-            fullWidth
-            size="small"
-            name="deluxePrice"
-            value={formik.values.deluxePrice}
-            onChange={formik.handleChange}
-            placeholder="Price"
-          />
-        </TableCell>
-        <TableCell>
-          <TextField
-            fullWidth
-            size="small"
-            name="superiorPrice"
-            value={formik.values.superiorPrice}
-            onChange={formik.handleChange}
-            placeholder="Price"
-          />
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  </Table>
-</TableContainer>
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Destination</TableCell>
+                  <TableCell>Nights</TableCell>
+                  <TableCell>Standard Price</TableCell>
+                  <TableCell>Deluxe Price</TableCell>
+                  <TableCell>Superior Price</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {/* Dynamic cities rows */}
+                {cities && cities.map((city, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{city.cityName}</TableCell>
+                    <TableCell>{city.nights}</TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Price"
+                        name="standardPrice"
+                        value={formik.values.standardPrice}
+                        onChange={formik.handleChange}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Price"
+                        name="deluxePrice"
+                        value={formik.values.deluxePrice}
+                        onChange={formik.handleChange}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Price"
+                        name="superiorPrice"
+                        value={formik.values.superiorPrice}
+                        onChange={formik.handleChange}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
           {/* Room Details */}
           <Grid container spacing={3} sx={{ mt: 2 }}>
-            <Grid  size={{xs:12, sm:4}}>
+            <Grid size={{xs:12, sm:4}}>
               <Typography variant="subtitle1" gutterBottom>
                 No. of Rooms
               </Typography>
@@ -272,11 +337,12 @@ const CustomQuotationForm = ({cities}) => {
                 onChange={formik.handleChange}
                 error={formik.touched.noOfRooms && Boolean(formik.errors.noOfRooms)}
                 helperText={formik.touched.noOfRooms && formik.errors.noOfRooms}
+                required
               />
             </Grid>
             <Grid size={{xs:12, sm:4}}>
               <FormControl fullWidth>
-                <InputLabel id="room-type-label">Room Type</InputLabel>
+                <InputLabel id="room-type-label">Room Type *</InputLabel>
                 <Select
                   labelId="room-type-label"
                   id="roomType"
@@ -284,7 +350,8 @@ const CustomQuotationForm = ({cities}) => {
                   value={formik.values.roomType}
                   onChange={formik.handleChange}
                   error={formik.touched.roomType && Boolean(formik.errors.roomType)}
-                  label="Room Type"
+                  label="Room Type *"
+                  required
                 >
                   <MenuItem value="standard">Standard</MenuItem>
                   <MenuItem value="deluxe">Deluxe</MenuItem>
@@ -294,7 +361,7 @@ const CustomQuotationForm = ({cities}) => {
             </Grid>
             <Grid size={{xs:12, sm:4}}>
               <FormControl fullWidth>
-                <InputLabel id="sharing-type-label">Sharing Type</InputLabel>
+                <InputLabel id="sharing-type-label">Sharing Type *</InputLabel>
                 <Select
                   labelId="sharing-type-label"
                   id="sharingType"
@@ -302,7 +369,8 @@ const CustomQuotationForm = ({cities}) => {
                   value={formik.values.sharingType}
                   onChange={formik.handleChange}
                   error={formik.touched.sharingType && Boolean(formik.errors.sharingType)}
-                  label="Sharing Type"
+                  label="Sharing Type *"
+                  required
                 >
                   <MenuItem value="single">Single</MenuItem>
                   <MenuItem value="double">Double</MenuItem>
@@ -400,40 +468,39 @@ const CustomQuotationForm = ({cities}) => {
               value={formik.values.gstOn}
               onChange={formik.handleChange}
             >
-              <FormControlLabel value="full" control={<Radio />} label="Full" />
-              <FormControlLabel value="margin" control={<Radio />} label="Margin" />
-              <FormControlLabel value="none" control={<Radio />} label="None" />
+              <FormControlLabel value="Full" control={<Radio />} label="Full" />
+              <FormControlLabel value="Margin" control={<Radio />} label="Margin" />
+              <FormControlLabel value="None" control={<Radio />} label="None" />
             </RadioGroup>
           </FormControl>
 
           <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
             Apply GST
           </Typography>
-          <TextField
-            fullWidth
-            id="taxPercent"
-            name="taxPercent"
-            label="Tax %"
-            type="number"
-            value={formik.values.taxPercent}
-            onChange={formik.handleChange}
-            error={formik.touched.taxPercent && Boolean(formik.errors.taxPercent)}
-            helperText={formik.touched.taxPercent && formik.errors.taxPercent}
-            sx={{ maxWidth: 200 }}
+          <FormControlLabel
+            control={
+              <Radio
+                checked={formik.values.applyGST}
+                onChange={(e) => formik.setFieldValue('applyGST', e.target.checked)}
+                name="applyGST"
+              />
+            }
+            label="Apply GST"
           />
-        </Paper>
-
-        {/* Signature Details */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Signature Details
-          </Typography>
-          <Typography variant="body1" sx={{ fontStyle: 'italic' }}>
-            Best Regards
-          </Typography>
-          <Typography variant="body1" sx={{ mt: 1 }}>
-            Subham Baskar +917053900957 (Noida)
-          </Typography>
+          {formik.values.applyGST && (
+            <TextField
+              fullWidth
+              id="taxPercent"
+              name="taxPercent"
+              label="Tax %"
+              type="number"
+              value={formik.values.taxPercent}
+              onChange={formik.handleChange}
+              error={formik.touched.taxPercent && Boolean(formik.errors.taxPercent)}
+              helperText={formik.touched.taxPercent && formik.errors.taxPercent}
+              sx={{ maxWidth: 200, mt: 1 }}
+            />
+          )}
         </Paper>
 
         {/* Submit Button */}
@@ -443,8 +510,9 @@ const CustomQuotationForm = ({cities}) => {
             variant="contained"
             size="large"
             sx={{ px: 6, py: 1.5 }}
+            disabled={loading}
           >
-            Submit
+            {loading ? 'Creating...' : 'Submit Quotation'}
           </Button>
         </Box>
       </form>

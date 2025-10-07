@@ -28,7 +28,7 @@ import HotelQuotation from "../Pages/Admin/Quotation/HotelQuotation/hotelquotati
 import FlightQuotation from "../Pages/Admin/Quotation/FlightQuotation/flightquotation";
 import QuickQuotation from "../Pages/Admin/Quotation/QuickQuotation/quickquotation";
 import FullQuotation from "../Pages/Admin/Quotation/FullQuotation/fullquotation";
-import CustomQuotation from "../Pages/Admin/Quotation/CustomQuotation/customquotation";
+import CustomQuotation from "../Pages/Admin/Quotation/CustomQuotation/CustomQuotationMain";
 import FlightFinalize from "../Pages/Admin/Quotation/FlightQuotation/FlightFinalize";
 import VehicleFinalize from "../Pages/Admin/Quotation/VehicleQuotation/VehicleFinalize";
 import HotelFinalize from "../Pages/Admin/Quotation/HotelQuotation/HotelFinalize";
