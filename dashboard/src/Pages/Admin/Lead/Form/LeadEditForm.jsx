@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Grid,
@@ -11,103 +11,608 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stepper,
+  Step,
+  StepLabel,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { useDispatch, useSelector } from "react-redux";
+import { viewLeadById, updateLead, resetViewStatus, resetUpdateStatus } from "../../../../features/leads/leadSlice";
+import AssociatesForm from "../../Associates/Form/AssociatesForm";
 import dayjs from "dayjs";
-import { useLocation } from "react-router-dom";
 
+// Validation schema combining both steps
 const validationSchema = Yup.object({
-  firstName: Yup.string().required("First Name is required"),
+  // Step 1 fields
+  fullName: Yup.string().required("Name is required"),
   source: Yup.string().required("Source is required"),
   assignedTo: Yup.string().required("Assigned To is required"),
+  mobile: Yup.string(),
+  email: Yup.string().email("Invalid email format"),
+  
+  // Step 2 fields
+  destination: Yup.string().required("Destination is required"),
+  services: Yup.string().required("Services are required"),
+  adults: Yup.number().required("Required").min(1, "At least 1 adult"),
+  arrivalDate: Yup.date().required("Arrival date is required"),
+  departureDate: Yup.date().required("Departure date is required"),
+  sharingType: Yup.string().required("Sharing type is required"),
+  noOfRooms: Yup.number().required("Required").min(1, "At least 1 room"),
+  country: Yup.string().when("tourType", {
+    is: "International",
+    then: Yup.string().required("Country is required for international tours"),
+  }),
 });
 
-const CustomerDetailEditForm = () => {
-  const location = useLocation();
-  const customerData = location.state?.leadData || {};
+const LeadEditForm = ({ leadId, onSave, onCancel }) => {
+  const dispatch = useDispatch();
+  const { viewedLead, viewLoading, viewError, updateLoading, updateError } = useSelector((state) => state.leads);
+  
+  const [activeStep, setActiveStep] = useState(0);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newValue, setNewValue] = useState("");
+  const [activeField, setActiveField] = useState("");
+  const [showAssociateForm, setShowAssociateForm] = useState(false);
+
+  const [dropdownOptions, setDropdownOptions] = useState({
+    title: ["Mr", "Ms", "Mrs"],
+    source: ["Direct", "Referral", "Agent's"],
+    referralBy: [],
+    agentName: [],
+    assignedTo: ["Staff A", "Staff B"],
+    priority: ["High", "Medium", "Low"],
+    country: ["India", "USA", "Canada"],
+    state: ["Karnataka", "Maharashtra"],
+    city: ["Bangalore", "Mumbai"],
+    // Step 2 dropdowns
+    destination: ["Delhi", "Paris"],
+    services: ["Hotel", "Transport"],
+    arrivalCity: ["Mumbai", "Delhi"],
+    arrivalLocation: ["Airport"],
+    departureCity: ["Delhi"],
+    departureLocation: ["Hotel"],
+    hotelType: ["3 Star", "5 Star"],
+    mealPlan: ["Breakfast"],
+    sharingType: ["Twin"],
+  });
+
+  const [customItems, setCustomItems] = useState({
+    country: [],
+    destination: [],
+    services: [],
+    arrivalCity: [],
+    arrivalLocation: [],
+    departureCity: [],
+    departureLocation: [],
+    hotelType: [],
+    mealPlan: [],
+    sharingType: [],
+  });
+
+  // Default data structure
+  const defaultInitialData = {
+    // Step 1 fields
+    fullName: "",
+    mobile: "",
+    alternateNumber: "",
+    email: "",
+    title: "",
+    dob: null,
+    country: "India",
+    state: "",
+    city: "",
+    address1: "",
+    address2: "",
+    address3: "",
+    pincode: "",
+    businessType: "B2B",
+    priority: "",
+    source: "",
+    referralBy: "",
+    agentName: "",
+    assignedTo: "",
+    note: "",
+    
+    // Step 2 fields
+    tourType: "Domestic",
+    country: "",
+    destination: "",
+    services: "",
+    adults: "",
+    children: "",
+    kidsWithoutMattress: "",
+    infants: "",
+    arrivalDate: null,
+    arrivalCity: "",
+    arrivalLocation: "",
+    departureDate: null,
+    departureCity: "",
+    departureLocation: "",
+    hotelType: "",
+    mealPlan: "",
+    transport: "No",
+    sharingType: "",
+    noOfRooms: "",
+    noOfMattress: "0",
+    noOfNights: "",
+    requirementNote: "",
+  };
+
+  // Transform API data to form format
+  const transformApiDataToForm = (apiData) => {
+    if (!apiData) return defaultInitialData;
+    
+    const { personalDetails, location, address, officialDetail, tourDetails } = apiData;
+    
+    return {
+      // Step 1 fields
+      fullName: personalDetails?.fullName || "",
+      mobile: personalDetails?.mobile || "",
+      alternateNumber: personalDetails?.alternateNumber || "",
+      email: personalDetails?.emailId || "",
+      title: personalDetails?.title || "",
+      dob: personalDetails?.dateOfBirth ? dayjs(personalDetails.dateOfBirth) : null,
+      country: location?.country || "India",
+      state: location?.state || "",
+      city: location?.city || "",
+      address1: address?.addressLine1 || "",
+      address2: address?.addressLine2 || "",
+      address3: address?.addressLine3 || "",
+      pincode: address?.pincode || "",
+      businessType: officialDetail?.businessType || "B2B",
+      priority: officialDetail?.priority || "",
+      source: officialDetail?.source || "",
+      referralBy: officialDetail?.referredBy || "",
+      agentName: officialDetail?.agentName || "",
+      assignedTo: officialDetail?.assignedTo || "",
+      note: "",
+      
+      // Step 2 fields
+      tourType: tourDetails?.tourType || "Domestic",
+      country: "",
+      destination: tourDetails?.tourDestination || "",
+      services: tourDetails?.servicesRequired?.[0] || "",
+      adults: tourDetails?.members?.adults || "",
+      children: tourDetails?.members?.children || "",
+      kidsWithoutMattress: tourDetails?.members?.kidsWithoutMattress || "",
+      infants: tourDetails?.members?.infants || "",
+      arrivalDate: tourDetails?.pickupDrop?.arrivalDate ? dayjs(tourDetails.pickupDrop.arrivalDate) : null,
+      arrivalCity: tourDetails?.pickupDrop?.arrivalCity || "",
+      arrivalLocation: tourDetails?.pickupDrop?.arrivalLocation || "",
+      departureDate: tourDetails?.pickupDrop?.departureDate ? dayjs(tourDetails.pickupDrop.departureDate) : null,
+      departureCity: tourDetails?.pickupDrop?.departureCity || "",
+      departureLocation: tourDetails?.pickupDrop?.departureLocation || "",
+      hotelType: tourDetails?.accommodation?.hotelType?.[0] || "",
+      mealPlan: tourDetails?.accommodation?.mealPlan || "",
+      transport: tourDetails?.accommodation?.transport ? "Yes" : "No",
+      sharingType: tourDetails?.accommodation?.sharingType || "",
+      noOfRooms: tourDetails?.accommodation?.noOfRooms || "",
+      noOfMattress: tourDetails?.accommodation?.noOfMattress || "0",
+      noOfNights: tourDetails?.accommodation?.noOfNights || "",
+      requirementNote: tourDetails?.accommodation?.requirementNote || "",
+    };
+  };
 
   const formik = useFormik({
-    enableReinitialize: true,
-    initialValues: {
-      firstName: customerData.firstName || "",
-      lastName: customerData.lastName || "",
-      mobile: customerData.mobile || "",
-      alternateNumber: customerData.alternateNumber || "",
-      email: customerData.email || "",
-      title: customerData.title || "",
-      dob: customerData.dob ? dayjs(customerData.dob) : null,
-      country: customerData.country || "India",
-      state: customerData.state || "",
-      city: customerData.city || "",
-      address1: customerData.address1 || "",
-      address2: customerData.address2 || "",
-      address3: customerData.address3 || "",
-      pincode: customerData.pincode || "",
-      businessType: customerData.businessType || "B2B",
-      priority: customerData.priority || "",
-      source: customerData.source || "",
-      assignedTo: customerData.assignedTo || "",
-      note: customerData.note || "",
-    },
+    initialValues: defaultInitialData,
     validationSchema,
     onSubmit: (values) => {
-      console.log("Edited Form Submitted:", values);
+      console.log("✅ Form submitted:", values);
+      // Transform form data back to API format
+      const updateData = {
+        personalDetails: {
+          fullName: values.fullName,
+          mobile: values.mobile,
+          alternateNumber: values.alternateNumber,
+          emailId: values.email,
+          title: values.title,
+          dateOfBirth: values.dob ? values.dob.format('YYYY-MM-DD') : null,
+        },
+        location: {
+          country: values.country,
+          state: values.state,
+          city: values.city,
+        },
+        address: {
+          addressLine1: values.address1,
+          addressLine2: values.address2,
+          addressLine3: values.address3,
+          pincode: values.pincode,
+        },
+        officialDetail: {
+          businessType: values.businessType,
+          priority: values.priority,
+          source: values.source,
+          agentName: values.agentName,
+          referredBy: values.referralBy,
+          assignedTo: values.assignedTo,
+        },
+        tourDetails: {
+          tourType: values.tourType,
+          tourDestination: values.destination,
+          servicesRequired: [values.services],
+          members: {
+            adults: parseInt(values.adults) || 0,
+            children: parseInt(values.children) || 0,
+            kidsWithoutMattress: parseInt(values.kidsWithoutMattress) || 0,
+            infants: parseInt(values.infants) || 0,
+          },
+          pickupDrop: {
+            arrivalDate: values.arrivalDate ? values.arrivalDate.toISOString() : null,
+            arrivalCity: values.arrivalCity,
+            arrivalLocation: values.arrivalLocation,
+            departureDate: values.departureDate ? values.departureDate.toISOString() : null,
+            departureCity: values.departureCity,
+            departureLocation: values.departureLocation,
+          },
+          accommodation: {
+            hotelType: [values.hotelType],
+            mealPlan: values.mealPlan,
+            transport: values.transport === "Yes",
+            sharingType: values.sharingType,
+            noOfRooms: parseInt(values.noOfRooms) || 0,
+            noOfMattress: parseInt(values.noOfMattress) || 0,
+            noOfNights: parseInt(values.noOfNights) || 0,
+            requirementNote: values.requirementNote,
+          },
+        },
+      };
+
+      dispatch(updateLead({ leadId, updateData }))
+        .unwrap()
+        .then(() => {
+          if (onSave) {
+            onSave();
+          }
+        })
+        .catch((error) => {
+          console.error("Update failed:", error);
+        });
     },
   });
 
+  // Fetch lead data when component mounts or leadId changes
+  useEffect(() => {
+    if (leadId) {
+      dispatch(viewLeadById(leadId));
+    }
+    
+    // Cleanup function
+    return () => {
+      dispatch(resetViewStatus());
+      dispatch(resetUpdateStatus());
+    };
+  }, [dispatch, leadId]);
+
+  // Update form when viewedLead data changes
+  useEffect(() => {
+    if (viewedLead) {
+      const formData = transformApiDataToForm(viewedLead);
+      formik.setValues(formData);
+    }
+  }, [viewedLead]);
+
+  const steps = ['Customer Details', 'Tour Details', 'Review'];
+
+  // Handles +Add New option
+  const handleAddNewClick = (field) => {
+    if (["assignedTo", "referralBy", "agentName"].includes(field)) {
+      setActiveField(field);
+      setShowAssociateForm(true);
+    } else {
+      setActiveField(field);
+      setNewValue("");
+      setDialogOpen(true);
+    }
+  };
+
+  const handleAddNewValue = () => {
+    if (newValue.trim() !== "") {
+      setDropdownOptions((prev) => ({
+        ...prev,
+        [activeField]: [
+          ...new Set([...(prev[activeField] || []), newValue.trim()]),
+        ],
+      }));
+      setCustomItems((prev) => ({
+        ...prev,
+        [activeField]: [
+          ...new Set([...(prev[activeField] || []), newValue.trim()]),
+        ],
+      }));
+      formik.setFieldValue(activeField, newValue.trim());
+      setDialogOpen(false);
+      setNewValue("");
+    }
+  };
+
+  const handleFieldChange = (e) => {
+    const { name, value } = e.target;
+    if (value === "__add_new__") {
+      handleAddNewClick(name);
+    } else {
+      formik.setFieldValue(name, value);
+    }
+  };
+
+  const handleAssociateSave = (newName) => {
+    if (!newName) return;
+    setDropdownOptions((prev) => ({
+      ...prev,
+      [activeField]: [...new Set([...(prev[activeField] || []), newName])],
+    }));
+    formik.setFieldValue(activeField, newName);
+    setShowAssociateForm(false);
+  };
+
+  const getStepContent = (step) => {
+    switch (step) {
+      case 0:
+        return (
+          <Step1Content 
+            formik={formik} 
+            dropdownOptions={dropdownOptions}
+            onFieldChange={handleFieldChange}
+            onAddNewClick={handleAddNewClick}
+          />
+        );
+      case 1:
+        return (
+          <Step2Content 
+            formik={formik} 
+            dropdownOptions={dropdownOptions} 
+            customItems={customItems}
+            onFieldChange={handleFieldChange}
+            onAddNewClick={handleAddNewClick}
+          />
+        );
+      case 2:
+        return <ReviewContent formik={formik} />;
+      default:
+        return null;
+    }
+  };
+
+  const handleNext = () => {
+    let isValid = true;
+    
+    if (activeStep === 0) {
+      const step1Fields = ['fullName', 'source', 'assignedTo'];
+      step1Fields.forEach(field => {
+        if (!formik.values[field]) {
+          formik.setFieldTouched(field, true);
+          isValid = false;
+        }
+      });
+    } else if (activeStep === 1) {
+      const step2Fields = ['destination', 'services', 'adults', 'arrivalDate', 'departureDate', 'sharingType', 'noOfRooms'];
+      step2Fields.forEach(field => {
+        if (!formik.values[field]) {
+          formik.setFieldTouched(field, true);
+          isValid = false;
+        }
+      });
+      
+      if (formik.values.tourType === "International" && !formik.values.country) {
+        formik.setFieldTouched('country', true);
+        isValid = false;
+      }
+    }
+
+    if (isValid) {
+      setActiveStep((prev) => prev + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setActiveStep((prev) => prev - 1);
+  };
+
+  // Show loading while fetching data
+  if (viewLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+        <Typography ml={2}>Loading lead data...</Typography>
+      </Box>
+    );
+  }
+
+  // Show error if fetch fails
+  if (viewError) {
+    return (
+      <Box p={2}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Error loading lead: {viewError}
+        </Alert>
+        <Button variant="outlined" onClick={onCancel}>
+          Go Back
+        </Button>
+      </Box>
+    );
+  }
+
   return (
     <Box component="form" onSubmit={formik.handleSubmit} p={2}>
-      <Typography variant="h6" gutterBottom>
-        Edit Customer Details
+      <Typography variant="h5" gutterBottom>
+        Edit Lead - {viewedLead?.leadId}
       </Typography>
 
+      {updateError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {updateError}
+        </Alert>
+      )}
+
+      <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+
+      {getStepContent(activeStep)}
+
+      <Box display="flex" justifyContent="space-between" mt={4}>
+        <Button
+          disabled={activeStep === 0}
+          onClick={handleBack}
+          variant="outlined"
+        >
+          Back
+        </Button>
+
+        <Box display="flex" gap={2}>
+          <Button variant="outlined" onClick={onCancel} disabled={updateLoading}>
+            Cancel
+          </Button>
+          
+          {activeStep === steps.length - 1 ? (
+            <Button 
+              variant="contained" 
+              type="submit"
+              disabled={updateLoading}
+            >
+              {updateLoading ? <CircularProgress size={24} /> : "Update Lead"}
+            </Button>
+          ) : (
+            <Button variant="contained" onClick={handleNext}>
+              Next
+            </Button>
+          )}
+        </Box>
+      </Box>
+
+      {/* Add New Dialog */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+        <DialogTitle>Add New {activeField}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label={`Enter new ${activeField}`}
+            value={newValue}
+            onChange={(e) => setNewValue(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleAddNewValue();
+              }
+            }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleAddNewValue} 
+            variant="contained"
+            disabled={!newValue.trim()}
+          >
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Associate Form Dialog */}
+      <Dialog
+        open={showAssociateForm}
+        onClose={() => setShowAssociateForm(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogContent>
+          <AssociatesForm onSave={handleAssociateSave} />
+        </DialogContent>
+      </Dialog>
+    </Box>
+  );
+};
+
+
+// Step 1 Content Component
+const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick }) => {
+  const renderSelectField = (label, name, options = []) => (
+    <TextField
+      fullWidth
+      select
+      label={label}
+      name={name}
+      value={formik.values[name]}
+      onChange={onFieldChange}
+      error={formik.touched[name] && Boolean(formik.errors[name])}
+      helperText={formik.touched[name] && formik.errors[name]}
+      sx={{ mb: 2 }}
+    >
+      {options.map((opt) => (
+        <MenuItem key={opt} value={opt}>
+          {opt}
+        </MenuItem>
+      ))}
+      <MenuItem value="__add_new__">➕ Add New</MenuItem>
+    </TextField>
+  );
+
+  const renderTextField = (label, name) => (
+    <TextField
+      fullWidth
+      label={label}
+      name={name}
+      value={formik.values[name]}
+      onChange={formik.handleChange}
+      error={formik.touched[name] && Boolean(formik.errors[name])}
+      helperText={formik.touched[name] && formik.errors[name]}
+      sx={{ mb: 2 }}
+    />
+  );
+
+  return (
+    <Box>
       {/* Personal Details */}
       <Box border={1} borderRadius={1} p={2} mb={2}>
         <Typography fontWeight="bold" mb={2}>
           Personal Details
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              fullWidth
-              label="First Name *"
-              name="firstName"
-              value={formik.values.firstName}
-              onChange={formik.handleChange}
-              error={formik.touched.firstName && Boolean(formik.errors.firstName)}
-              helperText={formik.touched.firstName && formik.errors.firstName}
-            />
+          <Grid size={{xs:12, sm:6, md:4}}>
+            {renderSelectField("Title", "title", dropdownOptions.title)}
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField fullWidth label="Last Name" name="lastName" value={formik.values.lastName} onChange={formik.handleChange} />
+          <Grid size={{xs:12, sm:6, md:4}}>
+            {renderTextField("Full Name *", "fullName")}
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField fullWidth label="Mobile" name="mobile" value={formik.values.mobile} onChange={formik.handleChange} />
+          <Grid size={{xs:12, sm:6, md:4}}>
+            {renderTextField("Mobile", "mobile")}
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField fullWidth label="Alternate Number" name="alternateNumber" value={formik.values.alternateNumber} onChange={formik.handleChange} />
+          <Grid size={{xs:12, sm:6, md:4}}>
+            {renderTextField("Alternate Number", "alternateNumber")}
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField fullWidth label="Email" name="email" value={formik.values.email} onChange={formik.handleChange} />
+          <Grid size={{xs:12, sm:6, md:4}}>
+            {renderTextField("Email", "email")}
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField fullWidth label="Title" name="title" value={formik.values.title} onChange={formik.handleChange} select>
-              <MenuItem value="Mr">Mr</MenuItem>
-              <MenuItem value="Ms">Ms</MenuItem>
-              <MenuItem value="Mrs">Mrs</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{xs:12, sm:6, md:4}}>
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
                 label="Date Of Birth"
                 value={formik.values.dob}
                 onChange={(value) => formik.setFieldValue("dob", value)}
-                renderInput={(params) => <TextField fullWidth {...params} />}
+                renderInput={(params) => (
+                  <TextField 
+                    fullWidth 
+                    sx={{ mb: 2 }} 
+                    {...params}
+                    error={formik.touched.dob && Boolean(formik.errors.dob)}
+                    helperText={formik.touched.dob && formik.errors.dob}
+                  />
+                )}
               />
             </LocalizationProvider>
           </Grid>
@@ -120,93 +625,69 @@ const CustomerDetailEditForm = () => {
           Location
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={4}>
-            <TextField fullWidth label="Country" name="country" value={formik.values.country} onChange={formik.handleChange} />
+          <Grid size={{xs:12, sm:4}}>
+            {renderSelectField("Country", "country", dropdownOptions.country)}
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField fullWidth label="State" name="state" value={formik.values.state} onChange={formik.handleChange} />
+          <Grid size={{xs:12, sm:4}}>
+            {renderSelectField("State", "state", dropdownOptions.state)}
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField fullWidth label="City" name="city" value={formik.values.city} onChange={formik.handleChange} />
+          <Grid size={{xs:12, sm:4}}>
+            {renderSelectField("City", "city", dropdownOptions.city)}
           </Grid>
         </Grid>
       </Box>
 
       {/* Address & Official Detail */}
       <Grid container spacing={2} mb={2}>
-        <Grid item xs={12} md={6}>
-          <Box border={1} borderRadius={1} p={2} height="90%">
+        <Grid size={{xs:12, md:6}}>
+          <Box border={1} borderRadius={1} p={2} height="100%">
             <Typography fontWeight="bold" mb={2}>
               Address
             </Typography>
-            <TextField fullWidth label="Address Line1" name="address1" value={formik.values.address1} onChange={formik.handleChange} sx={{ mb: 2 }} />
-            <TextField fullWidth label="Address Line2" name="address2" value={formik.values.address2} onChange={formik.handleChange} sx={{ mb: 2 }} />
-            <TextField fullWidth label="Address Line3" name="address3" value={formik.values.address3} onChange={formik.handleChange} sx={{ mb: 2 }} />
-            <TextField fullWidth label="Pincode" name="pincode" value={formik.values.pincode} onChange={formik.handleChange} />
+            {renderTextField("Address Line1", "address1")}
+            {renderTextField("Address Line2", "address2")}
+            {renderTextField("Address Line3", "address3")}
+            {renderTextField("Pincode", "pincode")}
           </Box>
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        <Grid size={{xs:12, md:6}}>
           <Box border={1} borderRadius={1} p={2}>
             <Typography fontWeight="bold" mb={2}>
               Official Detail
             </Typography>
 
             <FormControl component="fieldset" sx={{ mb: 2 }}>
-              <FormLabel component="legend">Business Type</FormLabel>
-              <RadioGroup row name="businessType" value={formik.values.businessType} onChange={formik.handleChange}>
+              <FormLabel>Business Type</FormLabel>
+              <RadioGroup
+                row
+                name="businessType"
+                value={formik.values.businessType}
+                onChange={formik.handleChange}
+              >
                 <FormControlLabel value="B2B" control={<Radio />} label="B2B" />
                 <FormControlLabel value="B2C" control={<Radio />} label="B2C" />
               </RadioGroup>
             </FormControl>
 
-            <TextField
-              select
-              fullWidth
-              label="Priority"
-              name="priority"
-              value={formik.values.priority}
-              onChange={formik.handleChange}
-              sx={{ mb: 2 }}
-            >
-              <MenuItem value="">Select</MenuItem>
-              <MenuItem value="High">High</MenuItem>
-              <MenuItem value="Medium">Medium</MenuItem>
-              <MenuItem value="Low">Low</MenuItem>
-            </TextField>
+            {renderSelectField("Priority", "priority", dropdownOptions.priority)}
+            {renderSelectField("Source *", "source", dropdownOptions.source)}
 
-            <TextField
-              select
-              fullWidth
-              label="Source *"
-              name="source"
-              value={formik.values.source}
-              onChange={formik.handleChange}
-              error={formik.touched.source && Boolean(formik.errors.source)}
-              helperText={formik.touched.source && formik.errors.source}
-              sx={{ mb: 2 }}
-            >
-              <MenuItem value="">Select Source</MenuItem>
-              <MenuItem value="Direct">Direct</MenuItem>
-              <MenuItem value="Referral">Referral</MenuItem>
-              <MenuItem value="Website">Website</MenuItem>
-            </TextField>
+            {formik.values.businessType === "B2B" &&
+              formik.values.source === "Referral" &&
+              renderSelectField("Referral By", "referralBy", dropdownOptions.referralBy)}
 
-            <TextField
-              fullWidth
-              label="Assigned To *"
-              name="assignedTo"
-              value={formik.values.assignedTo}
-              onChange={formik.handleChange}
-              error={formik.touched.assignedTo && Boolean(formik.errors.assignedTo)}
-              helperText={formik.touched.assignedTo && formik.errors.assignedTo}
-            />
+            {formik.values.businessType === "B2B" &&
+              formik.values.source === "Agent's" &&
+              renderSelectField("Agent Name", "agentName", dropdownOptions.agentName)}
+
+            {renderSelectField("Assigned To *", "assignedTo", dropdownOptions.assignedTo)}
           </Box>
         </Grid>
       </Grid>
 
       {/* Note */}
-      <Box mb={2}>
+      <Box mb={2} mt={6}>
         <TextField
           label="Initial Note"
           name="note"
@@ -217,18 +698,337 @@ const CustomerDetailEditForm = () => {
           onChange={formik.handleChange}
         />
       </Box>
+    </Box>
+  );
+};
 
-      {/* Buttons */}
-      <Box display="flex" justifyContent="flex-end" gap={2}>
-        <Button variant="outlined" color="primary" onClick={formik.handleReset}>
-          Reset
-        </Button>
-        <Button variant="contained" type="submit">
-          Save Changes
-        </Button>
+// Step 2 Content Component
+const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onAddNewClick }) => {
+  const getOptions = (field) => [
+    ...(dropdownOptions[field] || []),
+    ...(customItems[field] || []),
+  ];
+
+  const SelectField = ({ name, label, options }) => (
+    <TextField
+      select
+      fullWidth
+      name={name}
+      label={label}
+      value={formik.values[name]}
+      onChange={onFieldChange}
+      error={formik.touched[name] && Boolean(formik.errors[name])}
+      helperText={formik.touched[name] && formik.errors[name]}
+      sx={{ mb: 2 }}
+    >
+      {options.map((opt) => (
+        <MenuItem key={opt} value={opt}>
+          {opt}
+        </MenuItem>
+      ))}
+      <MenuItem value="__add_new__">➕ Add New</MenuItem>
+    </TextField>
+  );
+
+  const renderTextInputs = [
+    { name: "adults", label: "No of Adults", required: true },
+    { name: "children", label: "No of Children (6-12)" },
+    { name: "kidsWithoutMattress", label: "No of Kids (2-5)" },
+    { name: "infants", label: "No of Infants" },
+    { name: "noOfRooms", label: "No of Rooms", required: true },
+    { name: "noOfMattress", label: "No of Mattress" },
+    { name: "noOfNights", label: "No of Nights" },
+  ];
+
+  return (
+    <Box>
+      {/* Basic Tour Details */}
+      <Box p={2} border={1} borderRadius={2} borderColor="grey.300">
+        <Typography variant="subtitle1" mb={2}>Basic Tour Details</Typography>
+
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <Grid container spacing={2}>
+            <Grid size={{xs:12, md:6}}>
+              <FormControl>
+                <FormLabel>Tour Type</FormLabel>
+                <RadioGroup
+                  row
+                  name="tourType"
+                  value={formik.values.tourType}
+                  onChange={formik.handleChange}
+                >
+                  <FormControlLabel value="Domestic" control={<Radio />} label="Domestic" />
+                  <FormControlLabel value="International" control={<Radio />} label="International" />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
+
+            {formik.values.tourType === "International" && (
+              <Grid size={{xs:12, md:6}}>
+                <SelectField
+                  name="country"
+                  label="Country"
+                  options={getOptions("country")}
+                />
+              </Grid>
+            )}
+
+            <Grid size={{xs:12, md:6}}>
+              <SelectField
+                name="destination"
+                label="Tour Destination"
+                options={getOptions("destination")}
+              />
+            </Grid>
+
+            <Grid size={{xs:12}}>
+              <SelectField
+                name="services"
+                label="Services Required"
+                options={getOptions("services")}
+              />
+            </Grid>
+
+            {renderTextInputs.slice(0, 4).map(({ name, label, required }) => (
+              <Grid size={{xs:12, md:3}} key={name}>
+                <TextField
+                  fullWidth
+                  name={name}
+                  label={label}
+                  type="number"
+                  value={formik.values[name]}
+                  onChange={formik.handleChange}
+                  error={formik.touched[name] && Boolean(formik.errors[name])}
+                  helperText={formik.touched[name] && formik.errors[name]}
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* Pickup / Drop Section */}
+          <Box mt={3} p={2} border={1} borderRadius={2} borderColor="grey.300">
+            <Typography variant="subtitle1" mb={2}>Pickup/Drop</Typography>
+            <Grid container spacing={2}>
+              <Grid size={{xs:12, md:4}}>
+                <DatePicker
+                  label="Arrival Date"
+                  value={formik.values.arrivalDate}
+                  onChange={(val) => formik.setFieldValue("arrivalDate", val)}
+                  renderInput={(params) => (
+                    <TextField
+                      fullWidth
+                      {...params}
+                      error={formik.touched.arrivalDate && Boolean(formik.errors.arrivalDate)}
+                      helperText={formik.touched.arrivalDate && formik.errors.arrivalDate}
+                    />
+                  )}
+                />
+              </Grid>
+
+              <Grid size={{xs:12, md:4}}>
+                <SelectField
+                  name="arrivalCity"
+                  label="Arrival City"
+                  options={getOptions("arrivalCity")}
+                />
+              </Grid>
+
+              <Grid size={{xs:12, md:4}}>
+                <SelectField
+                  name="arrivalLocation"
+                  label="Arrival Location"
+                  options={getOptions("arrivalLocation")}
+                />
+              </Grid>
+
+              <Grid size={{xs:12, md:4}}>
+                <DatePicker
+                  label="Departure Date"
+                  value={formik.values.departureDate}
+                  onChange={(val) => formik.setFieldValue("departureDate", val)}
+                  renderInput={(params) => (
+                    <TextField
+                      fullWidth
+                      {...params}
+                      error={formik.touched.departureDate && Boolean(formik.errors.departureDate)}
+                      helperText={formik.touched.departureDate && formik.errors.departureDate}
+                    />
+                  )}
+                />
+              </Grid>
+
+              <Grid size={{xs:12, md:4}}>
+                <SelectField
+                  name="departureCity"
+                  label="Departure City"
+                  options={getOptions("departureCity")}
+                />
+              </Grid>
+
+              <Grid size={{xs:12, md:4}}>
+                <SelectField
+                  name="departureLocation"
+                  label="Departure Location"
+                  options={getOptions("departureLocation")}
+                />
+              </Grid>
+            </Grid>
+          </Box>
+
+          {/* Accommodation */}
+          <Box mt={3} p={2} border={1} borderRadius={2} borderColor="grey.300">
+            <Typography variant="subtitle1" mb={2}>Accommodation & Facility</Typography>
+            <Grid container spacing={2}>
+              <Grid size={{xs:12, md:3}}>
+                <SelectField
+                  name="hotelType"
+                  label="Hotel Type"
+                  options={getOptions("hotelType")}
+                />
+              </Grid>
+
+              <Grid size={{xs:12, md:3}}>
+                <SelectField
+                  name="mealPlan"
+                  label="Meal Plan"
+                  options={getOptions("mealPlan")}
+                />
+              </Grid>
+
+              <Grid size={{xs:12, md:3}}>
+                <FormControl>
+                  <FormLabel>Transport</FormLabel>
+                  <RadioGroup
+                    row
+                    name="transport"
+                    value={formik.values.transport}
+                    onChange={formik.handleChange}
+                  >
+                    <FormControlLabel value="Yes" control={<Radio />} label="Yes" />
+                    <FormControlLabel value="No" control={<Radio />} label="No" />
+                  </RadioGroup>
+                </FormControl>
+              </Grid>
+
+              <Grid size={{xs:12, md:3}}>
+                <SelectField
+                  name="sharingType"
+                  label="Sharing Type"
+                  options={getOptions("sharingType")}
+                />
+              </Grid>
+
+              {renderTextInputs.slice(4).map(({ name, label }) => (
+                <Grid size={{xs:12, md:4}} key={name}>
+                  <TextField
+                    fullWidth
+                    name={name}
+                    label={label}
+                    type="number"
+                    value={formik.values[name]}
+                    onChange={formik.handleChange}
+                    error={formik.touched[name] && Boolean(formik.errors[name])}
+                    helperText={formik.touched[name] && formik.errors[name]}
+                    inputProps={{ min: 0 }}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        </LocalizationProvider>
+      </Box>
+
+      <Box mt={3}>
+        <TextField
+          fullWidth
+          multiline
+          rows={4}
+          name="requirementNote"
+          label="Requirement Note"
+          value={formik.values.requirementNote}
+          onChange={formik.handleChange}
+        />
       </Box>
     </Box>
   );
 };
 
-export default CustomerDetailEditForm;
+// Review Content Component
+const ReviewContent = ({ formik }) => {
+  const personalDetails = [
+    { label: "Full Name", value: formik.values.fullName },
+    { label: "Mobile", value: formik.values.mobile },
+    { label: "Email", value: formik.values.email },
+    { label: "Business Type", value: formik.values.businessType },
+    { label: "Source", value: formik.values.source },
+    { label: "Assigned To", value: formik.values.assignedTo },
+  ];
+
+  const tourDetails = [
+    { label: "Tour Type", value: formik.values.tourType },
+    { label: "Destination", value: formik.values.destination },
+    { label: "Services", value: formik.values.services },
+    { label: "Adults", value: formik.values.adults },
+    { label: "Children", value: formik.values.children },
+    { label: "Arrival Date", value: formik.values.arrivalDate?.toString() },
+    { label: "Departure Date", value: formik.values.departureDate?.toString() },
+    { label: "No of Rooms", value: formik.values.noOfRooms },
+    { label: "Sharing Type", value: formik.values.sharingType },
+  ];
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Review Your Information
+      </Typography>
+
+      <Grid container spacing={3}>
+        <Grid size={{xs:12, md:6}}>
+          <Box border={1} borderRadius={1} p={2}>
+            <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+              Customer Details
+            </Typography>
+            {personalDetails.map((detail, index) => (
+              <Box key={index} display="flex" justifyContent="space-between" mb={1}>
+                <Typography fontWeight="bold">{detail.label}:</Typography>
+                <Typography>{detail.value || "Not provided"}</Typography>
+              </Box>
+            ))}
+          </Box>
+        </Grid>
+
+        <Grid size={{xs:12, md:6}}>
+          <Box border={1} borderRadius={1} p={2}>
+            <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+              Tour Details
+            </Typography>
+            {tourDetails.map((detail, index) => (
+              <Box key={index} display="flex" justifyContent="space-between" mb={1}>
+                <Typography fontWeight="bold">{detail.label}:</Typography>
+                <Typography>{detail.value || "Not provided"}</Typography>
+              </Box>
+            ))}
+          </Box>
+        </Grid>
+      </Grid>
+
+      <Box mt={3}>
+        <Typography variant="subtitle1" fontWeight="bold">
+          Notes
+        </Typography>
+        <Typography>
+          {formik.values.note || "No initial note provided"}
+        </Typography>
+        <Typography mt={1} fontWeight="bold">
+          Requirement Note:
+        </Typography>
+        <Typography>
+          {formik.values.requirementNote || "No requirement note provided"}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
+
+export default LeadEditForm;

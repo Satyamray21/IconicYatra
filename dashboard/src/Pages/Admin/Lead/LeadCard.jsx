@@ -33,6 +33,7 @@ import {
   changeLeadStatus,
   deleteLead
 } from "../../../features/leads/leadSlice";
+import LeadEditForm from "./Form/LeadEditForm"; // Import the LeadEditForm component
 
 const stats = [
   { title: "Today's", active: 0, confirmed: 0, cancelled: 0 },
@@ -52,6 +53,13 @@ const LeadCard = () => {
     leadId: null,
     leadName: "",
     rowId: null,
+  });
+  
+  // State for edit dialog
+  const [editDialog, setEditDialog] = useState({
+    open: false,
+    leadId: null,
+    leadData: null,
   });
   
   // State for snackbar notifications
@@ -98,7 +106,28 @@ const LeadCard = () => {
   };
 
   const handleEditClick = (row) => {
-    navigate("/lead/leadeditform", { state: { leadData: row } });
+    setEditDialog({
+      open: true,
+      leadId: row.leadId,
+      leadData: row.originalData,
+    });
+  };
+
+  const handleEditSave = () => {
+    setEditDialog({ open: false, leadId: null, leadData: null });
+    
+    // Refresh the leads list after successful update
+    dispatch(getAllLeads());
+    
+    setSnackbar({
+      open: true,
+      message: "Lead updated successfully!",
+      severity: "success",
+    });
+  };
+
+  const handleEditCancel = () => {
+    setEditDialog({ open: false, leadId: null, leadData: null });
   };
 
   const handleDeleteClick = (row) => {
@@ -370,6 +399,28 @@ const LeadCard = () => {
             />
           </Box>
         </Box>
+
+        {/* Edit Lead Dialog */}
+        <Dialog
+          open={editDialog.open}
+          onClose={handleEditCancel}
+          maxWidth="lg"
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              minHeight: '80vh',
+              maxHeight: '90vh',
+            }
+          }}
+        >
+          <DialogContent sx={{ p: 0 }}>
+            <LeadEditForm
+              leadId={editDialog.leadId}
+              onSave={handleEditSave}
+              onCancel={handleEditCancel}
+            />
+          </DialogContent>
+        </Dialog>
 
         {/* Delete Confirmation Dialog */}
         <Dialog
