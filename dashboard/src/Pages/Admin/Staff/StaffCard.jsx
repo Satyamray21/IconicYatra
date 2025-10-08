@@ -31,7 +31,7 @@ const stats = [
   { title: "This Month", active: 0, lead: 0, quotation: 0 },
   { title: "Last 3 Months", active: 0, lead: 0, quotation: 0 },
   { title: "Last 6 Months", active: 0, lead: 0, quotation: 0 },
-  { title: "Last 12 Months", active: 15, lead: 0, quotation: 0 },
+  { title: "Last 12 Months", active: 0, lead: 0, quotation: 0 },
 ];
 
 const StaffCard = () => {
