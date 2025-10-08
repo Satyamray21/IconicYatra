@@ -1,4 +1,4 @@
-import React ,{useEffect}from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -13,6 +13,13 @@ import {
   Container,
   Menu,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
@@ -24,6 +31,7 @@ import {
   getAllLeads,
   fetchLeadsReports,
   changeLeadStatus,
+  deleteLead
 } from "../../../features/leads/leadSlice";
 
 const stats = [
@@ -34,12 +42,24 @@ const stats = [
   { title: "Last 12 Months", active: 15, confirmed: 0, cancelled: 0 },
 ];
 
-
-
 const LeadCard = () => {
   const navigate = useNavigate();
- 
   const [anchorEls, setAnchorEls] = React.useState({});
+  
+  // State for delete confirmation dialog
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    leadId: null,
+    leadName: "",
+    rowId: null,
+  });
+  
+  // State for snackbar notifications
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const dispatch = useDispatch();
 
@@ -47,7 +67,10 @@ const LeadCard = () => {
     list: leadList = [],
     status,
     error,
+    deleteLoading,
+    deleteError,
   } = useSelector((state) => state.leads);
+  
   const {
     reports: stats = [],
     loading: statsLoading,
@@ -59,6 +82,17 @@ const LeadCard = () => {
     dispatch(fetchLeadsReports());
   }, [dispatch]);
 
+  // Effect to show delete errors
+  useEffect(() => {
+    if (deleteError) {
+      setSnackbar({
+        open: true,
+        message: deleteError,
+        severity: "error",
+      });
+    }
+  }, [deleteError]);
+
   const handleAddClick = () => {
     navigate("/lead/leadtourform");
   };
@@ -67,9 +101,50 @@ const LeadCard = () => {
     navigate("/lead/leadeditform", { state: { leadData: row } });
   };
 
-  const handleDeleteClick = (id) => {
-    const updatedLeads = leadList.filter((lead) => lead.id !== id);
-    setLeadList(updatedLeads);
+  const handleDeleteClick = (row) => {
+    setDeleteDialog({
+      open: true,
+      leadId: row.leadId,
+      leadName: row.name,
+      rowId: row.id,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteDialog.leadId && deleteDialog.leadId !== "-") {
+      try {
+        await dispatch(deleteLead(deleteDialog.leadId)).unwrap();
+        
+        setSnackbar({
+          open: true,
+          message: "Lead deleted successfully!",
+          severity: "success",
+        });
+        
+        // Refresh the leads list
+        dispatch(getAllLeads());
+        
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: "Failed to delete lead. Please try again.",
+          severity: "error",
+        });
+        console.error("Delete failed:", error);
+      }
+    } else {
+      setSnackbar({
+        open: true,
+        message: "Invalid lead ID",
+        severity: "error",
+      });
+    }
+    
+    setDeleteDialog({ open: false, leadId: null, leadName: "", rowId: null });
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialog({ open: false, leadId: null, leadName: "", rowId: null });
   };
 
   const handleMenuClick = (event, id) => {
@@ -81,25 +156,43 @@ const LeadCard = () => {
   };
 
   const handleStatusChange = (rowId, newStatus) => {
-  const lead = mappedLeads.find((item) => item.id === rowId);
+    const lead = mappedLeads.find((item) => item.id === rowId);
 
-  if (!lead || lead.leadId === "-") {
-    console.error("Invalid lead ID");
-    return;
-  }
+    if (!lead || lead.leadId === "-") {
+      console.error("Invalid lead ID");
+      setSnackbar({
+        open: true,
+        message: "Invalid lead ID",
+        severity: "error",
+      });
+      return;
+    }
 
-  dispatch(changeLeadStatus({ leadId: lead.leadId, status: newStatus }))
-    .unwrap()
-    .then(() => {
-      dispatch(getAllLeads()); // Refresh list after update
-    })
-    .catch((err) => {
-      console.error("Failed to update lead status:", err);
-    });
+    dispatch(changeLeadStatus({ leadId: lead.leadId, status: newStatus }))
+      .unwrap()
+      .then(() => {
+        dispatch(getAllLeads()); // Refresh list after update
+        setSnackbar({
+          open: true,
+          message: `Lead status updated to ${newStatus}`,
+          severity: "success",
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to update lead status:", err);
+        setSnackbar({
+          open: true,
+          message: "Failed to update lead status",
+          severity: "error",
+        });
+      });
 
-  handleMenuClose(rowId);
-};
+    handleMenuClose(rowId);
+  };
 
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   const mappedLeads = leadList.map((lead, index) => ({
     id: index + 1,
@@ -134,7 +227,7 @@ const LeadCard = () => {
     {
       field: "action",
       headerName: "Action",
-      width: 120,
+      width: 140,
       renderCell: (params) => {
         const rowId = params.row.id;
         return (
@@ -143,17 +236,23 @@ const LeadCard = () => {
               color="primary"
               size="small"
               onClick={() => handleEditClick(params.row)}
+              disabled={deleteLoading}
             >
               <EditIcon fontSize="small" />
             </IconButton>
             <IconButton
               color="error"
               size="small"
-              onClick={() => handleDeleteClick(params.row.id)}
+              onClick={() => handleDeleteClick(params.row)}
+              disabled={deleteLoading}
             >
               <DeleteIcon fontSize="small" />
             </IconButton>
-            <IconButton size="small" onClick={(e) => handleMenuClick(e, rowId)}>
+            <IconButton 
+              size="small" 
+              onClick={(e) => handleMenuClick(e, rowId)}
+              disabled={deleteLoading}
+            >
               <MoreVertIcon />
             </IconButton>
             <Menu
@@ -183,7 +282,7 @@ const LeadCard = () => {
         {/* Stat Cards */}
         <Grid container spacing={2}>
           {stats.map((item, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }} key={index}>
+            <Grid size={{xs:12, sm:6, md:4,lg:2.4}} key={index}>
               <Card
                 sx={{
                   backgroundColor: "#e91e63",
@@ -248,15 +347,65 @@ const LeadCard = () => {
         <Box sx={{ width: "100%", overflowX: "auto" }}>
           <Box sx={{ minWidth: "600px" }}>
             <DataGrid
-              rows={mappedLeads} 
+              rows={mappedLeads}
               columns={columns}
               pageSize={7}
               rowsPerPageOptions={[7, 25, 50, 100]}
               autoHeight
               disableRowSelectionOnClick
+              loading={status === 'loading'}
             />
           </Box>
         </Box>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteDialog.open}
+          onClose={cancelDelete}
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-description"
+        >
+          <DialogTitle id="delete-dialog-title">
+            Confirm Delete
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description">
+              Are you sure you want to delete lead for{" "}
+              <strong>{deleteDialog.leadName}</strong> (ID: {deleteDialog.leadId})? 
+              This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={cancelDelete} color="primary" disabled={deleteLoading}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmDelete} 
+              color="error" 
+              variant="contained"
+              disabled={deleteLoading}
+              autoFocus
+            >
+              {deleteLoading ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={handleCloseSnackbar} 
+            severity={snackbar.severity} 
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </Container>
   );

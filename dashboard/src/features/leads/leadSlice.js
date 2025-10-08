@@ -41,6 +41,7 @@ export const fetchLeadsReports = createAsyncThunk(
     }
   }
 );
+
 export const changeLeadStatus = createAsyncThunk(
   'leads/changeLeadStatus',
   async ({ leadId, status }, { rejectWithValue }) => {
@@ -54,6 +55,7 @@ export const changeLeadStatus = createAsyncThunk(
     }
   }
 );
+
 export const getLeadOptions = createAsyncThunk(
   "lead/getLeadOptions",
   async (_, { rejectWithValue }) => {
@@ -67,6 +69,7 @@ export const getLeadOptions = createAsyncThunk(
     }
   }
 );
+
 export const addLeadOption = createAsyncThunk(
   "lead/addLeadOption",
   async ({ fieldName, value }, { rejectWithValue, dispatch }) => {
@@ -86,10 +89,24 @@ export const addLeadOption = createAsyncThunk(
   }
 );
 
+// DELETE LEAD ASYNC THUNK
+export const deleteLead = createAsyncThunk(
+  'lead/deleteLead',
+  async (leadId, { rejectWithValue }) => {
+    try {
+      const response = await axios.delete(`/lead/delete-Lead/${leadId}`);
+      return response.data.data; // Returns the deleted lead data
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to delete lead'
+      );
+    }
+  }
+);
 
 const initialState = {
     list:[],
-     options: [], 
+    options: [], 
     form:{
          fullName: "",
               mobile: "",
@@ -113,137 +130,195 @@ const initialState = {
               note: "",
     },
     status: 'idle',
-    
     loading: false,
     success: false,
     error: null,
     updatedLead: null,
     message: '',
-    viewedLead:null,
-
+    viewedLead: null,
+    deleteLoading: false, // Separate loading state for delete operation
+    deleteError: null,    // Separate error state for delete operation
 };
 
 export const leadSlice = createSlice({
     name:'leads',
     initialState,
     reducers:{
-                   setFormField: (state, action) => {
-                      const { field, value } = action.payload;
-                      state.form[field] = value;
-                    },
-                    resetForm: (state) => {
-                      state.form = initialState.form;
-                    },
-                    addLeads: (state, action) => {
-                      state.list.push(action.payload);
-                    },
-                    setLeads: (state, action) => {
-                      state.list = action.payload;
-                    },
-                    clearViewedLeads:(state)=>{
-                      state.viewedDriver=null
-                    },
-                    resetLeadStatus(state) {
-      state.loading = false;
-      state.success = false;
-      state.error = null;
-      state.updatedLead = null;
-      state.message = '';
-    },
+        setFormField: (state, action) => {
+            const { field, value } = action.payload;
+            state.form[field] = value;
         },
+        resetForm: (state) => {
+            state.form = initialState.form;
+        },
+        addLeads: (state, action) => {
+            state.list.push(action.payload);
+        },
+        setLeads: (state, action) => {
+            state.list = action.payload;
+        },
+        clearViewedLeads: (state) => {
+            state.viewedDriver = null;
+        },
+        resetLeadStatus: (state) => {
+            state.loading = false;
+            state.success = false;
+            state.error = null;
+            state.updatedLead = null;
+            state.message = '';
+        },
+        // Reset delete specific states
+        resetDeleteStatus: (state) => {
+            state.deleteLoading = false;
+            state.deleteError = null;
+        },
+        // Remove lead from list immediately (optimistic update)
+        removeLeadFromList: (state, action) => {
+            const leadId = action.payload;
+            state.list = state.list.filter(lead => lead.leadId !== leadId);
+        }
+    },
 
     extraReducers:(builder)=>{
         builder
+        // Create Lead
         .addCase(createLead.pending,(state)=>{
-            state.loading=true,
-            state.error=null
+            state.loading = true;
+            state.error = null;
         })
         .addCase(createLead.fulfilled,(state,action)=>{
-            state.loading=false;
-            state.error=null
+            state.loading = false;
+            state.error = null;
+            // Optionally add the new lead to the list
+            state.list.push(action.payload);
         })
         .addCase(createLead.rejected,(state,action)=>{
-            state.loading=false;
-            state.error=action.payload;
+            state.loading = false;
+            state.error = action.payload;
         })
+        
+        // Get All Leads
         .addCase(getAllLeads.pending, (state) => {
-                state.status = 'loading';
-                state.error = null;
+            state.status = 'loading';
+            state.error = null;
         })
         .addCase(getAllLeads.fulfilled, (state, action) => {
-                state.status = 'succeeded';
-                state.list = action.payload;
+            state.status = 'succeeded';
+            state.list = action.payload;
         })
         .addCase(getAllLeads.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload;
+            state.status = 'failed';
+            state.error = action.payload;
         })
+        
+        // Fetch Lead Reports
         .addCase(fetchLeadsReports.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchLeadsReports.fulfilled, (state, action) => {
-        state.loading = false;
-        state.reports = action.payload;
-      })
-      .addCase(fetchLeadsReports.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      .addCase(changeLeadStatus.pending, (state) => {
-        state.loading = true;
-        state.success = false;
-        state.error = null;
-        state.message = '';
-      })
-      .addCase(changeLeadStatus.fulfilled, (state, action) => {
-        state.loading = false;
-        state.success = true;
-        state.updatedLead = action.payload.data;
-        state.message = action.payload.message;
-      })
-      .addCase(changeLeadStatus.rejected, (state, action) => {
-        state.loading = false;
-        state.success = false;
-        state.error = action.payload;
-        state.message = '';
-      })
-      .addCase(getLeadOptions.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getLeadOptions.fulfilled, (state, action) => {
-        state.loading = false;
-        state.options = action.payload; // <-- Save dropdown options
-      })
-      .addCase(getLeadOptions.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-            .addCase(addLeadOption.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(addLeadOption.fulfilled, (state, action) => {
-        state.loading = false;
-        state.success = true;
-
-        // Update state.options immediately
-        if (action.payload) {
-          state.options = [...state.options, action.payload];
-        }
-      })
-      .addCase(addLeadOption.rejected, (state, action) => {
-        state.loading = false;
-        state.success = false;
-        state.error = action.payload;
-      })
-;
-
-
+            state.loading = true;
+            state.error = null;
+        })
+        .addCase(fetchLeadsReports.fulfilled, (state, action) => {
+            state.loading = false;
+            state.reports = action.payload;
+        })
+        .addCase(fetchLeadsReports.rejected, (state, action) => {
+            state.loading = false;
+            state.error = action.payload;
+        })
+        
+        // Change Lead Status
+        .addCase(changeLeadStatus.pending, (state) => {
+            state.loading = true;
+            state.success = false;
+            state.error = null;
+            state.message = '';
+        })
+        .addCase(changeLeadStatus.fulfilled, (state, action) => {
+            state.loading = false;
+            state.success = true;
+            state.updatedLead = action.payload.data;
+            state.message = action.payload.message;
+            
+            // Update the lead in the list
+            if (state.updatedLead) {
+                const index = state.list.findIndex(lead => lead.leadId === state.updatedLead.leadId);
+                if (index !== -1) {
+                    state.list[index] = state.updatedLead;
+                }
+            }
+        })
+        .addCase(changeLeadStatus.rejected, (state, action) => {
+            state.loading = false;
+            state.success = false;
+            state.error = action.payload;
+            state.message = '';
+        })
+        
+        // Get Lead Options
+        .addCase(getLeadOptions.pending, (state) => {
+            state.loading = true;
+            state.error = null;
+        })
+        .addCase(getLeadOptions.fulfilled, (state, action) => {
+            state.loading = false;
+            state.options = action.payload;
+        })
+        .addCase(getLeadOptions.rejected, (state, action) => {
+            state.loading = false;
+            state.error = action.payload;
+        })
+        
+        // Add Lead Option
+        .addCase(addLeadOption.pending, (state) => {
+            state.loading = true;
+            state.error = null;
+        })
+        .addCase(addLeadOption.fulfilled, (state, action) => {
+            state.loading = false;
+            state.success = true;
+            // Update state.options immediately
+            if (action.payload) {
+                state.options = [...state.options, action.payload];
+            }
+        })
+        .addCase(addLeadOption.rejected, (state, action) => {
+            state.loading = false;
+            state.success = false;
+            state.error = action.payload;
+        })
+        
+        // DELETE LEAD
+        .addCase(deleteLead.pending, (state) => {
+            state.deleteLoading = true;
+            state.deleteError = null;
+        })
+        .addCase(deleteLead.fulfilled, (state, action) => {
+            state.deleteLoading = false;
+            state.deleteError = null;
+            
+            // Remove the deleted lead from the list using leadId
+            const deletedLeadId = action.payload?.leadId;
+            if (deletedLeadId) {
+                state.list = state.list.filter(lead => lead.leadId !== deletedLeadId);
+            }
+            
+            state.message = 'Lead deleted successfully';
+        })
+        .addCase(deleteLead.rejected, (state, action) => {
+            state.deleteLoading = false;
+            state.deleteError = action.payload;
+        });
     }
+});
 
-})
- export const { setFormField, resetForm, addLeads , setLeads,clearViewedLeads,resetLeadStatus} = leadSlice.actions;
+export const { 
+    setFormField, 
+    resetForm, 
+    addLeads, 
+    setLeads, 
+    clearViewedLeads, 
+    resetLeadStatus,
+    resetDeleteStatus,
+    removeLeadFromList 
+} = leadSlice.actions;
 
- export default leadSlice.reducer;
+export default leadSlice.reducer;

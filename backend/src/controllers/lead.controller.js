@@ -383,7 +383,7 @@ export const viewAllLeadsReports = asyncHandler(async (req, res) => {
 
 // Delete Lead
 export const deleteLead = asyncHandler(async (req, res) => {
-  const { leadId } = req.body;
+  const { leadId } = req.params;
 
   if (!leadId) {
     throw new ApiError(400, "leadId is required");
