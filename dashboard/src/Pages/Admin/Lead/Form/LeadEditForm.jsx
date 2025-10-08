@@ -63,6 +63,7 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
   const [activeField, setActiveField] = useState("");
   const [showAssociateForm, setShowAssociateForm] = useState(false);
 
+  // Initialize with static options
   const [dropdownOptions, setDropdownOptions] = useState({
     title: ["Mr", "Ms", "Mrs"],
     source: ["Direct", "Referral", "Agent's"],
@@ -124,7 +125,6 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
     
     // Step 2 fields
     tourType: "Domestic",
-    country: "",
     destination: "",
     services: "",
     adults: "",
@@ -151,9 +151,11 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
   const transformApiDataToForm = (apiData) => {
     if (!apiData) return defaultInitialData;
     
+    console.log("📥 Raw API Data received:", apiData);
+    
     const { personalDetails, location, address, officialDetail, tourDetails } = apiData;
     
-    return {
+    const transformedData = {
       // Step 1 fields
       fullName: personalDetails?.fullName || "",
       mobile: personalDetails?.mobile || "",
@@ -178,7 +180,6 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
       
       // Step 2 fields
       tourType: tourDetails?.tourType || "Domestic",
-      country: "",
       destination: tourDetails?.tourDestination || "",
       services: tourDetails?.servicesRequired?.[0] || "",
       adults: tourDetails?.members?.adults || "",
@@ -200,6 +201,40 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
       noOfNights: tourDetails?.accommodation?.noOfNights || "",
       requirementNote: tourDetails?.accommodation?.requirementNote || "",
     };
+
+    console.log("🔄 Transformed Form Data:", transformedData);
+    return transformedData;
+  };
+
+  // Update dropdown options with API data
+  const updateDropdownOptionsWithApiData = (apiData) => {
+    if (!apiData) return;
+
+    const { location, officialDetail, tourDetails } = apiData;
+    
+    setDropdownOptions(prev => ({
+      ...prev,
+      // Update location options
+      country: [...new Set([...prev.country, location?.country].filter(Boolean))],
+      state: [...new Set([...prev.state, location?.state].filter(Boolean))],
+      city: [...new Set([...prev.city, location?.city].filter(Boolean))],
+      
+      // Update official detail options
+      referralBy: [...new Set([...prev.referralBy, officialDetail?.referredBy].filter(Boolean))],
+      assignedTo: [...new Set([...prev.assignedTo, officialDetail?.assignedTo].filter(Boolean))],
+      agentName: [...new Set([...prev.agentName, officialDetail?.agentName].filter(Boolean))],
+      
+      // Update tour detail options
+      destination: [...new Set([...prev.destination, tourDetails?.tourDestination].filter(Boolean))],
+      arrivalCity: [...new Set([...prev.arrivalCity, tourDetails?.pickupDrop?.arrivalCity].filter(Boolean))],
+      arrivalLocation: [...new Set([...prev.arrivalLocation, tourDetails?.pickupDrop?.arrivalLocation].filter(Boolean))],
+      departureCity: [...new Set([...prev.departureCity, tourDetails?.pickupDrop?.departureCity].filter(Boolean))],
+      departureLocation: [...new Set([...prev.departureLocation, tourDetails?.pickupDrop?.departureLocation].filter(Boolean))],
+      hotelType: [...new Set([...prev.hotelType, ...(tourDetails?.accommodation?.hotelType || [])].filter(Boolean))],
+      mealPlan: [...new Set([...prev.mealPlan, tourDetails?.accommodation?.mealPlan].filter(Boolean))],
+      sharingType: [...new Set([...prev.sharingType, tourDetails?.accommodation?.sharingType].filter(Boolean))],
+      services: [...new Set([...prev.services, ...(tourDetails?.servicesRequired || [])].filter(Boolean))],
+    }));
   };
 
   const formik = useFormik({
@@ -267,6 +302,8 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
         },
       };
 
+      console.log("📤 Update Data to API:", updateData);
+
       dispatch(updateLead({ leadId, updateData }))
         .unwrap()
         .then(() => {
@@ -296,7 +333,14 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
   // Update form when viewedLead data changes
   useEffect(() => {
     if (viewedLead) {
+      console.log("🎯 Received viewedLead:", viewedLead);
+      
+      // Update dropdown options with API data first
+      updateDropdownOptionsWithApiData(viewedLead);
+      
+      // Then set form values
       const formData = transformApiDataToForm(viewedLead);
+      console.log("🔄 Setting form values:", formData);
       formik.setValues(formData);
     }
   }, [viewedLead]);
@@ -538,29 +582,33 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
   );
 };
 
-
 // Step 1 Content Component
 const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick }) => {
-  const renderSelectField = (label, name, options = []) => (
-    <TextField
-      fullWidth
-      select
-      label={label}
-      name={name}
-      value={formik.values[name]}
-      onChange={onFieldChange}
-      error={formik.touched[name] && Boolean(formik.errors[name])}
-      helperText={formik.touched[name] && formik.errors[name]}
-      sx={{ mb: 2 }}
-    >
-      {options.map((opt) => (
-        <MenuItem key={opt} value={opt}>
-          {opt}
-        </MenuItem>
-      ))}
-      <MenuItem value="__add_new__">➕ Add New</MenuItem>
-    </TextField>
-  );
+  const renderSelectField = (label, name, options = []) => {
+    // Combine dropdown options and current value to ensure it appears
+    const allOptions = [...new Set([...options, formik.values[name]].filter(Boolean))];
+    
+    return (
+      <TextField
+        fullWidth
+        select
+        label={label}
+        name={name}
+        value={formik.values[name]}
+        onChange={onFieldChange}
+        error={formik.touched[name] && Boolean(formik.errors[name])}
+        helperText={formik.touched[name] && formik.errors[name]}
+        sx={{ mb: 2 }}
+      >
+        {allOptions.map((opt) => (
+          <MenuItem key={opt} value={opt}>
+            {opt}
+          </MenuItem>
+        ))}
+        <MenuItem value="__add_new__">➕ Add New</MenuItem>
+      </TextField>
+    );
+  };
 
   const renderTextField = (label, name) => (
     <TextField
@@ -704,10 +752,14 @@ const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick })
 
 // Step 2 Content Component
 const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onAddNewClick }) => {
-  const getOptions = (field) => [
-    ...(dropdownOptions[field] || []),
-    ...(customItems[field] || []),
-  ];
+  const getOptions = (field) => {
+    // Combine dropdown options, custom items, and current value
+    const baseOptions = [
+      ...(dropdownOptions[field] || []),
+      ...(customItems[field] || []),
+    ];
+    return [...new Set([...baseOptions, formik.values[field]].filter(Boolean))];
+  };
 
   const SelectField = ({ name, label, options }) => (
     <TextField
