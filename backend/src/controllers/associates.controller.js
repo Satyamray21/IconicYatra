@@ -80,9 +80,10 @@ export const getAllAssociates = async (req, res, next) => {
 };
 
 // Get Single Associate by ID
+// Get Associate by associateId
 export const getAssociateById = async (req, res, next) => {
   try {
-    const associate = await Associate.findById(req.params.id);
+    const associate = await Associate.findOne({ associateId: req.params.id });
     if (!associate) return res.status(404).json({ message: "Not found" });
     res.status(200).json(associate);
   } catch (err) {
@@ -90,11 +91,11 @@ export const getAssociateById = async (req, res, next) => {
   }
 };
 
-// Update Associate
+// Update Associate by associateId
 export const updateAssociate = async (req, res, next) => {
   try {
-    const updated = await Associate.findByIdAndUpdate(
-      req.params.id,
+    const updated = await Associate.findOneAndUpdate(
+      { associateId: req.params.id },
       req.body,
       { new: true, runValidators: true }
     );

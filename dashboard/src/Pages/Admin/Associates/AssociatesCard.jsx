@@ -23,7 +23,7 @@ const stats = [
   { title: "This Month", active: 0, confirmed: 0, cancelled: 0 },
   { title: "Last 3 Months", active: 0, confirmed: 0, cancelled: 0 },
   { title: "Last 6 Months", active: 0, confirmed: 0, cancelled: 0 },
-  { title: "Last 12 Months", active: 15, confirmed: 0, cancelled: 0 },
+  { title: "Last 12 Months", active: 0, confirmed: 0, cancelled: 0 },
 ];
 
 
@@ -42,8 +42,8 @@ const AssociateDashboard = () => {
   };  
 
   const handleEditClick = (row) => {
-    navigate("/associates/associateseditform", { state: { associateData: row } });
-  };
+  navigate(`/associates/associateseditform/${row.associateId}`);
+};
 
   const handleDeleteClick = (id) => {
     const updatedAssociates = associateList.filter((associate) => associate.id !== id);
