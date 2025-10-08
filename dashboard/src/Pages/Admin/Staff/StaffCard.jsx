@@ -1,4 +1,4 @@
-import React,{useState,useEffect} from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -11,13 +11,21 @@ import {
   InputAdornment,
   IconButton,
   Container,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {useDispatch,useSelector} from "react-redux";
-import {fetchAllStaff} from "../../../features/staff/staffSlice"
+import { useDispatch, useSelector } from "react-redux";
+import { fetchAllStaff, deleteStaff } from "../../../features/staff/staffSlice";
+
 const stats = [
   { title: "Today's", active: 0, lead: 0, quotation: 0 },
   { title: "This Month", active: 0, lead: 0, quotation: 0 },
@@ -26,42 +34,90 @@ const stats = [
   { title: "Last 12 Months", active: 15, lead: 0, quotation: 0 },
 ];
 
-
-
 const StaffCard = () => {
   const navigate = useNavigate();
-
-  const {list:staffList=[]} =useSelector((state) => state.staffs)
   const dispatch = useDispatch();
-  useEffect((()=>{
-    dispatch(fetchAllStaff())
-  }),[dispatch])
+  
+  const { list: staffList = [], loading, error } = useSelector((state) => state.staffs);
+  
+  // State for delete confirmation dialog
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    staffId: null,
+    staffName: "",
+  });
+  
+  // State for snackbar notifications
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  useEffect(() => {
+    dispatch(fetchAllStaff());
+  }, [dispatch]);
+
   const handleAddClick = () => {
     navigate("/staffform");
   };
 
-//   const handleEditClick = (row) => {
-//     navigate("/staff/staffeditform", {
-//       state: { staffData: row },
-//     });
-//   };
-const handleEditClick = (row) => {
+  const handleEditClick = (row) => {
     navigate(`/staff/staffeditform/${row.staffId}`);
-};
-
-  const handleDeleteClick = (id) => {
-    const updatedList = staffList.filter((staff) => staff.id !== id);
-    setStaffList(updatedList);
   };
-const mappedStaffList = staffList.map((staff, index) => ({
-  id: index + 1, // Required by DataGrid
-  staffId: staff.staffId,
-  staffName: staff.personalDetails?.fullName || "",
-  mobile: staff.personalDetails?.mobileNumber || "",
-  email: staff.personalDetails?.email || "",
-  city: staff.staffLocation?.city || "",
-  designation: staff.personalDetails?.designation || "",
-}));
+
+  const handleDeleteClick = (row) => {
+    setDeleteDialog({
+      open: true,
+      staffId: row.staffId,
+      staffName: row.staffName,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteDialog.staffId) {
+      try {
+        await dispatch(deleteStaff(deleteDialog.staffId)).unwrap();
+        
+        setSnackbar({
+          open: true,
+          message: "Staff member deleted successfully!",
+          severity: "success",
+        });
+        
+        // Refresh the staff list
+        dispatch(fetchAllStaff());
+        
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: "Failed to delete staff member. Please try again.",
+          severity: "error",
+        });
+        console.error("Delete failed:", error);
+      }
+    }
+    
+    setDeleteDialog({ open: false, staffId: null, staffName: "" });
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialog({ open: false, staffId: null, staffName: "" });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const mappedStaffList = staffList.map((staff, index) => ({
+    id: index + 1, // Required by DataGrid
+    staffId: staff.staffId,
+    staffName: staff.personalDetails?.fullName || "",
+    mobile: staff.personalDetails?.mobileNumber || "",
+    email: staff.personalDetails?.email || "",
+    city: staff.staffLocation?.city || "",
+    designation: staff.personalDetails?.designation || "",
+  }));
 
   const columns = [
     { field: "id", headerName: "Sr No.", width: 60 },
@@ -74,20 +130,22 @@ const mappedStaffList = staffList.map((staff, index) => ({
     {
       field: "action",
       headerName: "Action",
-      width: 80,
+      width: 100,
       renderCell: (params) => (
         <Box display="flex" gap={1}>
           <IconButton
             color="primary"
             size="small"
             onClick={() => handleEditClick(params.row)}
+            disabled={loading}
           >
             <EditIcon fontSize="small" />
           </IconButton>
           <IconButton
             color="error"
             size="small"
-            onClick={() => handleDeleteClick(params.row.id)}
+            onClick={() => handleDeleteClick(params.row)}
+            disabled={loading}
           >
             <DeleteIcon fontSize="small" />
           </IconButton>
@@ -95,14 +153,14 @@ const mappedStaffList = staffList.map((staff, index) => ({
       ),
     },
   ];
-console.log("Staff",staffList);
+
   return (
     <Container maxWidth="xl">
       <Box py={3}>
         {/* Stat Cards */}
         <Grid container spacing={2}>
           {stats.map((item, index) => (
-            <Grid key={index} size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
+            <Grid key={index} item xs={12} sm={6} md={4} lg={2.4}>
               <Card
                 sx={{
                   backgroundColor: "#0b6396ff",
@@ -115,9 +173,7 @@ console.log("Staff",staffList);
                     {item.title}: {item.active}
                   </Typography>
                   <Typography variant="body2">Active: {item.active}</Typography>
-                  <Typography variant="body2">
-                    Lead: {item.lead}
-                  </Typography>
+                  <Typography variant="body2">Lead: {item.lead}</Typography>
                   <Typography variant="body2">
                     Quotation: {item.quotation}
                   </Typography>
@@ -173,9 +229,57 @@ console.log("Staff",staffList);
               rowsPerPageOptions={[7, 25, 50, 100]}
               autoHeight
               disableRowSelectionOnClick
+              loading={loading}
             />
           </Box>
         </Box>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteDialog.open}
+          onClose={cancelDelete}
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-description"
+        >
+          <DialogTitle id="delete-dialog-title">
+            Confirm Delete
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description">
+              Are you sure you want to delete staff member{" "}
+              <strong>{deleteDialog.staffName}</strong>? This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={cancelDelete} color="primary">
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmDelete} 
+              color="error" 
+              variant="contained"
+              autoFocus
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={handleCloseSnackbar} 
+            severity={snackbar.severity} 
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </Container>
   );

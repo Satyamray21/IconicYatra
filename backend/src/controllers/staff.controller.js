@@ -118,11 +118,15 @@ export const updateStaff = asyncHandler(async (req, res) => {
 export const deleteStaff = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(400, "Invalid staff ID");
-  }
+  let deleted;
 
-  const deleted = await Staff.findByIdAndDelete(id);
+  // Check if it's a valid MongoDB ObjectId
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    deleted = await Staff.findByIdAndDelete(id);
+  } else {
+    // If not ObjectId, treat it as custom staffId
+    deleted = await Staff.findOneAndDelete({ staffId: id });
+  }
 
   if (!deleted) {
     throw new ApiError(404, "Staff not found");
