@@ -45,6 +45,9 @@ const StaffCard = () => {
 //       state: { staffData: row },
 //     });
 //   };
+const handleEditClick = (row) => {
+    navigate(`/staff/staffeditform/${row.staffId}`);
+};
 
   const handleDeleteClick = (id) => {
     const updatedList = staffList.filter((staff) => staff.id !== id);

@@ -19,6 +19,7 @@ import AssociatesForm from '../Pages/Admin/Associates/Form/AssociatesForm';
 import AssociatesEditFrom from '../Pages/Admin/Associates/Form/AssociatesEditFrom';
 import StaffCard from "../Pages/Admin/Staff/StaffCard";
 import StaffForm from "../Pages/Admin/Staff/Form/StaffForm";
+import StaffEditForm from "../Pages/Admin/Staff/Form/StaffEditForm";
 import PaymentsCard from '../Pages/Admin/Payments/PaymentsCard';
 import PaymentsForm from '../Pages/Admin/Payments/Form/PaymentsForm';
 import InvoiceView from '../Components/InvoiceView';
@@ -67,6 +68,7 @@ const MainRoute = () => {
                 {/* Staff Routes */}
                 <Route path="/staff" element={<StaffCard />} />
                 <Route path="/staffform" element={<StaffForm />} />
+                <Route path="/staff/staffeditform/:staffId" element={<StaffEditForm />} />
 
                 {/* Payments Routes */}
                 <Route path="/payments" element={<PaymentsCard />} />

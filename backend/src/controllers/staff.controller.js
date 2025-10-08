@@ -57,14 +57,21 @@ export const getAllStaff = asyncHandler(async (req, res) => {
 export const getStaffById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(400, "Invalid staff ID");
-  }
+  let staff;
 
-  const staff = await Staff.findById(id)
-    .populate("staffLocation.country")
-    .populate("staffLocation.state")
-    .populate("staffLocation.city");
+  // Check if it's a valid MongoDB ObjectId
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    staff = await Staff.findById(id)
+      .populate("staffLocation.country")
+      .populate("staffLocation.state")
+      .populate("staffLocation.city");
+  } else {
+    // Otherwise, treat it as a custom staffId
+    staff = await Staff.findOne({ staffId: id })
+      .populate("staffLocation.country")
+      .populate("staffLocation.state")
+      .populate("staffLocation.city");
+  }
 
   if (!staff) {
     throw new ApiError(404, "Staff not found");
@@ -75,28 +82,37 @@ export const getStaffById = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, staff, "Staff fetched successfully"));
 });
 
+
 // UPDATE staff
 export const updateStaff = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(400, "Invalid staff ID");
+  let updatedStaff;
+
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    // Update by MongoDB _id
+    updatedStaff = await Staff.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+  } else {
+    // Update by custom staffId
+    updatedStaff = await Staff.findOneAndUpdate({ staffId: id }, updateData, {
+      new: true,
+      runValidators: true,
+    });
   }
 
-  const updated = await Staff.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true
-  });
-
-  if (!updated) {
+  if (!updatedStaff) {
     throw new ApiError(404, "Staff not found");
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, updated, "Staff updated successfully"));
+    .json(new ApiResponse(200, updatedStaff, "Staff updated successfully"));
 });
+
 
 // DELETE staff
 export const deleteStaff = asyncHandler(async (req, res) => {
