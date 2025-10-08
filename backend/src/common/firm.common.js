@@ -1,33 +1,43 @@
 import mongoose from "mongoose";
 
 export const firmSchema = mongoose.Schema({
-    firmType:{
-        type:String,
-        required:true
+    firmType: {
+        type: String,
+        required: true
     },
-    gstIn:{
-        type:String,
-       
+    gstin: {  // Changed from gstIn to gstin
+        type: String,
     },
-    cin:{
-        type:String,
-        
+    cin: {
+        type: String,
     },
-    pan:{
-        type:String,
-       
+    pan: {
+        type: String,
     },
-    existingTurnOver:{
-        type:String,
-       
+    turnover: {  // Changed from existingTurnOver to turnover
+        type: String,
     },
-    firmName:{
-        type:String,
-        required:true
+    firmName: {
+        type: String,
+        required: true
     },
-    firmDescription:{
-        type:String,
-
+    firmDescription: {
+        type: String,
     },
-
-},{_id:false})
+    sameAsContact: {
+        type: Boolean,
+        default: false
+    },
+    address1: {
+        type: String
+    },
+    address2: {
+        type: String
+    },
+    address3: {
+        type: String
+    },
+    supportingDocs: {
+        type: String // or Buffer for file storage
+    }
+}, { _id: false })
