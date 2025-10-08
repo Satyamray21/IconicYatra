@@ -63,7 +63,7 @@ const MainRoute = () => {
                 {/* Associates Route */}
                 <Route path='/associates' element={<AssociatesCard />} />
                 <Route path='/associatesform' element={<AssociatesForm />} />
-                <Route path='/associates/associateseditform' element={<AssociatesEditFrom />} />
+                <Route path='/associates/associateseditform/:associateId' element={<AssociatesEditFrom />} />
 
                 {/* Staff Routes */}
                 <Route path="/staff" element={<StaffCard />} />
