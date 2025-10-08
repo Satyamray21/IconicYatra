@@ -109,7 +109,7 @@ export const updateAssociate = async (req, res, next) => {
 // Delete Associate
 export const deleteAssociate = async (req, res, next) => {
   try {
-    const deleted = await Associate.findByIdAndDelete(req.params.id);
+    const deleted = await Associate.findOneAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: "Not found" });
     res.status(200).json({ message: "Deleted successfully" });
   } catch (err) {
