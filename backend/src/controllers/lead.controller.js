@@ -421,7 +421,8 @@ export const changeLeadStatus = asyncHandler(async (req, res) => {
   const { leadId } = req.params;
   const { status } = req.body;
 
-  const allowedStatuses = ['Active', 'Cancelled', 'Confirm'];
+  // FIX: Change 'Confirm' to 'Confirmed' to match frontend and error message
+  const allowedStatuses = ['Active', 'Cancelled', 'Confirmed'];
 
   if (!leadId) {
     throw new ApiError(400, "leadId is required");
@@ -438,7 +439,6 @@ export const changeLeadStatus = asyncHandler(async (req, res) => {
   }
 
   const currentStatus = lead.status;
-
 
   if (currentStatus === 'Cancelled') {
     throw new ApiError(400, "Cancelled lead cannot be changed to another status");

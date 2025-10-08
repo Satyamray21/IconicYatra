@@ -155,6 +155,7 @@ const LeadCard = () => {
     setAnchorEls((prev) => ({ ...prev, [id]: null }));
   };
 
+  // FIXED: Use exact status values that backend expects
   const handleStatusChange = (rowId, newStatus) => {
     const lead = mappedLeads.find((item) => item.id === rowId);
 
@@ -163,6 +164,17 @@ const LeadCard = () => {
       setSnackbar({
         open: true,
         message: "Invalid lead ID",
+        severity: "error",
+      });
+      return;
+    }
+
+    // Validate status before sending to backend
+    const validStatuses = ["Active", "Cancelled", "Confirmed"];
+    if (!validStatuses.includes(newStatus)) {
+      setSnackbar({
+        open: true,
+        message: `Invalid status: ${newStatus}. Must be one of: ${validStatuses.join(", ")}`,
         severity: "error",
       });
       return;
@@ -260,14 +272,15 @@ const LeadCard = () => {
               open={Boolean(anchorEls[rowId])}
               onClose={() => handleMenuClose(rowId)}
             >
+              {/* FIXED: Use exact backend expected values */}
               <MenuItem onClick={() => handleStatusChange(rowId, "Active")}>
                 Active
               </MenuItem>
               <MenuItem onClick={() => handleStatusChange(rowId, "Confirmed")}>
-                Confirm
+                Confirmed
               </MenuItem>
               <MenuItem onClick={() => handleStatusChange(rowId, "Cancelled")}>
-                Cancel
+                Cancelled
               </MenuItem>
             </Menu>
           </Box>
