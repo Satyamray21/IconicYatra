@@ -22,6 +22,13 @@ import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAssociateById, updateAssociate, clearSelectedAssociate } from "../../../../features/associate/associateSlice";
 import { useParams } from "react-router-dom";
+import {
+  fetchCountries,
+  fetchStatesByCountry,
+  fetchCitiesByState,
+  clearStates,
+  clearCities,
+} from "../../../../features/location/locationSlice";
 
 // ----- Static Data -----
 const titles = ["Mr", "Mrs", "Ms", "Dr"];
@@ -40,19 +47,6 @@ const firmTypesDefault = [
   "Private Ltd",
   "Public Ltd",
 ];
-const countries = ["India", "USA"];
-const states = {
-  India: ["Maharashtra", "Delhi", "Karnataka"],
-  USA: ["California", "New York", "Texas"],
-};
-const cities = {
-  Maharashtra: ["Mumbai", "Pune"],
-  Delhi: ["New Delhi"],
-  Karnataka: ["Bangalore"],
-  California: ["Los Angeles", "San Francisco"],
-  "New York": ["New York City"],
-  Texas: ["Houston"],
-};
 
 // ----- Validation Schema -----
 const validationSchema = Yup.object().shape({
@@ -118,7 +112,15 @@ const EditAssociateForm = () => {
   const { associateId } = useParams();
   const dispatch = useDispatch();
   const { selected: associate, loading, error } = useSelector((state) => state.associate);
+  const {
+    countries: countriesData,
+    states: statesData,
+    cities: citiesData,
+    loading: locationLoading,
+  } = useSelector((state) => state.location);
+  
   const [firmTypes, setFirmTypes] = React.useState(firmTypesDefault);
+  const [hasPrefilledData, setHasPrefilledData] = React.useState(false);
 
   // Fetch associate data when component mounts or ID changes
   useEffect(() => {
@@ -130,6 +132,11 @@ const EditAssociateForm = () => {
       dispatch(clearSelectedAssociate());
     };
   }, [dispatch, associateId]);
+
+  // Fetch countries on component mount
+  useEffect(() => {
+    dispatch(fetchCountries());
+  }, [dispatch]);
 
   const formik = useFormik({
     enableReinitialize: true,
@@ -159,6 +166,79 @@ const EditAssociateForm = () => {
   });
 
   const { values, errors, touched, handleChange, setFieldValue, isSubmitting } = formik;
+
+  // Handle pre-filled data when associate is loaded
+  useEffect(() => {
+    if (associate && !hasPrefilledData) {
+      console.log("Associate data loaded:", associate);
+      console.log("Staff Location:", associate.staffLocation);
+      
+      // Set flag to indicate we have pre-filled data
+      setHasPrefilledData(true);
+      
+      // If country is pre-filled, fetch states
+      if (associate.staffLocation?.country) {
+        dispatch(fetchStatesByCountry(associate.staffLocation.country));
+      }
+      
+      // If state is pre-filled, fetch cities
+      if (associate.staffLocation?.state && associate.staffLocation?.country) {
+        dispatch(
+          fetchCitiesByState({
+            countryName: associate.staffLocation.country,
+            stateName: associate.staffLocation.state,
+          })
+        );
+      }
+    }
+  }, [associate, dispatch, hasPrefilledData]);
+
+  // Fetch states when country changes OR when associate data is loaded with pre-filled country
+  useEffect(() => {
+    if (values.staffLocation?.country) {
+      dispatch(fetchStatesByCountry(values.staffLocation.country));
+      
+      // Only clear state and city if we're changing the country, not when pre-filling
+      if (!hasPrefilledData) {
+        setFieldValue("staffLocation.state", "");
+        setFieldValue("staffLocation.city", "");
+        dispatch(clearCities());
+      }
+    } else {
+      dispatch(clearStates());
+      dispatch(clearCities());
+    }
+  }, [values.staffLocation?.country, dispatch, setFieldValue, hasPrefilledData]);
+
+  // Fetch cities when state changes OR when associate data is loaded with pre-filled state
+  useEffect(() => {
+    if (values.staffLocation?.state && values.staffLocation?.country) {
+      dispatch(
+        fetchCitiesByState({
+          countryName: values.staffLocation.country,
+          stateName: values.staffLocation.state,
+        })
+      );
+    } else {
+      dispatch(clearCities());
+    }
+  }, [values.staffLocation?.state, values.staffLocation?.country, dispatch]);
+
+  const renderSelectOptions = (options, loadingText = "Loading...") => {
+    if (locationLoading) {
+      return <MenuItem disabled>{loadingText}</MenuItem>;
+    }
+    
+    if (!options || options.length === 0) {
+      return <MenuItem disabled>No options available</MenuItem>;
+    }
+
+    return options.map((option) => (
+      <MenuItem key={option} value={option}>
+        {option}
+      </MenuItem>
+    ));
+  };
 
   // Helper function to handle nested field changes
   const handleNestedChange = (section, field) => (e) => {
@@ -334,15 +414,15 @@ const EditAssociateForm = () => {
                   handleNestedChange("staffLocation", "country")(e);
                   setFieldValue("staffLocation.state", "");
                   setFieldValue("staffLocation.city", "");
+                  setHasPrefilledData(false); // Reset flag when user changes country
                 }}
                 label="Country"
                 error={getNestedTouched("staffLocation.country") && Boolean(getNestedError("staffLocation.country"))}
               >
-                {countries.map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
+                 {renderSelectOptions(
+                    countriesData?.map((c) => c.name),
+                    "Loading countries..."
+                  )}
               </Select>
             </FormControl>
           </Grid>
@@ -355,16 +435,16 @@ const EditAssociateForm = () => {
                 onChange={(e) => {
                   handleNestedChange("staffLocation", "state")(e);
                   setFieldValue("staffLocation.city", "");
+                  setHasPrefilledData(false); // Reset flag when user changes state
                 }}
                 disabled={!values.staffLocation?.country}
                 label="State"
                 error={getNestedTouched("staffLocation.state") && Boolean(getNestedError("staffLocation.state"))}
               >
-                {(states[values.staffLocation?.country] || []).map((s) => (
-                  <MenuItem key={s} value={s}>
-                    {s}
-                  </MenuItem>
-                ))}
+                 {renderSelectOptions(
+                    statesData?.map((s) => s.name),
+                    "Loading states..."
+                  )}
               </Select>
             </FormControl>
           </Grid>
@@ -379,11 +459,10 @@ const EditAssociateForm = () => {
                 label="City"
                 error={getNestedTouched("staffLocation.city") && Boolean(getNestedError("staffLocation.city"))}
               >
-                {(cities[values.staffLocation?.state] || []).map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
+                {renderSelectOptions(
+                    citiesData?.map((c) => c.name),
+                    "Loading cities..."
+                  )}
               </Select>
             </FormControl>
           </Grid>
