@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Grid,
@@ -9,12 +9,11 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Checkbox,
-  FormControlLabel,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -23,23 +22,18 @@ import * as Yup from "yup";
 import dayjs from "dayjs";
 import { fetchStaffById, updateStaff } from "../../../../features/staff/staffSlice";
 import { useDispatch, useSelector } from "react-redux";
-import {useParams} from "react-router-dom"
+import {
+  fetchCountries,
+  fetchStatesByCountry,
+  fetchCitiesByState,
+  clearStates,
+  clearCities,
+} from "../../../../features/location/locationSlice";
+import { useParams } from "react-router-dom";
+
 // -------- Dropdown data ----------
 const titles = ["Mr", "Mrs", "Ms", "Dr"];
 const roles = ["Admin", "Manager", "Executive"];
-const countries = ["India", "USA"];
-const states = {
-  India: ["Maharashtra", "Delhi", "Karnataka"],
-  USA: ["California", "New York", "Texas"],
-};
-const cities = {
-  Maharashtra: ["Mumbai", "Pune"],
-  Delhi: ["New Delhi"],
-  Karnataka: ["Bangalore"],
-  California: ["Los Angeles", "San Francisco"],
-  "New York": ["New York City"],
-  Texas: ["Houston"],
-};
 
 // -------- Validation schema ----------
 const validationSchema = Yup.object({
@@ -78,9 +72,16 @@ const validationSchema = Yup.object({
 });
 
 const StaffEditForm = () => {
-    const { staffId } = useParams();
-     const dispatch = useDispatch();
+  const { staffId } = useParams();
+  const dispatch = useDispatch();
   const { selected: staff, loading } = useSelector((state) => state.staffs);
+  const {
+    countries: countriesData,
+    states: statesData,
+    cities: citiesData,
+    loading: locationLoading,
+  } = useSelector((state) => state.location);
+  
   const [firmTypes, setFirmTypes] = useState([
     "Proprietorship",
     "Partnership",
@@ -90,50 +91,109 @@ const StaffEditForm = () => {
   ]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newFirmType, setNewFirmType] = useState("");
+
+  // Fetch staff data
   useEffect(() => {
-  if (staffId) {
-    dispatch(fetchStaffById(staffId));
-  }
-}, [dispatch, staffId]);
+    if (staffId) {
+      dispatch(fetchStaffById(staffId));
+    }
+  }, [dispatch, staffId]);
+
+  // Fetch countries
+  useEffect(() => {
+    dispatch(fetchCountries());
+  }, [dispatch]);
+
   const formik = useFormik({
-     enableReinitialize: true,
+    enableReinitialize: true,
     initialValues: {
-      title: staff?.title || "",
-      fullName: staff?.fullName || "",
-      mobile: staff?.mobile || "",
-      alternateContact: staff?.alternateContact || "",
-      designation: staff?.designation || "",
-      userRole: staff?.userRole || "",
-      email: staff?.email || "",
-      dob: staff?.dob || null,
-      country: staff?.country || "",
-      state: staff?.state || "",
-      city: staff?.city || "",
-      address1: staff?.address1 || "",
-      address2: staff?.address2 || "",
-      address3: staff?.address3 || "",
-      pincode: staff?.pincode || "",
-      firmType: staff?.firmType || "",
-      firmName: staff?.firmName || "",
-      gstin: staff?.gstin || "",
-      cin: staff?.cin || "",
-      pan: staff?.pan || "",
-      turnover: staff?.turnover || "",
-      firmDescription: staff?.firmDescription || "",
-      bankName: staff?.bankName || "",
-      branchName: staff?.branchName || "",
-      accountHolderName: staff?.accountHolderName || "",
-      accountNumber: staff?.accountNumber || "",
-      ifscCode: staff?.ifscCode || "",
+      title: staff?.personalDetails?.title || "",
+      fullName: staff?.personalDetails?.fullName || "",
+      mobile: staff?.personalDetails?.mobileNumber || "",
+      alternateContact: staff?.personalDetails?.alternateContact || "",
+      designation: staff?.personalDetails?.designation || "",
+      userRole: staff?.personalDetails?.userRole || "",
+      email: staff?.personalDetails?.email || "",
+      dob: staff?.personalDetails?.dateOfBirth || null,
+      country: staff?.staffLocation?.country?.name || "",
+      state: staff?.staffLocation?.state?.name || "",
+      city: staff?.staffLocation?.city?.name || "",
+      address1: staff?.address?.addressLine1 || "",
+      address2: staff?.address?.addressLine2 || "",
+      address3: staff?.address?.addressLine3 || "",
+      pincode: staff?.address?.pincode || "",
+      firmType: staff?.firm?.firmType || "",
+      firmName: staff?.firm?.firmName || "",
+      gstin: staff?.firm?.gstin || "",
+      cin: staff?.firm?.cin || "",
+      pan: staff?.firm?.pan || "",
+      turnover: staff?.firm?.turnover || "",
+      firmDescription: staff?.firm?.firmDescription || "",
+      bankName: staff?.bank?.bankName || "",
+      branchName: staff?.bank?.branchName || "",
+      accountHolderName: staff?.bank?.accountHolderName || "",
+      accountNumber: staff?.bank?.accountNumber || "",
+      ifscCode: staff?.bank?.ifscCode || "",
     },
     validationSchema,
     onSubmit: (values) => {
-       dispatch(updateStaff({ id: staffId, data: values }));
+      dispatch(updateStaff({ id: staffId, data: values }));
     },
   });
 
   const { values, errors, touched, handleChange, setFieldValue } = formik;
-  if (loading) return <Typography>Loading...</Typography>;
+
+  // Fetch states when country changes
+  useEffect(() => {
+    if (values.country) {
+      dispatch(fetchStatesByCountry(values.country));
+      setFieldValue("state", "");
+      setFieldValue("city", "");
+      dispatch(clearCities());
+    } else {
+      dispatch(clearStates());
+      dispatch(clearCities());
+    }
+  }, [values.country, dispatch, setFieldValue]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (values.state && values.country) {
+      dispatch(
+        fetchCitiesByState({
+          countryName: values.country,
+          stateName: values.state,
+        })
+      );
+    } else {
+      dispatch(clearCities());
+    }
+  }, [values.state, values.country, dispatch]);
+
+  const renderSelectOptions = (options, loadingText = "Loading...") => {
+    if (locationLoading) {
+      return <MenuItem disabled>{loadingText}</MenuItem>;
+    }
+    
+    if (!options || options.length === 0) {
+      return <MenuItem disabled>No options available</MenuItem>;
+    }
+
+    return options.map((option) => (
+      <MenuItem key={option} value={option}>
+        {option}
+      </MenuItem>
+    ));
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+        <Typography ml={2}>Loading staff data...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box p={3}>
@@ -145,7 +205,7 @@ const StaffEditForm = () => {
         {/* ---------- Personal Details ---------- */}
         <Box border={1} borderColor="divider" borderRadius={2} p={2} mb={3}>
           <Typography variant="subtitle1" gutterBottom>
-            Staff’s Personal Details
+            Staff's Personal Details
           </Typography>
           <Grid container spacing={2}>
             <Grid size={{xs:3}}>
@@ -250,7 +310,7 @@ const StaffEditForm = () => {
         {/* ---------- Location ---------- */}
         <Box border={1} borderColor="divider" borderRadius={2} p={2} mb={3}>
           <Typography variant="subtitle1" gutterBottom>
-            Staff’s Location
+            Staff's Location
           </Typography>
           <Grid container spacing={2}>
             <Grid size={{xs:4}}>
@@ -265,11 +325,10 @@ const StaffEditForm = () => {
                     setFieldValue("city", "");
                   }}
                 >
-                  {countries.map((c) => (
-                    <MenuItem key={c} value={c}>
-                      {c}
-                    </MenuItem>
-                  ))}
+                  {renderSelectOptions(
+                    countriesData?.map((c) => c.name),
+                    "Loading countries..."
+                  )}
                 </Select>
               </FormControl>
             </Grid>
@@ -285,11 +344,10 @@ const StaffEditForm = () => {
                   }}
                   disabled={!values.country}
                 >
-                  {(states[values.country] || []).map((s) => (
-                    <MenuItem key={s} value={s}>
-                      {s}
-                    </MenuItem>
-                  ))}
+                  {renderSelectOptions(
+                    statesData?.map((s) => s.name),
+                    "Loading states..."
+                  )}
                 </Select>
               </FormControl>
             </Grid>
@@ -302,11 +360,10 @@ const StaffEditForm = () => {
                   onChange={handleChange}
                   disabled={!values.state}
                 >
-                  {(cities[values.state] || []).map((c) => (
-                    <MenuItem key={c} value={c}>
-                      {c}
-                    </MenuItem>
-                  ))}
+                  {renderSelectOptions(
+                    citiesData?.map((c) => c.name),
+                    "Loading cities..."
+                  )}
                 </Select>
               </FormControl>
             </Grid>
