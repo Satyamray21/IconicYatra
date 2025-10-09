@@ -29,7 +29,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { viewLeadById, updateLead, resetViewStatus, resetUpdateStatus } from "../../../../features/leads/leadSlice";
 import AssociatesForm from "../../Associates/Form/AssociatesForm";
 import dayjs from "dayjs";
-
+import { fetchCountries,fetchStatesByCountry,fetchCitiesByState,clearStates, clearCities } from '../../../../features/location/locationSlice';
+import {fetchAllAssociates} from "../../../../features/associate/associateSlice";
+import {fetchAllStaff} from "../../../../features/staff/staffSlice"
 // Validation schema combining both steps
 const validationSchema = Yup.object({
   // Step 1 fields
@@ -56,7 +58,18 @@ const validationSchema = Yup.object({
 const LeadEditForm = ({ leadId, onSave, onCancel }) => {
   const dispatch = useDispatch();
   const { viewedLead, viewLoading, viewError, updateLoading, updateError } = useSelector((state) => state.leads);
-  
+  const {
+    countries,
+    states,             
+    cities,
+    loading,
+  } = useSelector((state) => state.location);
+  const { list: staffList = [], loading: staffLoading } = useSelector(
+    (state) => state.staffs
+  );
+  const { list: associates = [], loading: associatesLoading } = useSelector(
+  (state) => state.associate
+);
   const [activeStep, setActiveStep] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newValue, setNewValue] = useState("");
@@ -344,7 +357,35 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
       formik.setValues(formData);
     }
   }, [viewedLead]);
+useEffect(() => {
+  dispatch(fetchCountries());
+}, [dispatch]);
 
+useEffect(() => {
+    if (formik.values.country) {
+      dispatch(fetchStatesByCountry(formik.values.country));
+      formik.setFieldValue("state", "");
+      formik.setFieldValue("city", "");
+      dispatch(clearCities());
+    } else {
+      dispatch(clearStates());
+      dispatch(clearCities());
+    }
+  }, [formik.values.country, dispatch]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (formik.values.state && formik.values.country) {
+      dispatch(
+        fetchCitiesByState({
+          countryName: formik.values.country,
+          stateName: formik.values.state,
+        })
+      );
+    } else {
+      dispatch(clearCities());
+    }
+  }, [formik.values.state, formik.values.country, dispatch]);
   const steps = ['Customer Details', 'Tour Details', 'Review'];
 
   // Handles +Add New option
@@ -407,6 +448,9 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
             dropdownOptions={dropdownOptions}
             onFieldChange={handleFieldChange}
             onAddNewClick={handleAddNewClick}
+            countries={countries} // Add this line
+          states={states} // Add this line
+          cities={cities}
           />
         );
       case 1:
@@ -583,7 +627,9 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
 };
 
 // Step 1 Content Component
-const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick }) => {
+const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick,countries, // Add this prop
+  states,    // Add this prop
+  cities    }) => {
   const renderSelectField = (label, name, options = []) => {
     // Combine dropdown options and current value to ensure it appears
     const allOptions = [...new Set([...options, formik.values[name]].filter(Boolean))];
@@ -674,13 +720,33 @@ const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick })
         </Typography>
         <Grid container spacing={2}>
           <Grid size={{xs:12, sm:4}}>
-            {renderSelectField("Country", "country", dropdownOptions.country)}
+             {renderSelectField(
+  "Country",
+  "country",
+  countries && countries.length > 0
+    ? countries.map((c) => c.name)
+    : ["Loading countries..."]
+)}
           </Grid>
           <Grid size={{xs:12, sm:4}}>
-            {renderSelectField("State", "state", dropdownOptions.state)}
+            {renderSelectField(
+  "State",
+  "state",
+  states && states.length > 0
+    ? states.map((s) => s.name) // ✅ Fetch full state names from API
+    : ["No states available"]
+)}
+
           </Grid>
           <Grid size={{xs:12, sm:4}}>
-            {renderSelectField("City", "city", dropdownOptions.city)}
+             {renderSelectField(
+              "City",
+              "city",
+              cities && cities.length > 0
+                ? cities.map((c) => c.name) // ✅ Always fetch from API
+                : ["No cities available"]
+            )}
+            
           </Grid>
         </Grid>
       </Box>
