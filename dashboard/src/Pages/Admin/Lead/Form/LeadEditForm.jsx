@@ -512,6 +512,7 @@ const renderSelectField = (label, name, options = []) => (
             customItems={customItems}
             onFieldChange={handleFieldChange}
             onAddNewClick={handleAddNewClick}
+            countries={countries} 
           />
         );
       case 2:
@@ -906,7 +907,10 @@ const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick,co
 };
 
 // Step 2 Content Component
-const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onAddNewClick }) => {
+const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onAddNewClick, countries }) => {
+  const dispatch = useDispatch();
+  const { states, cities } = useSelector((state) => state.location);
+
   const getOptions = (field) => {
     // Combine dropdown options, custom items, and current value
     const baseOptions = [
@@ -916,16 +920,61 @@ const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onA
     return [...new Set([...baseOptions, formik.values[field]].filter(Boolean))];
   };
 
-  const SelectField = ({ name, label, options }) => (
+  // Handle tour type change
+  const handleTourTypeChange = (e) => {
+    const tourType = e.target.value;
+    formik.handleChange(e);
+    
+    if (tourType === "Domestic") {
+      // For domestic tours, set country to India and fetch Indian states
+      formik.setFieldValue("country", "India");
+      formik.setFieldValue("destination", ""); // Clear destination when changing tour type
+    } else {
+      // For international tours, clear the country selection
+      formik.setFieldValue("country", "");
+      formik.setFieldValue("destination", ""); // Clear destination when changing tour type
+      dispatch(clearStates());
+    }
+  };
+
+  // Handle country change for international tours
+  const handleCountryChange = (e) => {
+    const country = e.target.value;
+    if (country === "__add_new__") {
+      onAddNewClick("country");
+    } else {
+      formik.setFieldValue("country", country);
+      formik.setFieldValue("destination", ""); // Clear destination when changing country
+    }
+  };
+
+  // Get destination options based on selected country
+  const getDestinationOptions = () => {
+    if (formik.values.tourType === "Domestic") {
+      // For domestic tours, show Indian states
+      return states && states.length > 0 
+        ? states.map(s => s.name)
+        : ["Loading states..."];
+    } else {
+      // For international tours, show states of selected country
+      if (formik.values.country && states && states.length > 0) {
+        return states.map(s => s.name);
+      }
+      return ["Select a country first"];
+    }
+  };
+
+  const SelectField = ({ name, label, options, disabled = false, onChange = onFieldChange }) => (
     <TextField
       select
       fullWidth
       name={name}
       label={label}
       value={formik.values[name]}
-      onChange={onFieldChange}
+      onChange={onChange}
       error={formik.touched[name] && Boolean(formik.errors[name])}
       helperText={formik.touched[name] && formik.errors[name]}
+      disabled={disabled}
       sx={{ mb: 2 }}
     >
       {options.map((opt) => (
@@ -962,7 +1011,7 @@ const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onA
                   row
                   name="tourType"
                   value={formik.values.tourType}
-                  onChange={formik.handleChange}
+                  onChange={handleTourTypeChange}
                 >
                   <FormControlLabel value="Domestic" control={<Radio />} label="Domestic" />
                   <FormControlLabel value="International" control={<Radio />} label="International" />
@@ -970,28 +1019,43 @@ const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onA
               </FormControl>
             </Grid>
 
-            {formik.values.tourType === "International" && (
-              <Grid size={{xs:12, md:6}}>
+            {/* Country Field - Different behavior for Domestic vs International */}
+            <Grid size={{xs:12, md:6}}>
+              {formik.values.tourType === "International" ? (
                 <SelectField
                   name="country"
-                  label="Country"
-                  options={getOptions("country")}
+                  label="Country *"
+                  options={countries && countries.length > 0 
+                    ? countries.map(c => c.name) 
+                    : ["Loading countries..."]}
+                  onChange={handleCountryChange}
                 />
-              </Grid>
-            )}
+              ) : (
+                <TextField
+                  fullWidth
+                  label="Country"
+                  value="India"
+                  disabled
+                  sx={{ mb: 2 }}
+                  helperText="Domestic tours are within India"
+                />
+              )}
+            </Grid>
 
+            {/* Tour Destination - Shows states of selected country */}
             <Grid size={{xs:12, md:6}}>
               <SelectField
                 name="destination"
-                label="Tour Destination"
-                options={getOptions("destination")}
+                label="Tour Destination *"
+                options={getDestinationOptions()}
+                disabled={formik.values.tourType === "International" && !formik.values.country}
               />
             </Grid>
 
-            <Grid size={{xs:12}}>
+            <Grid size={{xs:12, md:6}}>
               <SelectField
                 name="services"
-                label="Services Required"
+                label="Services Required *"
                 options={getOptions("services")}
               />
             </Grid>
@@ -1001,7 +1065,7 @@ const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onA
                 <TextField
                   fullWidth
                   name={name}
-                  label={label}
+                  label={label + (required ? " *" : "")}
                   type="number"
                   value={formik.values[name]}
                   onChange={formik.handleChange}
@@ -1019,7 +1083,7 @@ const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onA
             <Grid container spacing={2}>
               <Grid size={{xs:12, md:4}}>
                 <DatePicker
-                  label="Arrival Date"
+                  label="Arrival Date *"
                   value={formik.values.arrivalDate}
                   onChange={(val) => formik.setFieldValue("arrivalDate", val)}
                   renderInput={(params) => (
@@ -1051,7 +1115,7 @@ const Step2Content = ({ formik, dropdownOptions, customItems, onFieldChange, onA
 
               <Grid size={{xs:12, md:4}}>
                 <DatePicker
-                  label="Departure Date"
+                  label="Departure Date *"
                   value={formik.values.departureDate}
                   onChange={(val) => formik.setFieldValue("departureDate", val)}
                   renderInput={(params) => (
