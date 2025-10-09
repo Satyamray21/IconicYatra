@@ -23,9 +23,17 @@ export const createStaff = asyncHandler(async (req, res) => {
   if (existing) {
     throw new ApiError(409, "Staff with this mobile number already exists");
   }
-  const staffCount = await Staff.countDocuments();
-const staffId = `ICYR_ST${String(staffCount + 1).padStart(4, "0")}`;
 
+  // Find the maximum staffId
+  const lastStaff = await Staff.findOne().sort({ staffId: -1 });
+  let nextId = 1;
+  
+  if (lastStaff && lastStaff.staffId) {
+    const lastIdNumber = parseInt(lastStaff.staffId.replace("ICYR_ST", ""));
+    nextId = lastIdNumber + 1;
+  }
+
+  const staffId = `ICYR_ST${String(nextId).padStart(4, "0")}`;
 
   const staff = await Staff.create({
     staffId,
