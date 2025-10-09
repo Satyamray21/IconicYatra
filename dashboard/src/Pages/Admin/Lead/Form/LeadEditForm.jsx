@@ -357,6 +357,14 @@ const LeadEditForm = ({ leadId, onSave, onCancel }) => {
       formik.setValues(formData);
     }
   }, [viewedLead]);
+  useEffect(() => {
+    if (formik.values.source === "Referral") {
+      dispatch(fetchAllAssociates());
+    }
+  }, [formik.values.source, dispatch]);
+  useEffect(() => {
+    dispatch(fetchAllStaff());
+  }, [dispatch]);
 useEffect(() => {
   dispatch(fetchCountries());
 }, [dispatch]);
@@ -438,7 +446,46 @@ useEffect(() => {
     formik.setFieldValue(activeField, newName);
     setShowAssociateForm(false);
   };
+const renderSelectField = (label, name, options = []) => (
+    <TextField
+      fullWidth
+      select
+      label={label}
+      name={name}
+      value={formik.values[name]}
+      onChange={handleFieldChange}
+      onBlur={formik.handleBlur}
+      error={formik.touched[name] && Boolean(formik.errors[name])}
+      helperText={formik.touched[name] && formik.errors[name]}
+      sx={{ mb: 2 }}
+      disabled={
+      (name === "referralBy" && associatesLoading) ||
+      (name === "assignedTo" && staffLoading)
+    }
+    >
+      {name === "referralBy" && associatesLoading && (
+      <MenuItem disabled>Loading associates...</MenuItem>
+    )}
 
+    {/* Show loading message for assignedTo */}
+    {name === "assignedTo" && staffLoading && (
+      <MenuItem disabled>Loading staff...</MenuItem>
+    )}
+
+    {/* Show normal options when not loading */}
+    {!associatesLoading &&
+      !staffLoading &&
+      options.map((opt) => (
+        <MenuItem key={opt} value={opt}>
+          {opt}
+        </MenuItem>
+      ))}
+
+      {name !== "priority" && (
+        <MenuItem value="__add_new__">➕ Add New</MenuItem>
+      )}
+    </TextField>
+  );
   const getStepContent = (step) => {
     switch (step) {
       case 0:
@@ -451,6 +498,10 @@ useEffect(() => {
             countries={countries} // Add this line
           states={states} // Add this line
           cities={cities}
+           staffList={staffList} // Add this
+          staffLoading={staffLoading} // Add this
+          associates={associates} // Add this
+          associatesLoading={associatesLoading} // Add this
           />
         );
       case 1:
@@ -629,8 +680,13 @@ useEffect(() => {
 // Step 1 Content Component
 const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick,countries, // Add this prop
   states,    // Add this prop
-  cities    }) => {
-  const renderSelectField = (label, name, options = []) => {
+  cities ,
+  staffList, // Add this prop
+  staffLoading, // Add this prop
+  associates, // Add this prop
+  associatesLoading
+   }) => {
+   const renderSelectField = (label, name, options = []) => {
     // Combine dropdown options and current value to ensure it appears
     const allOptions = [...new Set([...options, formik.values[name]].filter(Boolean))];
     
@@ -645,12 +701,28 @@ const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick,co
         error={formik.touched[name] && Boolean(formik.errors[name])}
         helperText={formik.touched[name] && formik.errors[name]}
         sx={{ mb: 2 }}
+        disabled={
+          (name === "referralBy" && associatesLoading) ||
+          (name === "assignedTo" && staffLoading)
+        }
       >
-        {allOptions.map((opt) => (
+        {/* Show loading message for referralBy */}
+        {name === "referralBy" && associatesLoading && (
+          <MenuItem disabled>Loading associates...</MenuItem>
+        )}
+
+        {/* Show loading message for assignedTo */}
+        {name === "assignedTo" && staffLoading && (
+          <MenuItem disabled>Loading staff...</MenuItem>
+        )}
+
+        {/* Show normal options when not loading */}
+        {!associatesLoading && !staffLoading && allOptions.map((opt) => (
           <MenuItem key={opt} value={opt}>
             {opt}
           </MenuItem>
         ))}
+
         <MenuItem value="__add_new__">➕ Add New</MenuItem>
       </TextField>
     );
@@ -788,14 +860,31 @@ const Step1Content = ({ formik, dropdownOptions, onFieldChange, onAddNewClick,co
             {renderSelectField("Source *", "source", dropdownOptions.source)}
 
             {formik.values.businessType === "B2B" &&
-              formik.values.source === "Referral" &&
-              renderSelectField("Referral By", "referralBy", dropdownOptions.referralBy)}
+  formik.values.source === "Referral" &&
+  renderSelectField(
+    "Referral By",
+    "referralBy",
+    associatesLoading
+      ? ["Loading associates..."] // Empty while loading
+      : associates.map((a) => a.personalDetails.fullName) // ✅ Use correct field from API
+  )}
+
 
             {formik.values.businessType === "B2B" &&
               formik.values.source === "Agent's" &&
-              renderSelectField("Agent Name", "agentName", dropdownOptions.agentName)}
+              renderSelectField(
+                "Agent Name",
+                "agentName",
+                dropdownOptions.agentName
+              )}
 
-            {renderSelectField("Assigned To *", "assignedTo", dropdownOptions.assignedTo)}
+         {renderSelectField(
+  "Assigned To *",
+  "assignedTo",
+  staffLoading
+    ? []
+    : staffList.map((staff) => staff.personalDetails?.fullName || staff.name)
+)}
           </Box>
         </Grid>
       </Grid>
