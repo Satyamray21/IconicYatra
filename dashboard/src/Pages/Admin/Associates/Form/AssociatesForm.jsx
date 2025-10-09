@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -17,8 +17,15 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import dayjs from "dayjs";
 import AssociateFirmForm from "./AssociateFirmForm";
-import { useDispatch } from "react-redux";
-import {createAssociate} from "../../../../features/associate/associateSlice"
+import { useDispatch,useSelector } from "react-redux";
+import {createAssociate} from "../../../../features/associate/associateSlice";
+import {
+  fetchCountries,
+  fetchStatesByCountry,
+  fetchCitiesByState,
+  clearStates,
+  clearCities,
+} from "../../../../features/location/locationSlice";
 const titles = ["Mr", "Mrs", "Ms", "Dr"];
 const roles = ["B2B Vendor", "Hotel Vendor", "Referral Partner", "Staff", "Sub Agent", "Vehicle Vendor"];
 const countries = ["India", "USA"];
@@ -56,7 +63,12 @@ const AssociatesForm = () => {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
+   const {
+      countries: countriesData,
+      states: statesData,
+      cities: citiesData,
+      loading,
+    } = useSelector((state) => state.location);
 
 const handleFinalSubmit = (values) => {
   const formattedData = {
@@ -179,7 +191,49 @@ onSubmit: (values) => {
     resetForm,
   } = formik;
  
+useEffect(() => {
+    dispatch(fetchCountries());
+  }, [dispatch]);
 
+  useEffect(() => {
+    if (values.country) {
+      dispatch(fetchStatesByCountry(values.country));
+      setFieldValue("state", "");
+      setFieldValue("city", "");
+      dispatch(clearCities());
+    } else {
+      dispatch(clearStates());
+      dispatch(clearCities());
+    }
+  }, [values.country, dispatch, setFieldValue]);
+
+  useEffect(() => {
+    if (values.state && values.country) {
+      dispatch(
+        fetchCitiesByState({
+          countryName: values.country,
+          stateName: values.state,
+        })
+      );
+    } else {
+      dispatch(clearCities());
+    }
+  }, [values.state, values.country, dispatch]);
+const renderSelectOptions = (options, loadingText = "Loading...") => {
+    if (loading) {
+      return <MenuItem disabled>{loadingText}</MenuItem>;
+    }
+    
+    if (!options || options.length === 0) {
+      return <MenuItem disabled>No options available</MenuItem>;
+    }
+
+    return options.map((option) => (
+      <MenuItem key={option} value={option}>
+        {option}
+      </MenuItem>
+    ));
+  };
 
   return (
     <Box p={3}>
@@ -307,11 +361,10 @@ onSubmit: (values) => {
                         setFieldValue("city", "");
                       }}
                     >
-                      {countries.map((c) => (
-                        <MenuItem key={c} value={c}>
-                          {c}
-                        </MenuItem>
-                      ))}
+                       {renderSelectOptions(
+                        countriesData?.map((c) => c.name),
+                        "Loading countries..."
+                      )}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -327,11 +380,10 @@ onSubmit: (values) => {
                       }}
                       disabled={!values.country}
                     >
-                      {(states[values.country] || []).map((s) => (
-                        <MenuItem key={s} value={s}>
-                          {s}
-                        </MenuItem>
-                      ))}
+                       {renderSelectOptions(
+                        statesData?.map((s) => s.name),
+                        "Loading states..."
+                      )}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -344,11 +396,10 @@ onSubmit: (values) => {
                       onChange={handleChange}
                       disabled={!values.state}
                     >
-                      {(cities[values.state] || []).map((c) => (
-                        <MenuItem key={c} value={c}>
-                          {c}
-                        </MenuItem>
-                      ))}
+                      {renderSelectOptions(
+                        citiesData?.map((c) => c.name),
+                        "Loading cities..."
+                      )}
                     </Select>
                   </FormControl>
                 </Grid>
