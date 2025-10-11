@@ -26,14 +26,22 @@ import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
 import { getLeadOptions,addLeadOption } from "../../../../features/leads/leadSlice"
+import { fetchCountries, fetchStatesByCountry, clearStates } from '../../../../features/location/locationSlice';
 import axios from "../../../../utils/axios"
+
 const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     console.log("✅ LeadTourForm props:", { onComplete, leadData, isSubmitting });
 
   const location = useLocation();
-   const dispatch = useDispatch();
-     const { options, loading: optionsLoading, error } = useSelector((state) => state.leads);
-     
+  const dispatch = useDispatch();
+  const { options, loading: optionsLoading, error } = useSelector((state) => state.leads);
+  
+  // Get location data from Redux store
+  const {
+    countries,
+    states,             
+    loading: locationLoading,
+  } = useSelector((state) => state.location);
 
   const [openDialog, setOpenDialog] = React.useState(false);
   const [currentField, setCurrentField] = React.useState("");
@@ -55,8 +63,10 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     message: "",
     severity: "success",
   });
- useEffect(() => {
+
+  useEffect(() => {
     dispatch(getLeadOptions());
+    dispatch(fetchCountries()); // Fetch countries on component mount
   }, [dispatch]);
 
   // Get leadData from props or location state
@@ -119,82 +129,143 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
       }),
     }),
     onSubmit: (values) => {
-  console.log("✅ Tour form submitted", values);
+      console.log("✅ Tour form submitted", values);
 
-  const formattedValues = {
-    ...values,
-    transport: values.transport === "Yes",
-    servicesRequired: [values.services],               // ✅ Fix 2
-    hotelType: [values.hotelType], 
-     tourDestination: values.destination,
-    arrivalDate: values.arrivalDate
-      ? dayjs(values.arrivalDate).format("YYYY-MM-DD")
-      : null,
-    departureDate: values.departureDate
-      ? dayjs(values.departureDate).format("YYYY-MM-DD")
-      : null,
-  };
+      const formattedValues = {
+        ...values,
+        transport: values.transport === "Yes",
+        servicesRequired: [values.services],
+        hotelType: [values.hotelType], 
+        tourDestination: values.destination,
+        arrivalDate: values.arrivalDate
+          ? dayjs(values.arrivalDate).format("YYYY-MM-DD")
+          : null,
+        departureDate: values.departureDate
+          ? dayjs(values.departureDate).format("YYYY-MM-DD")
+          : null,
+      };
 
-  if (typeof onComplete === "function") {
-    onComplete(formattedValues);
-  } else {
-    console.error("❌ onComplete is not a function");
-  }
-}
-
+      if (typeof onComplete === "function") {
+        onComplete(formattedValues);
+      } else {
+        console.error("❌ onComplete is not a function");
+      }
+    }
   });
 
   const { values, handleChange, setFieldValue, touched, errors } = formik;
-const calculateAccommodation = async () => {
-  try {
-    const members = {
-      adults: values.adults,
-      children: values.children,
-      kidsWithoutMattress: values.kidsWithoutMattress,
-      infants: values.infants,
-    };
 
-    const accommodation = {
-      sharingType: values.sharingType,
-      noOfRooms: values.noOfRooms,
-    };
-
-    const { data } = await axios.post(
-      "/accommodation/calculate-accommodation",
-      { members, accommodation }
-    );
-
-    if (data.success) {
-      setFieldValue("noOfRooms", data.data.autoCalculatedRooms);
-      setFieldValue("noOfMattress", data.data.extraMattress);
-    }
-  } catch (error) {
-    console.error("Accommodation calculation failed:", error);
-  }
-};
-useEffect(() => {
-  if (values.sharingType && values.noOfRooms) {
-    calculateAccommodation();
-  }
-}, [
-  values.sharingType,
-  values.noOfRooms,
-  values.adults,
-  values.children,
-  values.kidsWithoutMattress,
-  values.infants,
-]);
-useEffect(() => {
-  if (values.arrivalDate && values.departureDate) {
-    const nights = dayjs(values.departureDate).diff(dayjs(values.arrivalDate), "day");
-
-    if (nights >= 0) {
-      setFieldValue("noOfNights", nights);
+  // Handle tour type change
+  const handleTourTypeChange = (e) => {
+    const tourType = e.target.value;
+    formik.handleChange(e);
+    
+    if (tourType === "Domestic") {
+      // For domestic tours, set country to India and fetch Indian states
+      setFieldValue("country", "India");
+      setFieldValue("destination", "");
     } else {
-      setFieldValue("noOfNights", 0);
+      // For international tours, clear the country selection
+      setFieldValue("country", "");
+      setFieldValue("destination", "");
+      dispatch(clearStates());
     }
-  }
-}, [values.arrivalDate, values.departureDate, setFieldValue]);
+  };
+
+  // Handle country change for international tours
+  const handleCountryChange = (e) => {
+    const country = e.target.value;
+    if (country === "__add_new") {
+      handleOpenDialog("country");
+    } else {
+      setFieldValue("country", country);
+      setFieldValue("destination", ""); // Clear destination when changing country
+    }
+  };
+
+  // Fetch states when country changes (for international tours)
+  useEffect(() => {
+    if (values.tourType === "International" && values.country) {
+      dispatch(fetchStatesByCountry(values.country));
+    }
+  }, [values.country, values.tourType, dispatch]);
+
+  // Get destination options based on selected country
+  const getDestinationOptions = () => {
+    if (values.tourType === "Domestic") {
+      // For domestic tours, show Indian states
+      if (locationLoading) {
+        return ["Loading states..."];
+      }
+      return states && states.length > 0 
+        ? states.map(s => s.name)
+        : ["No states available"];
+    } else {
+      // For international tours, show states of selected country
+      if (!values.country) {
+        return ["Select a country first"];
+      }
+      if (locationLoading) {
+        return ["Loading states..."];
+      }
+      return states && states.length > 0 
+        ? states.map(s => s.name)
+        : ["No states available for selected country"];
+    }
+  };
+
+  const calculateAccommodation = async () => {
+    try {
+      const members = {
+        adults: values.adults,
+        children: values.children,
+        kidsWithoutMattress: values.kidsWithoutMattress,
+        infants: values.infants,
+      };
+
+      const accommodation = {
+        sharingType: values.sharingType,
+        noOfRooms: values.noOfRooms,
+      };
+
+      const { data } = await axios.post(
+        "/accommodation/calculate-accommodation",
+        { members, accommodation }
+      );
+
+      if (data.success) {
+        setFieldValue("noOfRooms", data.data.autoCalculatedRooms);
+        setFieldValue("noOfMattress", data.data.extraMattress);
+      }
+    } catch (error) {
+      console.error("Accommodation calculation failed:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (values.sharingType && values.noOfRooms) {
+      calculateAccommodation();
+    }
+  }, [
+    values.sharingType,
+    values.noOfRooms,
+    values.adults,
+    values.children,
+    values.kidsWithoutMattress,
+    values.infants,
+  ]);
+
+  useEffect(() => {
+    if (values.arrivalDate && values.departureDate) {
+      const nights = dayjs(values.departureDate).diff(dayjs(values.arrivalDate), "day");
+
+      if (nights >= 0) {
+        setFieldValue("noOfNights", nights);
+      } else {
+        setFieldValue("noOfNights", 0);
+      }
+    }
+  }, [values.arrivalDate, values.departureDate, setFieldValue]);
 
   const handleOpenDialog = (fieldName) => {
     setCurrentField(fieldName);
@@ -206,68 +277,63 @@ useEffect(() => {
     setNewItem("");
   };
 
-const handleAddNewItem = async () => {
-  if (!addMore.trim()) return;
+  const handleAddNewItem = async () => {
+    if (!addMore.trim()) return;
 
-  try {
-    const newValue = addMore.trim();
-    const backendField = currentField; // use correct DB field
+    try {
+      const newValue = addMore.trim();
+      const backendField = currentField;
 
-    // Dispatch Redux thunk to save in DB + refresh options
-    await dispatch(addLeadOption({ fieldName: backendField, value: newValue })).unwrap();
+      // Dispatch Redux thunk to save in DB + refresh options
+      await dispatch(addLeadOption({ fieldName: backendField, value: newValue })).unwrap();
 
-    // Set the selected value instantly
-    setFieldValue(currentField, newValue);
+      // Set the selected value instantly
+      setFieldValue(currentField, newValue);
 
-    // Show success message
-    setSnackbar({
-      open: true,
-      message: `New ${currentField} added successfully`,
-      severity: "success",
-    });
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: `New ${currentField} added successfully`,
+        severity: "success",
+      });
 
-    handleCloseDialog();
-  } catch (error) {
-    setSnackbar({
-      open: true,
-      message: "Failed to add new option",
-      severity: "error",
-    });
-  }
-};
+      handleCloseDialog();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to add new option",
+        severity: "error",
+      });
+    }
+  };
 
+  const fieldMapping = {
+    destination: "tourDestination",
+    services: "servicesRequired",
+    hotelType: "hotelType",
+    mealPlan: "mealPlan",
+    sharingType: "sharingType",
+    arrivalCity: "arrivalCity",
+    arrivalLocation: "arrivalLocation",
+    departureCity: "departureCity",
+    departureLocation: "departureLocation",
+    country: "country",
+  };
 
+  const getOptionsForField = (fieldName) => {
+    const filteredOptions = options
+      ?.filter((opt) => opt.fieldName === fieldName)
+      .map((opt) => ({ value: opt.value, label: opt.value }));
 
-
-const fieldMapping = {
-  destination: "tourDestination",
-  services: "servicesRequired",
-  hotelType: "hotelType",
-  mealPlan: "mealPlan",
-  sharingType: "sharingType",
-  arrivalCity: "arrivalCity",
-  arrivalLocation: "arrivalLocation",
-  departureCity: "departureCity",
-  departureLocation: "departureLocation",
-  country: "country",
-};
-
-const getOptionsForField = (fieldName) => {
-  const filteredOptions = options
-    ?.filter((opt) => opt.fieldName === fieldName)
-    .map((opt) => ({ value: opt.value, label: opt.value }));
-
-  return [
-    ...(filteredOptions || []),
-    ...(customItems[fieldName] || []).map((opt) => ({
-      value: opt,
-      label: opt,
-    })),
-    { value: "__add_new", label: "+ Add New" },
-  ];
-};
-
-
+    return [
+      ...(filteredOptions || []),
+      ...(customItems[fieldName] || []).map((opt) => ({
+        value: opt,
+        label: opt,
+      })),
+      { value: "__add_new", label: "+ Add New" },
+    ];
+  };
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
@@ -320,16 +386,17 @@ const getOptionsForField = (fieldName) => {
             Basic Tour Details
           </Typography>
           {optionsLoading && (
-          <Box my={2} display="flex" justifyContent="center">
-            <CircularProgress size={24} />
-          </Box>
-        )}
+            <Box my={2} display="flex" justifyContent="center">
+              <CircularProgress size={24} />
+            </Box>
+          )}
 
-        {error && (
-          <Alert severity="error" sx={{ my: 2 }}>
-            Failed to load lead options: {error}
-          </Alert>
-        )}
+          {error && (
+            <Alert severity="error" sx={{ my: 2 }}>
+              Failed to load lead options: {error}
+            </Alert>
+          )}
+          
           <Grid container spacing={2}>
             <Grid size={{xs:12, md:6}}>
               <FormControl>
@@ -338,7 +405,7 @@ const getOptionsForField = (fieldName) => {
                   row
                   name="tourType"
                   value={values.tourType}
-                  onChange={handleChange}
+                  onChange={handleTourTypeChange} // Use the new handler
                 >
                   <FormControlLabel
                     value="Domestic"
@@ -354,72 +421,79 @@ const getOptionsForField = (fieldName) => {
               </FormControl>
             </Grid>
 
-            {values.tourType === "International" && (
-              <Grid size={{xs:12, md:6}}>
+            {/* Country Field - Different behavior for Domestic vs International */}
+            <Grid size={{xs:12, md:6}}>
+              {values.tourType === "International" ? (
                 <TextField
                   select
                   fullWidth
                   name="country"
-                  label="Country"
+                  label="Country *"
                   value={values.country}
-                  onChange={handleChange}
+                  onChange={handleCountryChange} // Use the new handler
                   error={touched.country && Boolean(errors.country)}
                   helperText={touched.country && errors.country}
+                  disabled={locationLoading}
                 >
-                  {getOptionsForField("country").map((option) =>
-                    option.value === "__add_new" ? (
-                      <MenuItem
-                        key="add-new-country"
-                        value=""
-                        onClick={() => handleOpenDialog("country")}
-                      >
-                        + Add New
-                      </MenuItem>
+                  {locationLoading ? (
+                    <MenuItem disabled>Loading countries...</MenuItem>
+                  ) : (
+                    countries && countries.length > 0 ? (
+                      countries.map((country) => (
+                        <MenuItem key={country.name} value={country.name}>
+                          {country.name}
+                        </MenuItem>
+                      ))
                     ) : (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
+                      <MenuItem disabled>No countries available</MenuItem>
                     )
                   )}
+                  <MenuItem value="__add_new">+ Add New</MenuItem>
                 </TextField>
-              </Grid>
-            )}
+              ) : (
+                <TextField
+                  fullWidth
+                  label="Country"
+                  value="India"
+                  disabled
+                  helperText="Domestic tours are within India"
+                />
+              )}
+            </Grid>
 
+            {/* Tour Destination - Shows states of selected country */}
             <Grid size={{xs:12, md:6}}>
               <TextField
                 select
                 fullWidth
                 name="destination"
-                label="Tour Destination"
+                label="Tour Destination *"
                 value={values.destination}
                 onChange={handleChange}
                 error={touched.destination && Boolean(errors.destination)}
                 helperText={touched.destination && errors.destination}
+                disabled={
+                  values.tourType === "International" && !values.country ||
+                  locationLoading
+                }
               >
-                {getOptionsForField("destination").map((option) =>
-                  option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-destination"
-                      value=""
-                      onClick={() => handleOpenDialog("destination")}
-                    >
-                      + Add New
-                    </MenuItem>
-                  ) : (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  )
-                )}
+                {getDestinationOptions().map((option, index) => (
+                  <MenuItem key={index} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+                <MenuItem value="__add_new" onClick={() => handleOpenDialog("destination")}>
+                  + Add New
+                </MenuItem>
               </TextField>
             </Grid>
 
-            <Grid size={{xs:12}}>
+            <Grid size={{xs:12, md:6}}>
               <TextField
                 select
                 fullWidth
                 name="services"
-                label="Services Required"
+                label="Services Required *"
                 value={values.services}
                 onChange={handleChange}
                 error={touched.services && Boolean(errors.services)}
@@ -498,6 +572,7 @@ const getOptionsForField = (fieldName) => {
           </Grid>
         </Box>
 
+        {/* Rest of the form remains the same */}
         <Box mt={3} p={2} border={1} borderRadius={2} borderColor="grey.300">
           <Typography variant="subtitle1" gutterBottom>
             Pickup/Drop
@@ -791,15 +866,14 @@ const getOptionsForField = (fieldName) => {
               />
             </Grid>
             <Grid size={{xs:4}}>
-             <TextField
-  fullWidth
-  name="noOfNights"
-  label="No of Nights"
-  type="number"
-  value={values.noOfNights}
-  disabled
-/>
-
+              <TextField
+                fullWidth
+                name="noOfNights"
+                label="No of Nights"
+                type="number"
+                value={values.noOfNights}
+                disabled
+              />
             </Grid>
           </Grid>
         </Box>
