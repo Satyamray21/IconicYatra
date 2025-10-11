@@ -24,6 +24,7 @@ export const updateStaff = createAsyncThunk(
     // Map form data back into backend structure
     const payload = {
       personalDetails: {
+        title: data.title,
         fullName: data.fullName,
         mobileNumber: data.mobile,
         alternateContact: data.alternateContact,
@@ -78,6 +79,7 @@ const staffSlice = createSlice({
     list: [],
     selected: null,
     loading: false,
+    updating: false,
     error: null,
   },
   reducers: {
@@ -148,10 +150,19 @@ const staffSlice = createSlice({
       .addCase(createStaff.fulfilled, (state, action) => {
         state.list.push(action.payload);
       })
-      .addCase(updateStaff.fulfilled, (state, action) => {
-        const idx = state.list.findIndex(staff => staff._id === action.payload._id);
-        if (idx !== -1) state.list[idx] = action.payload;
-      })
+      .addCase(updateStaff.pending, (state) => {
+  state.updating = true;
+})
+.addCase(updateStaff.fulfilled, (state, action) => {
+  state.updating = false;
+  const idx = state.list.findIndex(staff => staff._id === action.payload._id);
+  if (idx !== -1) state.list[idx] = action.payload;
+})
+.addCase(updateStaff.rejected, (state, action) => {
+  state.updating = false;
+  state.error = action.error.message;
+})
+
       .addCase(deleteStaff.fulfilled, (state, action) => {
         state.list = state.list.filter(staff => staff._id !== action.payload);
       });
