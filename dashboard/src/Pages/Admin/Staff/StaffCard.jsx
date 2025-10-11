@@ -110,7 +110,8 @@ const StaffCard = () => {
   };
 
   const mappedStaffList = staffList.map((staff, index) => ({
-    id: index + 1, // Required by DataGrid
+    id: staff.staffId,
+    sno:index+1, // Required by DataGrid
     staffId: staff.staffId,
     staffName: staff.personalDetails?.fullName || "",
     mobile: staff.personalDetails?.mobileNumber || "",
@@ -120,7 +121,7 @@ const StaffCard = () => {
   }));
 
   const columns = [
-    { field: "id", headerName: "Sr No.", width: 60 },
+    { field: "sno", headerName: "Sr No.", width: 60 },
     { field: "staffId", headerName: "Staff Id", width: 120 },
     { field: "staffName", headerName: "Staff Name", width: 200 },
     { field: "mobile", headerName: "Mobile", width: 120 },
