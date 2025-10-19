@@ -3,7 +3,7 @@ import axios from "../../utils/axios"; // your custom axios instance
 
 // Fetch all vouchers
 export const fetchAllVouchers = createAsyncThunk("voucher/fetchAll", async () => {
-  const res = await axios.get("/voucher");
+  const res = await axios.get("/payment");
   return res.data.data;
 });
 

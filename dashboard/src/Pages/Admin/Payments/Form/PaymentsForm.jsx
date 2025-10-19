@@ -33,8 +33,7 @@ const PaymentsForm = () => {
   const [voucherType, setVoucherType] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
   const [uploadFile, setUploadFile] = useState(null);
-    const [accountType, setAccountType] = useState("");
-const [partyName, setPartyName] = useState("");
+  
   const formik = useFormik({
     initialValues: {
       date: "",
@@ -79,6 +78,7 @@ const [partyName, setPartyName] = useState("");
     toast.success("Voucher created successfully!");
     resetForm();
     setVoucherType("");
+
   } catch (err) {
     console.error(err);
     toast.error("Failed to create voucher!");

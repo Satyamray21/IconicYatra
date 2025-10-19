@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
-
+import {useDispatch,useSelector} from "react-redux";
+import {fetchAllVouchers} from "../../../features/payment/paymentSlice"
 const PaymentsCard = () => {
     const navigate = useNavigate();
-    const [payments, setPayments] = useState([]);
-
-    useEffect(() => {
-        const storedPayments = JSON.parse(localStorage.getItem('payments')) || [];
-        setPayments(storedPayments);
-    }, []);
+  
+    const {list:payments=[]}=useSelector((state)=>state.payment)
+    const dispatch = useDispatch();
+   useEffect(()=>{
+    dispatch(fetchAllVouchers())
+   },[dispatch]);
 
     const handleAddPayment = () => {
         navigate('/payments-form');
@@ -37,6 +38,7 @@ const PaymentsCard = () => {
                         <Box flex={1.5}>Name</Box>
                         <Box flex={2}>Particulars</Box>
                         <Box flex={1}>Dr/Cr</Box>
+                        <Box flex={1}>Transition Id:</Box>
                         <Box flex={1}>Amount</Box>
                     </Box>
 
@@ -55,7 +57,8 @@ const PaymentsCard = () => {
                             <Box flex={1}>{payment.invoice || '-'}</Box>
                             <Box flex={1.5}>{payment.partyName}</Box>
                             <Box flex={2}>{payment.particulars}</Box>
-                            <Box flex={1}>{payment.type}</Box>
+                            <Box flex={1}>{payment.drCr}</Box>
+                            <Box flex={1}>{payment.reference}</Box>
                             <Box flex={1}>₹{payment.amount}</Box>
                         </Box>
                     ))}
