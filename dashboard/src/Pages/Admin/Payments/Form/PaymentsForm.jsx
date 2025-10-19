@@ -24,8 +24,8 @@ import { toast } from "react-toastify";
 import { createVoucher } from "../../../../features/payment/paymentSlice"; 
 import PartySelector from "./PartySelector"
 //const accountTypes = ["Savings", "Current", "Credit"];
-const partyNames = ["Dharamveer Singh", "Party B", "Party C"];
-const paymentModes = ["Cash", "Cheque", "UPI", "Bank Transfer"];
+
+const paymentModes = ["Cash", "Yes Bank", "kotak"];
 const paymentLink = "https://iconicyatra.com/payment";
 
 const PaymentsForm = () => {
@@ -61,30 +61,30 @@ const [partyName, setPartyName] = useState("");
         .required("Enter amount"),
     }),
     onSubmit: async (values, { resetForm }) => {
-      try {
-        const formData = new FormData();
-        formData.append("paymentType", voucherType);
-        formData.append("date", values.date);
-        formData.append("accountType", values.accountType);
-        formData.append("partyName", values.partyName);
-        formData.append("paymentMode", values.paymentMode);
-        formData.append("referenceNumber", values.reference);
-        formData.append("particulars", values.particulars);
-        formData.append("amount", values.amount);
-        formData.append("invoice", getNextInvoiceNumber());
-        if (uploadFile) formData.append("paymentScreenshot", uploadFile);
+  try {
+    const payload = {
+      paymentType: voucherType === "receive" ? "Receive Voucher" : "Payment Voucher",
+      date: values.date,
+      accountType: values.accountType,
+      partyName: values.partyName,
+      paymentMode: values.paymentMode,
+      referenceNumber: values.reference,
+      particulars: values.particulars,
+      amount: values.amount,
+      invoice: getNextInvoiceNumber(),
+    };
 
-        await dispatch(createVoucher(formData)).unwrap();
+    await dispatch(createVoucher(payload)).unwrap();
 
-        toast.success("Voucher created successfully!");
-        resetForm();
-        setPreviewImage(null);
-        setVoucherType("");
-      } catch (err) {
-        console.error(err);
-        toast.error("Failed to create voucher!");
-      }
-    },
+    toast.success("Voucher created successfully!");
+    resetForm();
+    setVoucherType("");
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to create voucher!");
+  }
+}
+
   });
 
   const getNextInvoiceNumber = () => {

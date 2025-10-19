@@ -6,28 +6,27 @@ export const createVoucher = asyncHandler(async (req, res) => {
   const {
     paymentType,
     date,
-    paymentScreenshot,
     accountType,
     partyName,
     paymentMode,
     referenceNumber,
     particulars,
     amount,
-    invoice
-  } = req.body;
+    invoice,
+  } = req.body; // req.body is now JSON
 
   if (!date || !accountType || !partyName || !paymentMode || !particulars || !amount) {
     res.status(400);
     throw new Error("Please provide all required fields.");
   }
-  const lastVoucher = await ReceivedVoucher.findOne().sort({ receiptNumber: -1 });
 
+  const lastVoucher = await ReceivedVoucher.findOne().sort({ receiptNumber: -1 });
   const nextReceiptNumber = lastVoucher?.receiptNumber ? lastVoucher.receiptNumber + 1 : 1;
   const invoiceId = `R-${nextReceiptNumber}`;
+
   const voucher = await ReceivedVoucher.create({
     paymentType,
     date,
-    paymentScreenshot,
     accountType,
     partyName,
     paymentMode,
@@ -36,15 +35,16 @@ export const createVoucher = asyncHandler(async (req, res) => {
     amount,
     invoice,
     receiptNumber: nextReceiptNumber,
-    invoiceId: invoiceId,
+    invoiceId,
   });
 
   res.status(201).json({
     success: true,
     message: "Voucher created successfully",
-    data: voucher
+    data: voucher,
   });
 });
+
 
 // @desc    Get all vouchers
 export const getAllVouchers = asyncHandler(async (req, res) => {

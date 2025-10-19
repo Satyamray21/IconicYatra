@@ -38,8 +38,8 @@ const receivedVoucherSchema = new mongoose.Schema({
     required: true,
   },
   invoice: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Invoice",
+    type:String,
+    unique:true
   },
 
   // 👇 New field added for Dr/Cr based on paymentType

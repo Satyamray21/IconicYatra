@@ -9,18 +9,18 @@ export const fetchAllVouchers = createAsyncThunk("voucher/fetchAll", async () =>
 
 // Fetch single voucher by ID
 export const fetchVoucherById = createAsyncThunk("voucher/fetchById", async (id) => {
-  const res = await axios.get(`/voucher/${id}`);
+  const res = await axios.get(`/payment/${id}`);
   return res.data.data;
 });
 
 // Create new voucher
 export const createVoucher = createAsyncThunk("voucher/create", async (voucherData) => {
-  const res = await axios.post("/voucher", voucherData);
+  const res = await axios.post("/payment", voucherData);
   return res.data.data;
 });
 
 // Update voucher
-export const updateVoucher = createAsyncThunk("voucher/update", async ({ id, data }) => {
+export const updateVoucher = createAsyncThunk("payment/update", async ({ id, data }) => {
   const res = await axios.put(`/voucher/${id}`, data);
   return res.data.data;
 });
