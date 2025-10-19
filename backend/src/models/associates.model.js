@@ -4,6 +4,9 @@ import { firmSchema } from "../common/firm.common.js";
 import { bankSchema } from "../common/bankDetails.common.js";
  const associateSchema =  mongoose.Schema({
      personalDetails :{
+      dob:{
+        type:Date,
+      },
         fullName:{
             type:String,
             required:true
@@ -29,6 +32,11 @@ import { bankSchema } from "../common/bankDetails.common.js";
           required:true,
           unique:true
         },
+        title:{
+
+          type:String,
+          required:true,
+        }
         
 
     },

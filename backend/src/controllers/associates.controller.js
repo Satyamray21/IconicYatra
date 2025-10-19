@@ -25,7 +25,9 @@ export const createAssociate = async (req, res, next) => {
         mobileNumber: personalDetails.mobileNumber,
         alternateContact: personalDetails.alternateContact,
         associateType: personalDetails.associateType,
-        email: personalDetails.email
+        email: personalDetails.email,
+        dob:personalDetails.dob,
+        title:personalDetails.title,
       },
       staffLocation: {
         country: staffLocation.country,
@@ -43,7 +45,7 @@ export const createAssociate = async (req, res, next) => {
         gstIn: firm.gstIn,
         cin: firm.cin,
         pan: firm.pan,
-        existingTurnOver: firm.existingTurnOver,
+        existingTurnOver: firm.turnover,
         firmName: firm.firmName,
         firmDescription: firm.firmDescription
       },
