@@ -20,7 +20,6 @@ import {
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import CustomQuotationStep6 from "../CustomQuotation/customquotationStep6";
 
 // Validation Schema
 const validationSchema = Yup.object({
@@ -45,6 +44,17 @@ const CustomQuotationStep5 = ({
   cities,
   onNext
 }) => {
+  // Add debug logs
+  console.log("Step 5 Props:", {
+    clientName,
+    sector,
+    arrivalCity,
+    departureCity,
+    arrivalDate,
+    departureDate,
+    transport,
+    cities
+  });
   const [clients, setClients] = useState(["Client A", "Client B"]);
   const [vehicleTypes, setVehicleTypes] = useState([
     "Sedan",

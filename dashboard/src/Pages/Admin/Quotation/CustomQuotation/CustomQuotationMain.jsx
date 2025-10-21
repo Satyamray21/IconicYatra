@@ -137,16 +137,19 @@ console.log("🔍 Current step:", step);
             onNext={handleStep4}
           />
         )}
-
-        {step === 5 && (
-          <CustomQuotationStep5
-            clientName={formData.clientDetails.clientName}
-            sector={formData.clientDetails.sector}
-            cities={formData.pickupDrop}
-            tourDetails={formData.tourDetails}
-            onNext={handleStep5}
-          />
-        )}
+{step === 5 && (
+  <CustomQuotationStep5
+    clientName={formData.clientDetails.clientName}
+    sector={formData.clientDetails.sector}
+    arrivalCity={formData.tourDetails?.arrivalCity || ""}
+    departureCity={formData.tourDetails?.departureCity || ""}
+    arrivalDate={formData.tourDetails?.arrivalDate || null}
+    departureDate={formData.tourDetails?.departureDate || null}
+    transport={formData.tourDetails?.transport || "Yes"} // Make sure this is passed from Step 3
+    cities={formData.pickupDrop}
+    onNext={handleStep5}
+  />
+)}
 
         {step === 6 && (
           <CustomQuotationStep6

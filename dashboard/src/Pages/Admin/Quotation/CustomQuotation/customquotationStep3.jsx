@@ -84,21 +84,21 @@ const TourDetailsForm = ({ clientName, sector,cities,onNext }) => {
 
   // Auto-fill from lead data only once when lead is found
   useEffect(() => {
-    if (selectedLead && !initialValuesSet) {
-      const leadData = selectedLead.tourDetails?.pickupDrop;
-      if (leadData) {
-        formik.setValues({
-          ...formik.values,
-          arrivalCity: leadData.arrivalCity || "",
-          departureCity: leadData.departureCity || "",
-          arrivalDate: leadData.arrivalDate ? new Date(leadData.arrivalDate) : null,
-          departureDate: leadData.departureDate ? new Date(leadData.departureDate) : null,
-          transport: selectedLead.tourDetails?.accommodation?.transport === false ? "No" : "Yes"
-        });
-        setInitialValuesSet(true);
-      }
+  if (selectedLead && !initialValuesSet) {
+    const leadData = selectedLead.tourDetails?.pickupDrop;
+    if (leadData) {
+      formik.setValues({
+        ...formik.values,
+        arrivalCity: leadData.arrivalCity || "",
+        departureCity: leadData.departureCity || "",
+        arrivalDate: leadData.arrivalDate ? new Date(leadData.arrivalDate) : null,
+        departureDate: leadData.departureDate ? new Date(leadData.departureDate) : null,
+        transport: selectedLead.tourDetails?.accommodation?.transport === false ? "No" : "Yes"
+      });
+      setInitialValuesSet(true);
     }
-  }, [selectedLead, initialValuesSet]);
+  }
+}, [selectedLead, initialValuesSet]);
 
   
 
@@ -200,15 +200,16 @@ const TourDetailsForm = ({ clientName, sector,cities,onNext }) => {
           {/* Transport */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle1">Transport</Typography>
-            <RadioGroup
-              row
-              name="transport"
-              value={formik.values.transport}
-              onChange={formik.handleChange}
-            >
-              <FormControlLabel value="Yes" control={<Radio />} label="Yes" />
-              <FormControlLabel value="No" control={<Radio />} label="No" />
-            </RadioGroup>
+           // In the transport RadioGroup section, ensure it uses "Yes"/"No" values:
+<RadioGroup
+  row
+  name="transport"
+  value={formik.values.transport}
+  onChange={formik.handleChange}
+>
+  <FormControlLabel value="Yes" control={<Radio />} label="Yes" />
+  <FormControlLabel value="No" control={<Radio />} label="No" />
+</RadioGroup>
           </Grid>
 
           {/* Dates */}
