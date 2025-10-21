@@ -212,7 +212,8 @@ const LeadCard = () => {
     dispatch(changeLeadStatus({ leadId: lead.leadId, status: newStatus }))
       .unwrap()
       .then(() => {
-        dispatch(getAllLeads()); // Refresh list after update
+        dispatch(getAllLeads());
+        dispatch(fetchLeadsReports());// Refresh list after update
         setSnackbar({
           open: true,
           message: `Lead status updated to ${newStatus}`,

@@ -83,6 +83,7 @@ const CustomQuotationForm = ({
   const initializeCityPrices = (cities) => {
     return cities.reduce((acc, city, index) => {
       acc[index] = {
+        hotelName: '',
         standardPrice: '',
         deluxePrice: '',
         superiorPrice: ''
@@ -138,6 +139,7 @@ const CustomQuotationForm = ({
               destinations: formData.pickupDrop.map((city, index) => ({
                 cityName: city.cityName,
                 nights: city.nights,
+                hotelName: values.cityPrices[index]?.hotelName || '',
                 prices: {
                   standard: values.cityPrices[index]?.standardPrice || 0,
                   deluxe: values.cityPrices[index]?.deluxePrice || 0,
@@ -186,14 +188,31 @@ const CustomQuotationForm = ({
     }
   }, [cities.length]);
 
-  // Debug log to see what data is being used
-  useEffect(() => {
-    console.log("🔍 Lead Data for Auto-population:", {
-      leadMembers,
-      leadAccommodation,
-      initialValues: formik.initialValues
+  // Calculate totals
+  const calculateTotals = () => {
+    const totals = {
+      totalNights: 0,
+      totalStandard: 0,
+      totalDeluxe: 0,
+      totalSuperior: 0,
+    };
+
+    cities.forEach((city, index) => {
+      const nights = parseInt(city.nights) || 0;
+      const standardPrice = parseFloat(formik.values.cityPrices?.[index]?.standardPrice) || 0;
+      const deluxePrice = parseFloat(formik.values.cityPrices?.[index]?.deluxePrice) || 0;
+      const superiorPrice = parseFloat(formik.values.cityPrices?.[index]?.superiorPrice) || 0;
+
+      totals.totalNights += nights;
+      totals.totalStandard += standardPrice * nights;
+      totals.totalDeluxe += deluxePrice * nights;
+      totals.totalSuperior += superiorPrice * nights;
     });
-  }, []);
+
+    return totals;
+  };
+
+  const totals = calculateTotals();
 
   return (
     <Box sx={{ maxWidth: 1200, margin: '0 auto', p: 3 }}>
@@ -305,6 +324,7 @@ const CustomQuotationForm = ({
               <TableHead>
                 <TableRow>
                   <TableCell>Destination</TableCell>
+                  <TableCell>Hotel Name</TableCell>
                   <TableCell>Nights</TableCell>
                   <TableCell>Standard Price</TableCell>
                   <TableCell>Deluxe Price</TableCell>
@@ -315,6 +335,16 @@ const CustomQuotationForm = ({
                 {cities && cities.map((city, index) => (
                   <TableRow key={index}>
                     <TableCell>{city.cityName}</TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Hotel Name"
+                        name={`cityPrices[${index}].hotelName`}
+                        value={formik.values.cityPrices?.[index]?.hotelName || ''}
+                        onChange={formik.handleChange}
+                      />
+                    </TableCell>
                     <TableCell>{city.nights}</TableCell>
                     <TableCell>
                       <TextField
@@ -351,6 +381,35 @@ const CustomQuotationForm = ({
                     </TableCell>
                   </TableRow>
                 ))}
+                
+                {/* Totals Row */}
+                <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                  <TableCell colSpan={2} align="center">
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      TOTAL
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {totals.totalNights}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      ₹{totals.totalStandard.toFixed(2)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      ₹{totals.totalDeluxe.toFixed(2)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      ₹{totals.totalSuperior.toFixed(2)}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </TableContainer>
@@ -435,7 +494,6 @@ const CustomQuotationForm = ({
         </Paper>
 
         {/* Rest of the component remains the same */}
-        {/* ... (Company Margin, Discount, Taxes sections remain unchanged) */}
         <Divider sx={{ my: 3 }} />
 
         {/* Company Margin Section */}
