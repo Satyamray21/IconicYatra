@@ -32,6 +32,7 @@ import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 
 import { getAllVehicleQuotations } from "../../../features/quotation/vehicleQuotationSlice";
 import { getAllFlightQuotations } from "../../../features/quotation/flightQuotationSlice";
+import { getAllCustomQuotations } from "../../../features/quotation/customQuotationSlice";
 
 const stats = [
   { title: "Today's", confirmed: 0, inProcess: 0, cancelledIncomplete: 0 },
@@ -53,6 +54,11 @@ const QuotationCard = () => {
 
   const { quotations: flightList } = useSelector((state) => state.flightQuotation);
 
+ const { 
+  quotations: customList = [],
+  loading: customLoading,
+  error: customError 
+} = useSelector((state) => state.customQuotation);
 
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState("");
@@ -61,11 +67,14 @@ const QuotationCard = () => {
   useEffect(() => {
     dispatch(getAllVehicleQuotations());
     dispatch(getAllFlightQuotations());
+    dispatch(getAllCustomQuotations());
   }, [dispatch]);
-useEffect(() => {
-  console.log("Vehicle List:", vehicleList);
-  console.log("Flight List:", flightList);
-}, [vehicleList, flightList]);
+
+  useEffect(() => {
+    console.log("Vehicle List:", vehicleList);
+    console.log("Flight List:", flightList);
+    console.log("Custom List:", customList);
+  }, [vehicleList, flightList, customList]);
 
   const handleDeleteClick = (id) => {
     console.log("Delete quotation id:", id);
@@ -110,6 +119,22 @@ useEffect(() => {
     }
   };
 
+  // Calculate total nights from destinations
+  const calculateTotalNights = (destinations = []) => {
+    return destinations.reduce((total, destination) => total + (destination.nights || 0), 0);
+  };
+
+  // Get room type display text
+  const getRoomTypeDisplay = (roomType) => {
+    const roomTypeMap = {
+      "deluxe": "Deluxe",
+      "standard": "Standard", 
+      "superior": "Superior",
+      "4 star": "4 Star"
+    };
+    return roomTypeMap[roomType] || roomType || "N/A";
+  };
+
   // Table Columns
   const columns = [
     { field: "id", headerName: "Sr No.", width: 80 },
@@ -146,8 +171,9 @@ useEffect(() => {
     },
   ];
 
-  // Combine Vehicle + Flight Quotations
+  // Combine Vehicle + Flight + Custom Quotations
   const combinedList = [
+    // Vehicle Quotations
     ...(vehicleList || []).map((item, index) => ({
       id: `V-${index + 1}`,
       quoteId: item?.vehicleQuotationId || "N/A",
@@ -165,8 +191,10 @@ useEffect(() => {
       quotationStatus: item?.status || "Pending",
       formStatus: "Completed",
       businessType: "Travel",
+      rawData: item,
     })),
 
+    // Flight Quotations
     ...(flightList || []).map((item, index) => ({
       id: `F-${index + 1}`,
       quoteId: item?.flightQuotationId || "N/A",
@@ -185,6 +213,25 @@ useEffect(() => {
       quotationStatus: item?.status || "Pending",
       formStatus: "Completed",
       businessType: "Travel",
+      rawData: item,
+    })),
+
+    // Custom Quotations
+    ...(customList || []).map((item, index) => ({
+      id: `C-${index + 1}`,
+      quoteId: item?.quotationId || "N/A",
+      clientName: item?.clientDetails?.clientName || "N/A",
+      arrival: formatDate(item?.tourDetails?.arrivalDate),
+      departure: formatDate(item?.tourDetails?.departureDate),
+      sector: item?.clientDetails?.sector || "N/A",
+      title: item?.tourDetails?.quotationTitle || "Custom Tour",
+      noOfNight: calculateTotalNights(item?.tourDetails?.quotationDetails?.destinations) || "-",
+      tourType: item?.clientDetails?.tourType || "-",
+      type: "Custom",
+      quotationStatus: "Pending", // You might want to add status field to your custom quotations
+      formStatus: "Completed",
+      businessType: "Travel",
+      rawData: item,
     })),
   ];
 
@@ -194,6 +241,21 @@ useEffect(() => {
       String(value).toLowerCase().includes(search.toLowerCase())
     )
   );
+
+  // Handle row click navigation
+  const handleRowClick = (params) => {
+    if (params.row.type === "Flight") {
+      navigate(`/flightfinalize/${params.row.quoteId}`);
+    } else if (params.row.type === "Vehicle") {
+      navigate(`/vehiclefinalize/${params.row.quoteId}`);
+    } else if (params.row.type === "Custom") {
+      navigate(`/customfinalize/${params.row.quoteId}`, { 
+        state: { quotationData: params.row.rawData } 
+      });
+    } else {
+      navigate(`/quotation/${params.row.id}`);
+    }
+  };
 
   return (
     <Container maxWidth="xl">
@@ -276,15 +338,7 @@ useEffect(() => {
                 rowsPerPageOptions={[7, 25, 50, 100]}
                 autoHeight
                 disableRowSelectionOnClick
-                onRowClick={(params) => {
-                if (params.row.type === "Flight") {
-                  navigate(`/flightfinalize/${params.row.quoteId}`);
-                } else if (params.row.type === "Vehicle") {
-                  navigate(`/vehiclefinalize/${params.row.quoteId}`);
-                } else {
-                  navigate(`/quotation/${params.row.id}`);
-                }
-              }}
+                onRowClick={handleRowClick}
               />
             )}
           </Box>
