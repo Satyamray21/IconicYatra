@@ -34,9 +34,9 @@ export const getAllCustomQuotations = createAsyncThunk(
 // Get single quotation by MongoDB _id
 export const getCustomQuotationById = createAsyncThunk(
   "customQuotation/getById",
-  async (id, { rejectWithValue }) => {
+  async (quotationId, { rejectWithValue }) => {
     try {
-      const res = await axios.get(`${API_URL}/${id}`);
+      const res = await axios.get(`/customQT/${quotationId}`);
       return res.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Fetch failed");

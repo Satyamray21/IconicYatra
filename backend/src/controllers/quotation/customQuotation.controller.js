@@ -42,9 +42,9 @@ export const getAllCustomQuotations = asyncHandler(async (req, res) => {
 
 // Get Single Quotation by ID
 export const getCustomQuotationById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { quotationId } = req.params;
 
-  const quotation = await CustomQuotation.findById(id);
+  const quotation = await CustomQuotation.findOne({quotationId});
   if (!quotation) {
     throw new ApiError(404, "Quotation not found");
   }

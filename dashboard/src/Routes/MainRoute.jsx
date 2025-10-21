@@ -87,7 +87,7 @@ const MainRoute = () => {
         <Route path="/flightfinalize/:id" element={<FlightFinalize />} />
         <Route path="/vehiclefinalize/:id" element={<VehicleFinalize />} />
         <Route path="/hotelfinalize" element={<HotelFinalize />} />
-        <Route path="/customfinalize" element={<CustomFinalize />} />
+        <Route path="/customfinalize/:id" element={<CustomFinalize />} />
             </Routes>
         </DashboardLayout>
     ) : (

@@ -12,7 +12,7 @@ const router = Router();
 // CRUD
 router.post("/", createCustomQuotation);
 router.get("/", getAllCustomQuotations);
-router.get("/:id", getCustomQuotationById);
+router.get("/:quotationId", getCustomQuotationById);
 router.put("/:id", updateCustomQuotation);
 router.delete("/:id", deleteCustomQuotation);
 

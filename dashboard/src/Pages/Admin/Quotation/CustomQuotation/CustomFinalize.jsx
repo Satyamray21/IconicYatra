@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Grid,
@@ -6,10 +6,15 @@ import {
   Button,
   Card,
   CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Table,
   TableBody,
   TableCell,
   TableContainer,
+  TextField,
   TableHead,
   TableRow,
   Paper,
@@ -21,6 +26,9 @@ import {
   AccordionSummary,
   AccordionDetails,
   IconButton,
+  CircularProgress,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   FormatQuote as FormatQuoteIcon,
@@ -32,9 +40,6 @@ import {
   Person,
   LocationOn,
   CalendarToday,
-  AccessTime,
-  Route,
-  Group,
   CheckCircle,
   Cancel,
   Warning,
@@ -42,162 +47,188 @@ import {
   Language,
   ExpandMore,
   Edit,
+  Group,
   Receipt,
+  Route,
   Route as RouteIcon,
   Visibility,
-  Hotel as HotelIcon,
   AddCircleOutline,
   Image as ImageIcon,
   FormatQuote,
+  Delete,
+  Add,
 } from "@mui/icons-material";
+import { useParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 
 import EmailQuotationDialog from "../VehicleQuotation/Dialog/EmailQuotationDialog";
 import MakePaymentDialog from "../VehicleQuotation/Dialog/MakePaymentDialog";
-import FinalizeDialog from "../VehicleQuotation/Dialog/FinalizeDialog";
-import BankDetailsDialog from "../VehicleQuotation/Dialog/BankDetailsDialog";
+import FinalizeDialog from "./Dialog/FinalizeDialog";
+import HotelVendorDialog from "./Dialog/HotelVendor";
 import AddBankDialog from "../VehicleQuotation/Dialog/AddBankDialog";
 import EditDialog from "../VehicleQuotation/Dialog/EditDialog";
 import AddServiceDialog from "../VehicleQuotation/Dialog/AddServiceDialog";
 import AddFlightDialog from "../HotelQuotation/Dialog/FlightDialog";
+import { getCustomQuotationById } from "../../../../features/quotation/customQuotationSlice";
 
-// Initial data separated into individual objects for better organization
-const initialCustomer = {
-  name: "Amit Jaiswal",
-  location: "Andhya Pradesh",
-  phone: "+91 7053900957",
-  email: "amit.jaiswal@example.com",
+// Transaction Summary Dialog Component
+const TransactionSummaryDialog = ({ open, onClose }) => {
+  const tableHeaders = [
+    "Sr No.",
+    "Receipt",
+    "Invoice",
+    "Party Name",
+    "Transaction Remark",
+    "Transaction...",
+    "Dr/Cr",
+    "Amount",
+  ];
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{ sx: { minHeight: "400px" } }}
+    >
+      <DialogTitle>
+        <Typography variant="h6" component="div" fontWeight="bold">
+          Transaction Summary
+        </Typography>
+      </DialogTitle>
+      <DialogContent>
+        <TableContainer
+          component={Paper}
+          variant="outlined"
+          sx={{ border: "1px solid #e0e0e0" }}
+        >
+          <Table sx={{ minWidth: 800 }} aria-label="transaction summary table">
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                {tableHeaders.map((header, index) => (
+                  <TableCell
+                    key={index}
+                    sx={{
+                      fontWeight: "bold",
+                      borderRight:
+                        index < tableHeaders.length - 1
+                          ? "1px solid #e0e0e0"
+                          : "none",
+                    }}
+                  >
+                    {header}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              <TableRow>
+                <TableCell
+                  colSpan={tableHeaders.length}
+                  align="center"
+                  sx={{
+                    height: 120,
+                    color: "text.secondary",
+                    fontStyle: "italic",
+                  }}
+                >
+                  No data
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </DialogContent>
+    </Dialog>
+  );
 };
-
-const initialPickupDetails = {
-  arrival: "Arrival: Lucknow (22/08/2025) at Airport, 3:35PM",
-  departure: "Departure: Delhi (06/09/2025) from Local Address, 6:36PM",
-};
-
-const initialHotelDetails = {
-  guests: "6 Adults",
-  rooms: "3 Bedroom",
-  mealPlan: "CP, AP, EP",
-  destination: "3N Borong, 2N Damthang",
-  itinerary:
-    "This is only tentative schedule for sightseeing and travel. Actual sightseeing may get affected due to weather, road conditions, local authority notices, shortage of timing, or off days.",
-};
-
-const initialVehicle = [
-  {
-    pickup: { date: "22/08/2025", time: "3:35PM" },
-    drop: { date: "06/09/2025", time: "6:36PM" },
-  },
-];
-
-const initialPricing = {
-  discount: "₹ 200",
-  gst: "₹ 140",
-  total: "₹ 3,340",
-};
-
-const initialPolicies = {
-  inclusions: [
-    "All transfers tours in a Private AC cab.",
-    "Parking, Toll charges, Fuel and Driver expenses.",
-    "Hotel Taxes.",
-    "Car AC off during hill stations.",
-  ],
-  exclusions: "1. Any Cost change... (rest of exclusions)",
-  paymentPolicy: "50% amount to pay at confirmation, balance before 10 days.",
-  cancellationPolicy: "1. Before 15 days: 50%. 2. Within 7 days: 100%.",
-  terms:
-    "1. This is only a Quote. Availability is checked only on confirmation...",
-};
-
-const initialFooter = {
-  contact: "Amit Jaiswal | +91 7053900957 (Noida)",
-  phone: "+91 7053900957",
-  email: "amit.jaiswal@example.com",
-  received: "₹ 1,500",
-  balance: "₹ 1,840",
-  company: "Iconic Yatra",
-  address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
-  website: "https://www.iconicyatra.com",
-};
-
-const initialActions = [
-  "Finalize",
-  "Add Service",
-  "Email Quotation",
-  "Preview PDF",
-  "Make Payment",
-  "Add Flight", // Add this line
-];
-
-// Hotel pricing table data
-const hotelPricingData = [
-  {
-    destination: "Borong",
-    nights: "3 N",
-    standard: "Tempo Heritage Resort",
-    deluxe: "Tempo Heritage Resort",
-    superior: "Yovage The Aryan Regency",
-  },
-  {
-    destination: "Damthang",
-    nights: "2 N",
-    standard: "Tempo Heritage Resort",
-    deluxe: "Tempo Heritage Resort",
-    superior: "Yovage The Aryan Regency",
-  },
-  {
-    destination: "Quotation Cost",
-    nights: "-",
-    standard: "₹ 40,366",
-    deluxe: "₹ 440,829",
-    superior: "₹ 92,358",
-  },
-  {
-    destination: "IGST",
-    nights: "-",
-    standard: "₹ 2,018.3",
-    deluxe: "₹ 22,041.4",
-    superior: "₹ 4,617.9",
-  },
-  {
-    destination: "Total Quotation Cost",
-    nights: "5 N",
-    standard: "₹ 42,384",
-    deluxe: "₹ 462,870",
-    superior: "₹ 96,976",
-  },
-];
-
-const taxOptions = [
-  { value: "gst5", label: "GST 5%", rate: 5 },
-  { value: "gst18", label: "GST 18%", rate: 18 },
-  { value: "non", label: "Non", rate: 0 },
-];
 
 const CustomFinalize = () => {
-  // State management
+  const { id } = useParams();
+  const dispatch = useDispatch();
+  
+  const { 
+    selectedQuotation, 
+    loading, 
+    error 
+  } = useSelector((state) => state.customQuotation);
+
+  // State
   const [activeInfo, setActiveInfo] = useState(null);
   const [openFinalize, setOpenFinalize] = useState(false);
+  const [openAddFlight, setOpenAddFlight] = useState(false);
   const [vendor, setVendor] = useState("");
   const [isFinalized, setIsFinalized] = useState(false);
   const [invoiceGenerated, setInvoiceGenerated] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success"
+  });
+  const [itineraryDialog, setItineraryDialog] = useState({
+    open: false,
+    mode: 'add',
+    day: null,
+    title: "",
+    description: "",
+    id: null
+  });
 
-  // Data state
+  // Initialize quotation with API data or defaults
   const [quotation, setQuotation] = useState({
     date: "27/08/2025",
     reference: "41",
-    actions: initialActions,
-    customer: initialCustomer,
-    pickup: initialPickupDetails,
-    hotel: initialHotelDetails,
-    vehicles: initialVehicle,
-    pricing: initialPricing,
-    policies: initialPolicies,
-    footer: initialFooter,
+    actions: ["Finalize", "Add Service", "Email Quotation", "Preview PDF", "Make Payment", "Add Flight", "Transaction"],
     bannerImage: "",
+    customer: {
+      name: "Amit Jaiswal",
+      location: "Andhya Pradesh",
+      phone: "+91 7053900957",
+      email: "amit.jaiswal@example.com",
+    },
+    pickup: {
+      arrival: "Arrival: Lucknow (22/08/2025) at Airport, 3:35PM",
+      departure: "Departure: Delhi (06/09/2025) from Local Address, 6:36PM",
+    },
+    hotel: {
+      guests: "6 Adults",
+      rooms: "3 Bedroom",
+      mealPlan: "CP, AP, EP",
+      destination: "3N Borong, 2N Damthang",
+      itinerary: "This is only tentative schedule for sightseeing and travel...",
+    },
+    vehicles: [
+      {
+        pickup: { date: "22/08/2025", time: "3:35PM" },
+        drop: { date: "06/09/2025", time: "6:36PM" },
+      },
+    ],
+    pricing: { discount: "₹ 200", gst: "₹ 140", total: "₹ 3,340" },
+    policies: {
+      inclusions: [
+        "All transfers tours in a Private AC cab.",
+        "Parking, Toll charges, Fuel and Driver expenses.",
+        "Hotel Taxes.",
+        "Car AC off during hill stations.",
+      ],
+      exclusions: "1. Any Cost change...",
+      paymentPolicy: "50% amount to pay at confirmation, balance before 10 days.",
+      cancellationPolicy: "1. Before 15 days: 50%. 2. Within 7 days: 100%.",
+      terms: "1. This is only a Quote. Availability is checked only on confirmation...",
+    },
+    footer: {
+      contact: "Amit Jaiswal | +91 7053900957 (Noida)",
+      phone: "+91 7053900957",
+      email: "amit.jaiswal@example.com",
+      received: "₹ 1,500",
+      balance: "₹ 1,840",
+      company: "Iconic Yatra",
+      address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
+      website: "https://www.iconicyatra.com",
+    },
   });
 
-  // Dialog states
   const [editDialog, setEditDialog] = useState({
     open: false,
     field: "",
@@ -206,7 +237,6 @@ const CustomFinalize = () => {
     nested: false,
     nestedKey: "",
   });
-
   const [openAddService, setOpenAddService] = useState(false);
   const [services, setServices] = useState([]);
   const [currentService, setCurrentService] = useState({
@@ -215,22 +245,21 @@ const CustomFinalize = () => {
     amount: "",
     taxType: "",
   });
-
   const [openEmailDialog, setOpenEmailDialog] = useState(false);
   const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
   const [openBankDialog, setOpenBankDialog] = useState(false);
-  const [openAddFlight, setOpenAddFlight] = useState(false);
   const [flights, setFlights] = useState([]);
-
-  // Bank details state
+  const [openAddBankDialog, setOpenAddBankDialog] = useState(false);
+  const [openTransactionDialog, setOpenTransactionDialog] = useState(false);
+  const [days, setDays] = useState([
+    { id: 1, date: "11/09/2025", title: "About Day 1", image: null },
+  ]);
   const [accountType, setAccountType] = useState("company");
   const [accountName, setAccountName] = useState("Iconic Yatra");
   const [accountNumber, setAccountNumber] = useState("");
   const [ifscCode, setIfscCode] = useState("");
   const [bankName, setBankName] = useState("");
   const [branchName, setBranchName] = useState("");
-
-  const [openAddBankDialog, setOpenAddBankDialog] = useState(false);
   const [newBankDetails, setNewBankDetails] = useState({
     bankName: "",
     branchName: "",
@@ -239,14 +268,207 @@ const CustomFinalize = () => {
     ifscCode: "",
     openingBalance: "",
   });
-
   const [accountOptions, setAccountOptions] = useState([
     { value: "Cash", label: "Cash" },
     { value: "KOTAK Bank", label: "KOTAK Bank" },
     { value: "YES Bank", label: "YES Bank" },
   ]);
 
+  // Fetch quotation data on component mount
+  useEffect(() => {
+    if (id) {
+      dispatch(getCustomQuotationById(id));
+    }
+  }, [dispatch, id]);
+
+  // Update local state when API data is loaded
+  useEffect(() => {
+    if (selectedQuotation) {
+      setQuotation(prev => ({
+        ...prev,
+        date: formatDate(selectedQuotation.createdAt) || prev.date,
+        reference: selectedQuotation.quotationId || prev.reference,
+        customer: {
+          name: selectedQuotation.clientDetails?.clientName || prev.customer.name,
+          location: selectedQuotation.clientDetails?.sector || prev.customer.location,
+          phone: "+91 7053900957", // Default as not in API
+          email: "amit.jaiswal@example.com", // Default as not in API
+        },
+        pickup: {
+          arrival: `Arrival: ${selectedQuotation.tourDetails?.arrivalCity || 'N/A'} (${formatDate(selectedQuotation.tourDetails?.arrivalDate)})`,
+          departure: `Departure: ${selectedQuotation.tourDetails?.departureCity || 'N/A'} (${formatDate(selectedQuotation.tourDetails?.departureDate)})`,
+        },
+        hotel: {
+          ...prev.hotel,
+          guests: `${selectedQuotation.tourDetails?.quotationDetails?.adults || 0} Adults`,
+          rooms: `${selectedQuotation.tourDetails?.quotationDetails?.rooms?.numberOfRooms || 0} ${selectedQuotation.tourDetails?.quotationDetails?.rooms?.roomType || 'Room'}`,
+          mealPlan: selectedQuotation.tourDetails?.quotationDetails?.mealPlan || prev.hotel.mealPlan,
+          destination: generateDestinationText(selectedQuotation.tourDetails?.quotationDetails?.destinations),
+        },
+        pricing: {
+          ...prev.pricing,
+          // You can calculate pricing from destinations data
+          total: calculateTotalPrice(selectedQuotation.tourDetails?.quotationDetails)
+        }
+      }));
+
+      // Set days from itinerary if available
+      if (selectedQuotation.tourDetails?.itinerary?.length > 0) {
+        setDays(selectedQuotation.tourDetails.itinerary.map((item, index) => ({
+          id: item._id || index + 1,
+          date: formatDate(item.date) || new Date().toLocaleDateString(),
+          title: item.title || `Day ${index + 1}`,
+          description: item.description || "",
+          image: null // You can handle images if available in API
+        })));
+      }
+    }
+  }, [selectedQuotation]);
+
   // Helper functions
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN');
+    } catch {
+      return "N/A";
+    }
+  };
+
+  const generateDestinationText = (destinations = []) => {
+    if (!destinations || destinations.length === 0) return "N/A";
+    return destinations.map(dest => 
+      `${dest.nights || 0}N ${dest.cityName || 'Unknown'}`
+    ).join(", ");
+  };
+
+  const calculateTotalPrice = (quotationDetails) => {
+    if (!quotationDetails?.destinations) return "₹ 0";
+    
+    const roomType = quotationDetails.rooms?.roomType || 'standard';
+    let total = 0;
+    
+    quotationDetails.destinations.forEach(dest => {
+      const price = dest.prices?.[roomType] || 0;
+      const nights = dest.nights || 0;
+      total += price * nights;
+    });
+    
+    // Apply discount
+    const discount = quotationDetails.discount || 0;
+    total -= discount;
+    
+    // Apply GST if applicable
+    if (quotationDetails.taxes?.applyGST) {
+      const gstAmount = total * 0.18; // Assuming 18% GST
+      total += gstAmount;
+    }
+    
+    return `₹ ${total.toLocaleString('en-IN')}`;
+  };
+
+  const taxOptions = [
+    { value: "gst5", label: "GST 5%", rate: 5 },
+    { value: "gst18", label: "GST 18%", rate: 18 },
+    { value: "non", label: "Non", rate: 0 },
+  ];
+
+  const hotelPricingData = [
+    {
+      destination: "Borong",
+      nights: "3 N",
+      standard: "Tempo Heritage Resort",
+      deluxe: "Tempo Heritage Resort",
+      superior: "Yovage The Aryan Regency",
+    },
+    {
+      destination: "Damthang",
+      nights: "2 N",
+      standard: "Tempo Heritage Resort",
+      deluxe: "Tempo Heritage Resort",
+      superior: "Yovage The Aryan Regency",
+    },
+    {
+      destination: "Quotation Cost",
+      nights: "-",
+      standard: "₹ 40,366",
+      deluxe: "₹ 440,829",
+      superior: "₹ 92,358",
+    },
+    {
+      destination: "IGST",
+      nights: "-",
+      standard: "₹ 2,018.3",
+      deluxe: "₹ 22,041.4",
+      superior: "₹ 4,617.9",
+    },
+    {
+      destination: "Total Quotation Cost",
+      nights: "5 N",
+      standard: "₹ 42,384",
+      deluxe: "₹ 462,870",
+      superior: "₹ 96,976",
+    },
+  ];
+
+  // Show loading state
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+        <Typography variant="h6" sx={{ ml: 2 }}>
+          Loading quotation...
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <Alert severity="error" sx={{ width: '100%', maxWidth: 500 }}>
+          <Typography variant="h6">Error loading quotation</Typography>
+          <Typography>{error}</Typography>
+          <Button 
+            variant="contained" 
+            sx={{ mt: 2 }}
+            onClick={() => dispatch(getCustomQuotationById(id))}
+          >
+            Retry
+          </Button>
+        </Alert>
+      </Box>
+    );
+  }
+
+  // Rest of your component code remains the same...
+  // [All your existing handlers and UI code]
+
+  // Dialog handlers
+  const handleEmailOpen = () => setOpenEmailDialog(true);
+  const handleEmailClose = () => setOpenEmailDialog(false);
+
+  const handlePaymentOpen = () => setOpenPaymentDialog(true);
+  const handlePaymentClose = () => setOpenPaymentDialog(false);
+
+  const handleFinalizeOpen = () => setOpenFinalize(true);
+  const handleFinalizeClose = () => setOpenFinalize(false);
+
+  const handleAddServiceOpen = () => setOpenAddService(true);
+  const handleAddServiceClose = () => {
+    setOpenAddService(false);
+    setCurrentService({
+      included: "yes",
+      particulars: "",
+      amount: "",
+      taxType: "",
+    });
+  };
+
+  const handleAddFlightOpen = () => setOpenAddFlight(true);
+  const handleAddFlightClose = () => setOpenAddFlight(false);
+
   const handleEditOpen = (
     field,
     value,
@@ -269,20 +491,15 @@ const CustomFinalize = () => {
   };
 
   const handleEditSave = () => {
-    if (editDialog.nested) {
-      setQuotation((prev) => ({
-        ...prev,
-        [editDialog.field]: {
-          ...prev[editDialog.field],
-          [editDialog.nestedKey]: editDialog.value,
-        },
-      }));
-    } else {
-      setQuotation((prev) => ({
-        ...prev,
-        [editDialog.field]: editDialog.value,
-      }));
-    }
+    setQuotation((prev) => ({
+      ...prev,
+      [editDialog.field]: editDialog.nested
+        ? {
+            ...prev[editDialog.field],
+            [editDialog.nestedKey]: editDialog.value,
+          }
+        : editDialog.value,
+    }));
     handleEditClose();
   };
 
@@ -319,6 +536,7 @@ const CustomFinalize = () => {
     handleBankDialogClose();
   };
 
+  // Add New Bank Functions
   const handleAddBankOpen = () => {
     setOpenAddBankDialog(true);
   };
@@ -333,8 +551,8 @@ const CustomFinalize = () => {
       ifscCode: "",
       openingBalance: "",
     });
-  }; 
- 
+  };
+
   const handleNewBankChange = (field, value) => {
     setNewBankDetails((prev) => ({
       ...prev,
@@ -362,7 +580,8 @@ const CustomFinalize = () => {
     handleAddBankClose();
   };
 
-  const handleServiceChange = (field, value) => {     
+  // Add Service Functions
+  const handleServiceChange = (field, value) => {
     setCurrentService((prev) => ({
       ...prev,
       [field]: value,
@@ -421,44 +640,172 @@ const CustomFinalize = () => {
 
   const handleSaveServices = () => {
     console.log("Services saved:", services);
-    setOpenAddService(false);
+    handleAddServiceClose();
   };
 
-  const handleGenerateInvoice = () => {
-    console.log("Generate Invoice clicked");
-    setOpenBankDialog(true);
+  const handleAddFlight = (flightDetails) => {
+    setFlights((prev) => [...prev, { ...flightDetails, id: Date.now() }]);
+    console.log("Flight added:", flightDetails);
+    handleAddFlightClose();
+  };
+
+  const handleDayImageUpload = (dayId, file) => {
+    if (file) {
+      setDays((prev) =>
+        prev.map((day) =>
+          day.id === dayId
+            ? {
+                ...day,
+                image: {
+                  file,
+                  preview: URL.createObjectURL(file),
+                  name: file.name,
+                },
+              }
+            : day
+        )
+      );
+      console.log(`Image uploaded for Day ${dayId}:`, file.name);
+    }
+  };
+
+  const handleAddDay = () => {
+    const newDayId = days.length + 1;
+    setDays((prev) => [
+      ...prev,
+      {
+        id: newDayId,
+        date: "12/09/2025",
+        title: `About Day ${newDayId}`,
+        image: null,
+      },
+    ]);
+  };
+
+  const handleRemoveDay = (dayId) => {
+    if (days.length > 1) {
+      setDays((prev) => prev.filter((day) => day.id !== dayId));
+    } else {
+      alert("At least one day is required");
+    }
+  };
+
+  const handlePreviewPdf = () => {
+    console.log("Preview PDF clicked");
   };
 
   const handleViewInvoice = () => {
     console.log("View Invoice clicked");
   };
 
-  const handleAddServiceOpen = () => setOpenAddService(true);
-  const handleAddServiceClose = () => {
-    setOpenAddService(false);
-    setCurrentService({
-      included: "yes",
-      particulars: "",
-      amount: "",
-      taxType: "",
+  const handleActionClick = (action) => {
+    switch (action) {
+      case "Finalize":
+        handleFinalizeOpen();
+        break;
+      case "Add Service":
+        handleAddServiceOpen();
+        break;
+      case "Email Quotation":
+        handleEmailOpen();
+        break;
+      case "Preview PDF":
+        handlePreviewPdf();
+        break;
+      case "Make Payment":
+        handlePaymentOpen();
+        break;
+      case "Add Flight":
+        handleAddFlightOpen();
+        break;
+      case "Transaction":
+        setOpenTransactionDialog(true);
+        break;
+      default:
+        console.log("Unknown action:", action);
+    }
+  };
+
+  const handleAddItinerary = () => {
+    const currentDays = days.length;
+    setItineraryDialog({
+      open: true,
+      mode: 'add',
+      day: currentDays + 1,
+      title: `Day ${currentDays + 1}`,
+      description: "",
+      id: null
     });
   };
-  const handleEmailOpen = () => setOpenEmailDialog(true);
-  const handleEmailClose = () => setOpenEmailDialog(false);
-  const handlePaymentOpen = () => setOpenPaymentDialog(true);
-  const handlePaymentClose = () => setOpenPaymentDialog(false);
-  const handleFinalizeOpen = () => setOpenFinalize(true);
-  const handleFinalizeClose = () => setOpenFinalize(false);
 
-  // Add flight handlers
-  const handleAddFlightOpen = () => setOpenAddFlight(true);
-  const handleAddFlightClose = () => setOpenAddFlight(false);
-  const handleAddFlight = (flightDetails) => {
-    setFlights((prev) => [...prev, { ...flightDetails, id: Date.now() }]);
-    console.log("Flight added:", flightDetails);
+  const handleEditItinerary = (day, index) => {
+    setItineraryDialog({
+      open: true,
+      mode: 'edit',
+      day: index + 1,
+      title: day.title || `Day ${index + 1}`,
+      description: day.description || "",
+      id: day.id
+    });
   };
 
-  // Constants for UI rendering
+  const handleSaveItinerary = async () => {
+    const { mode, title, description, id } = itineraryDialog;
+    
+    if (!title.trim() || !description.trim()) {
+      setSnackbar({
+        open: true,
+        message: "Please fill in both title and description",
+        severity: "error"
+      });
+      return;
+    }
+
+    try {
+      if (mode === 'add') {
+        const newDay = {
+          id: Date.now(),
+          date: new Date().toLocaleDateString(),
+          title,
+          description,
+          image: null
+        };
+        
+        setDays(prev => [...prev, newDay]);
+      } else if (mode === 'edit') {
+        setDays(prev => 
+          prev.map(day => 
+            day.id === id ? { ...day, title, description } : day
+          )
+        );
+      }
+      
+      setItineraryDialog({ open: false, mode: 'add', day: null, title: "", description: "", id: null });
+      
+      setSnackbar({
+        open: true,
+        message: `Itinerary ${mode === 'add' ? 'added' : 'updated'} successfully`,
+        severity: "success"
+      });
+      
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to save itinerary",
+        severity: "error"
+      });
+    }
+  };
+
+  const handleCloseItineraryDialog = () => {
+    setItineraryDialog({ open: false, mode: 'add', day: null, title: "", description: "", id: null });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  // UI Data
   const infoMap = {
     call: `📞 ${quotation.footer.phone}`,
     email: `✉️ ${quotation.footer.email}`,
@@ -543,26 +890,9 @@ const CustomFinalize = () => {
     },
   ];
 
-  const hotelTableHeaders = [
-    "Destination",
-    "Nights",
-    "Standard",
-    "Deluxe",
-    "Superior",
-  ];
-
-  // Action handlers
-  const actionHandlers = {
-    Finalize: handleFinalizeOpen,
-    "Add Service": handleAddServiceOpen,
-    "Email Quotation": handleEmailOpen,
-    "Preview PDF": () => console.log("Preview PDF clicked"),
-    "Make Payment": handlePaymentOpen,
-    "Add Flight": handleAddFlightOpen, // Add this line
-  };
-
   return (
-    <Box>
+    <Box sx={{ backgroundColor: 'white', minHeight: '100vh' }}>
+      {/* Action Buttons */}
       <Box
         display="flex"
         justifyContent="flex-end"
@@ -570,27 +900,27 @@ const CustomFinalize = () => {
         mb={2}
         flexWrap="wrap"
       >
-        {quotation.actions.map((a, i) => {
-          if (a === "Finalize" && isFinalized) return null;
-
-          return (
-            <Button key={i} variant="contained" onClick={actionHandlers[a]}>
+        {quotation.actions
+          .filter(
+            (a) =>
+              !(a === "Finalize" && isFinalized) &&
+              !(a === "Transaction" && !isFinalized)
+          )
+          .map((a, i) => (
+            <Button key={i} variant="contained" onClick={() => handleActionClick(a)}>
               {a}
             </Button>
-          );
-        })}
-
+          ))}
         {isFinalized && !invoiceGenerated && (
           <Button
             variant="contained"
             color="success"
             startIcon={<Receipt />}
-            onClick={handleGenerateInvoice}
+            onClick={handlePreviewPdf}
           >
             Generate Invoice
           </Button>
         )}
-
         {invoiceGenerated && (
           <Button
             variant="contained"
@@ -604,23 +934,8 @@ const CustomFinalize = () => {
       </Box>
 
       <Grid container spacing={2}>
-        <Grid
-          size={{ xs: 12, md: 3 }}
-          sx={{
-            borderRight: { md: "1px solid #ddd" },
-            pt: 3,
-            minHeight: "100vh",
-            bgcolor: "#f8f9fa",
-            textAlign: "center",
-          }}
-        >
-          <Chip
-            icon={<FormatQuoteIcon />}
-            label="Custom Quotation"
-            color="primary"
-            variant="outlined"
-            sx={{ mb: 3 }}
-          />
+        {/* Sidebar */}
+        <Grid size={{ xs: 12, md: 3 }}>
           <Box sx={{ position: "sticky", top: 0 }}>
             <Card>
               <CardContent>
@@ -681,6 +996,7 @@ const CustomFinalize = () => {
           </Box>
         </Grid>
 
+        {/* Main Content */}
         <Grid size={{ xs: 12, md: 9 }}>
           <Card>
             <CardContent>
@@ -695,7 +1011,6 @@ const CustomFinalize = () => {
                     Date: {quotation.date}
                   </Typography>
                 </Box>
-
                 {isFinalized && (
                   <Typography
                     variant="h6"
@@ -716,6 +1031,7 @@ const CustomFinalize = () => {
                   Ref: {quotation.reference}
                 </Typography>
               </Box>
+
               <Box display="flex" alignItems="center" mt={2}>
                 <Person sx={{ fontSize: 18, mr: 0.5 }} />
                 <Typography variant="subtitle1" fontWeight="bold">
@@ -723,6 +1039,7 @@ const CustomFinalize = () => {
                 </Typography>
               </Box>
 
+              {/* Pickup/Drop Details */}
               <Box
                 mt={2}
                 p={2}
@@ -742,7 +1059,7 @@ const CustomFinalize = () => {
                     sx={{ fontSize: "0.875rem" }}
                   >
                     <RouteIcon sx={{ mr: 0.5 }} />
-                   Pickup/Drop Details
+                    Pickup/Drop Details
                   </Typography>
                 </Box>
                 {pickupDetails.map((i, k) => (
@@ -771,6 +1088,7 @@ const CustomFinalize = () => {
                 ))}
               </Box>
 
+              {/* Quotation Details */}
               <Box mt={3}>
                 <Box display="flex" alignItems="center">
                   <FormatQuoteIcon sx={{ mr: 1 }} />
@@ -782,12 +1100,14 @@ const CustomFinalize = () => {
                     Custom Quotation For {quotation.customer.name}
                   </Typography>
                 </Box>
+
                 <Box display="flex" alignItems="center" mt={1}>
                   <Route sx={{ mr: 0.5 }} />
                   <Typography variant="subtitle2">
                     Destination : {quotation.hotel.destination}
                   </Typography>
                 </Box>
+
                 <Box display="flex" alignItems="center" mt={1}>
                   <ImageIcon sx={{ mr: 0.5 }} />
                   <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
@@ -802,13 +1122,10 @@ const CustomFinalize = () => {
                       onChange={(e) => {
                         const file = e.target.files[0];
                         if (file) {
-                          // Set the file name to display
                           setQuotation((prev) => ({
                             ...prev,
                             bannerImage: file.name,
                           }));
-
-                          // You can also handle the file upload here
                           console.log("Selected file:", file);
                         }
                       }}
@@ -824,6 +1141,7 @@ const CustomFinalize = () => {
                   )}
                 </Box>
 
+                {/* Itinerary */}
                 <Box display="flex" flexDirection="column" mt={2}>
                   <Box display="flex" alignItems="center" mb={1}>
                     <Warning sx={{ mr: 1, color: "warning.main" }} />
@@ -835,7 +1153,6 @@ const CustomFinalize = () => {
                       Day Wise Itinerary
                     </Typography>
                   </Box>
-
                   <Box
                     display="flex"
                     alignItems="center"
@@ -858,8 +1175,115 @@ const CustomFinalize = () => {
                     </IconButton>
                   </Box>
                 </Box>
+
+                {/* Itinerary Days Section */}
+                <Box mt={2}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                        <Typography variant="h6">Itinerary Details</Typography>
+                        <Button 
+                          variant="outlined" 
+                          size="small" 
+                          onClick={handleAddItinerary}
+                          startIcon={<Add />}
+                        >
+                          Add Day
+                        </Button>
+                      </Box>
+                      
+                      {days.length > 0 ? (
+                        days.map((day, index) => (
+                          <Box key={day.id} mb={2} p={1} sx={{ border: '1px dashed #ddd', borderRadius: 1 }}>
+                            <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                              <Typography variant="subtitle1" fontWeight="bold">
+                                {day.title}
+                              </Typography>
+                              <Box>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleEditItinerary(day, index)}
+                                >
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                                {days.length > 1 && (
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleRemoveDay(day.id)}
+                                  >
+                                    <Delete />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            </Box>
+                            <Typography variant="body2" sx={{ mt: 1 }}>
+                              {day.description || "No description added."}
+                            </Typography>
+                            
+                            {/* Image Section */}
+                            <Box display="flex" alignItems="center" gap={2} mt={2}>
+                              <ImageIcon sx={{ color: "primary.main" }} />
+                              <Typography variant="body1">Add Image</Typography>
+                              <Button
+                                component="label"
+                                variant="outlined"
+                                size="small"
+                                startIcon={<AddCircleOutline />}
+                              >
+                                Upload Image
+                                <input
+                                  type="file"
+                                  hidden
+                                  accept="image/*"
+                                  onChange={(e) =>
+                                    handleDayImageUpload(day.id, e.target.files[0])
+                                  }
+                                />
+                              </Button>
+                            </Box>
+
+                            {day.image && (
+                              <Box mt={2} display="flex" alignItems="center" gap={2}>
+                                <Box
+                                  component="img"
+                                  src={day.image.preview}
+                                  alt={`Day ${day.id}`}
+                                  sx={{
+                                    width: 100,
+                                    height: 100,
+                                    objectFit: "cover",
+                                    borderRadius: 1,
+                                    border: "1px solid #e0e0e0",
+                                  }}
+                                />
+                                <Box>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {day.image.name}
+                                  </Typography>
+                                  <Button
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleDayImageUpload(day.id, null)}
+                                  >
+                                    Remove
+                                  </Button>
+                                </Box>
+                              </Box>
+                            )}
+                          </Box>
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="textSecondary" textAlign="center" py={2}>
+                          No itinerary added yet. Click "Add Day" to create your itinerary.
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Box>
               </Box>
 
+              {/* Quotation Details */}
               <Box display="flex" flexDirection="column" mt={2}>
                 <Box display="flex" alignItems="center" mb={1}>
                   <FormatQuote sx={{ mr: 1, color: "warning.main" }} />
@@ -871,7 +1295,6 @@ const CustomFinalize = () => {
                     Quotation Details
                   </Typography>
                 </Box>
-
                 <Box>
                   <Typography variant="body2" sx={{ flex: 1, mr: 2 }}>
                     No of Guest : {quotation.hotel.guests}
@@ -891,7 +1314,13 @@ const CustomFinalize = () => {
                   <Table>
                     <TableHead sx={{ backgroundColor: "primary.light" }}>
                       <TableRow>
-                        {hotelTableHeaders.map((h) => (
+                        {[
+                          "Destination",
+                          "Nights",
+                          "Standard",
+                          "Deluxe",
+                          "Superior",
+                        ].map((h) => (
                           <TableCell
                             key={h}
                             sx={{ color: "white", fontWeight: "bold" }}
@@ -928,10 +1357,11 @@ const CustomFinalize = () => {
                 </TableContainer>
               </Box>
 
+              {/* Policies */}
               <Grid container spacing={2} mt={1}>
                 {Policies.map((p, i) => (
                   <Grid size={{ xs: 12 }} key={i}>
-                    <Card variant="outlined"> 
+                    <Card variant="outlined">
                       <CardContent>
                         <Box
                           display="flex"
@@ -970,6 +1400,7 @@ const CustomFinalize = () => {
                 ))}
               </Grid>
 
+              {/* Terms & Conditions */}
               <Box mt={2}>
                 <Card variant="outlined">
                   <CardContent>
@@ -1008,6 +1439,7 @@ const CustomFinalize = () => {
                 </Card>
               </Box>
 
+              {/* Footer */}
               <Box
                 mt={4}
                 p={2}
@@ -1073,6 +1505,18 @@ const CustomFinalize = () => {
         </Grid>
       </Grid>
 
+      {/* Snackbar for notifications */}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={3000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
       {/* Dialogs */}
       <FinalizeDialog
         open={openFinalize}
@@ -1081,8 +1525,7 @@ const CustomFinalize = () => {
         setVendor={setVendor}
         onConfirm={handleConfirm}
       />
-
-      <BankDetailsDialog
+      <HotelVendorDialog
         open={openBankDialog}
         onClose={handleBankDialogClose}
         accountType={accountType}
@@ -1093,7 +1536,6 @@ const CustomFinalize = () => {
         onAddBankOpen={handleAddBankOpen}
         onConfirm={handleBankConfirm}
       />
-
       <AddBankDialog
         open={openAddBankDialog}
         onClose={handleAddBankClose}
@@ -1101,7 +1543,6 @@ const CustomFinalize = () => {
         onNewBankChange={handleNewBankChange}
         onAddBank={handleAddBank}
       />
-
       <EditDialog
         open={editDialog.open}
         onClose={handleEditClose}
@@ -1110,7 +1551,6 @@ const CustomFinalize = () => {
         onValueChange={handleEditValueChange}
         onSave={handleEditSave}
       />
-
       <AddServiceDialog
         open={openAddService}
         onClose={handleAddServiceClose}
@@ -1123,23 +1563,59 @@ const CustomFinalize = () => {
         onSaveServices={handleSaveServices}
         taxOptions={taxOptions}
       />
-
-      <AddFlightDialog // Add this dialog
+      <AddFlightDialog
         open={openAddFlight}
         onClose={handleAddFlightClose}
         onSave={handleAddFlight}
       />
-
       <EmailQuotationDialog
         open={openEmailDialog}
         onClose={handleEmailClose}
         customer={quotation.customer}
       />
-
       <MakePaymentDialog
         open={openPaymentDialog}
         onClose={handlePaymentClose}
       />
+      <TransactionSummaryDialog
+        open={openTransactionDialog}
+        onClose={() => setOpenTransactionDialog(false)}
+      />
+
+      {/* Itinerary Dialog */}
+      <Dialog open={itineraryDialog.open} onClose={handleCloseItineraryDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {itineraryDialog.mode === 'add' ? 'Add' : 'Edit'} Itinerary - Day {itineraryDialog.day}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            fullWidth
+            variant="outlined"
+            value={itineraryDialog.title}
+            onChange={(e) => setItineraryDialog({...itineraryDialog, title: e.target.value})}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={4}
+            value={itineraryDialog.description}
+            onChange={(e) => setItineraryDialog({...itineraryDialog, description: e.target.value})}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseItineraryDialog}>Cancel</Button>
+          <Button onClick={handleSaveItinerary} variant="contained">
+            {itineraryDialog.mode === 'add' ? 'Add' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
