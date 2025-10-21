@@ -56,7 +56,7 @@ const validationSchema = yup.object({
 
 const CustomQuotationForm = ({ 
   formData,
-  leadData, // Receive lead data for auto-population
+  leadData,
   onSubmit, 
   loading 
 }) => {
@@ -79,6 +79,18 @@ const CustomQuotationForm = ({
   const leadMembers = leadTourDetails?.members;
   const leadAccommodation = leadTourDetails?.accommodation;
 
+  // Initialize city prices structure
+  const initializeCityPrices = (cities) => {
+    return cities.reduce((acc, city, index) => {
+      acc[index] = {
+        standardPrice: '',
+        deluxePrice: '',
+        superiorPrice: ''
+      };
+      return acc;
+    }, {});
+  };
+
   const formik = useFormik({
     initialValues: {
       // Quotation Details - Auto-populated from lead
@@ -90,14 +102,12 @@ const CustomQuotationForm = ({
       
       // Room Details - Auto-populated from lead
       noOfRooms: leadAccommodation?.noOfRooms || 1,
-      roomType: leadAccommodation?.hotelType?.[0] || '', // Take first hotel type
+      roomType: leadAccommodation?.hotelType?.[0] || '',
       sharingType: leadAccommodation?.sharingType || '',
       showCostPerAdult: true,
       
-      // Hotel Prices
-      standardPrice: '',
-      deluxePrice: '',
-      superiorPrice: '',
+      // City Prices - Initialize for each city
+      cityPrices: initializeCityPrices(cities),
       
       // Company Margin
       marginPercent: 0,
@@ -125,13 +135,13 @@ const CustomQuotationForm = ({
               infants: values.infants,
               mealPlan: values.mediPlan,
 
-              destinations: formData.pickupDrop.map(city => ({
+              destinations: formData.pickupDrop.map((city, index) => ({
                 cityName: city.cityName,
                 nights: city.nights,
                 prices: {
-                  standard: values.standardPrice || 0,
-                  deluxe: values.deluxePrice || 0,
-                  superior: values.superiorPrice || 0,
+                  standard: values.cityPrices[index]?.standardPrice || 0,
+                  deluxe: values.cityPrices[index]?.deluxePrice || 0,
+                  superior: values.cityPrices[index]?.superiorPrice || 0,
                 },
               })),
 
@@ -168,6 +178,13 @@ const CustomQuotationForm = ({
       }
     },
   });
+
+  // Re-initialize city prices when cities change
+  useEffect(() => {
+    if (cities.length > 0) {
+      formik.setFieldValue('cityPrices', initializeCityPrices(cities));
+    }
+  }, [cities.length]);
 
   // Debug log to see what data is being used
   useEffect(() => {
@@ -304,9 +321,10 @@ const CustomQuotationForm = ({
                         fullWidth
                         size="small"
                         placeholder="Price"
-                        name="standardPrice"
-                        value={formik.values.standardPrice}
+                        name={`cityPrices[${index}].standardPrice`}
+                        value={formik.values.cityPrices?.[index]?.standardPrice || ''}
                         onChange={formik.handleChange}
+                        type="number"
                       />
                     </TableCell>
                     <TableCell>
@@ -314,9 +332,10 @@ const CustomQuotationForm = ({
                         fullWidth
                         size="small"
                         placeholder="Price"
-                        name="deluxePrice"
-                        value={formik.values.deluxePrice}
+                        name={`cityPrices[${index}].deluxePrice`}
+                        value={formik.values.cityPrices?.[index]?.deluxePrice || ''}
                         onChange={formik.handleChange}
+                        type="number"
                       />
                     </TableCell>
                     <TableCell>
@@ -324,9 +343,10 @@ const CustomQuotationForm = ({
                         fullWidth
                         size="small"
                         placeholder="Price"
-                        name="superiorPrice"
-                        value={formik.values.superiorPrice}
+                        name={`cityPrices[${index}].superiorPrice`}
+                        value={formik.values.cityPrices?.[index]?.superiorPrice || ''}
                         onChange={formik.handleChange}
+                        type="number"
                       />
                     </TableCell>
                   </TableRow>
@@ -415,6 +435,7 @@ const CustomQuotationForm = ({
         </Paper>
 
         {/* Rest of the component remains the same */}
+        {/* ... (Company Margin, Discount, Taxes sections remain unchanged) */}
         <Divider sx={{ my: 3 }} />
 
         {/* Company Margin Section */}
