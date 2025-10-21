@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -55,11 +55,11 @@ const validationSchema = yup.object({
 });
 
 const CustomQuotationForm = ({ 
-  formData, // Receive all collected data
+  formData,
+  leadData, // Receive lead data for auto-population
   onSubmit, 
   loading 
 }) => {
-  // Destructure what you need
   const { 
     clientDetails, 
     pickupDrop, 
@@ -67,24 +67,31 @@ const CustomQuotationForm = ({
     quotationDetails, 
     vehicleDetails 
   } = formData;
+  
   const clientName = clientDetails?.clientName || "N/A";
-const sector = clientDetails?.sector || "N/A";
-const arrivalCity = pickupDrop?.[0]?.from || "N/A"; // adjust based on your actual field
-const departureCity = pickupDrop?.[pickupDrop.length - 1]?.to || "N/A"; // adjust based on your data
-const cities = pickupDrop || [];
+  const sector = clientDetails?.sector || "N/A";
+  const arrivalCity = tourDetails?.arrivalCity || "N/A";
+  const departureCity = tourDetails?.departureCity || "N/A";
+  const cities = pickupDrop || [];
+
+  // Extract data from lead for auto-population
+  const leadTourDetails = leadData?.tourDetails;
+  const leadMembers = leadTourDetails?.members;
+  const leadAccommodation = leadTourDetails?.accommodation;
+
   const formik = useFormik({
     initialValues: {
-      // Quotation Details
-      adult: 0,
-      child: 0,
-      kid: 0,
-      infants: 0,
-      mediPlan: '',
+      // Quotation Details - Auto-populated from lead
+      adult: leadMembers?.adults || 0,
+      child: leadMembers?.children || 0,
+      kid: leadMembers?.kidsWithoutMattress || 0,
+      infants: leadMembers?.infants || 0,
+      mediPlan: leadAccommodation?.mealPlan || '',
       
-      // Room Details
-      noOfRooms: 1,
-      roomType: '',
-      sharingType: '',
+      // Room Details - Auto-populated from lead
+      noOfRooms: leadAccommodation?.noOfRooms || 1,
+      roomType: leadAccommodation?.hotelType?.[0] || '', // Take first hotel type
+      sharingType: leadAccommodation?.sharingType || '',
       showCostPerAdult: true,
       
       // Hotel Prices
@@ -105,57 +112,55 @@ const cities = pickupDrop || [];
       applyGST: false,
     },
     validationSchema: validationSchema,
-   onSubmit: async (values) => {
+    onSubmit: async (values) => {
       try {
-        // Combine step 6 data with all previous data
-      const finalData = {
-  ...formData,
-  tourDetails: {
-    ...formData.tourDetails,
-    quotationDetails: {
-      adults: values.adult,
-      children: values.child,
-      kids: values.kid,
-      infants: values.infants,
-      mealPlan: values.mediPlan,
+        const finalData = {
+          ...formData,
+          tourDetails: {
+            ...formData.tourDetails,
+            quotationDetails: {
+              adults: values.adult,
+              children: values.child,
+              kids: values.kid,
+              infants: values.infants,
+              mealPlan: values.mediPlan,
 
-      destinations: formData.pickupDrop.map(city => ({
-        cityName: city.cityName,
-        nights: city.nights,
-        prices: {
-          standard: values.standardPrice || 0,
-          deluxe: values.deluxePrice || 0,
-          superior: values.superiorPrice || 0,
-        },
-      })),
+              destinations: formData.pickupDrop.map(city => ({
+                cityName: city.cityName,
+                nights: city.nights,
+                prices: {
+                  standard: values.standardPrice || 0,
+                  deluxe: values.deluxePrice || 0,
+                  superior: values.superiorPrice || 0,
+                },
+              })),
 
-      rooms: {
-        numberOfRooms: values.noOfRooms,
-        roomType: values.roomType,
-        sharingType: values.sharingType,
-        showCostPerAdult: values.showCostPerAdult,
-      },
+              rooms: {
+                numberOfRooms: values.noOfRooms,
+                roomType: values.roomType,
+                sharingType: values.sharingType,
+                showCostPerAdult: values.showCostPerAdult,
+              },
 
-      companyMargin: {
-        marginPercent: values.marginPercent || 0,
-        marginAmount: values.marginAmount || 0,
-      },
+              companyMargin: {
+                marginPercent: values.marginPercent || 0,
+                marginAmount: values.marginAmount || 0,
+              },
 
-      discount: values.discount || 0,
+              discount: values.discount || 0,
 
-      taxes: {
-        gstOn: values.gstOn || "None",
-        applyGST: values.applyGST || false,
-      },
+              taxes: {
+                gstOn: values.gstOn || "None",
+                applyGST: values.applyGST || false,
+              },
 
-      signatureDetails: {
-        regardsText: "Best Regards",
-        signedBy: "", // optional
-      },
-    },
-  },
-};
-
+              signatureDetails: {
+                regardsText: "Best Regards",
+                signedBy: "",
+              },
+            },
+          },
+        };
         
         await onSubmit(finalData);
       } catch (error) {
@@ -163,6 +168,15 @@ const cities = pickupDrop || [];
       }
     },
   });
+
+  // Debug log to see what data is being used
+  useEffect(() => {
+    console.log("🔍 Lead Data for Auto-population:", {
+      leadMembers,
+      leadAccommodation,
+      initialValues: formik.initialValues
+    });
+  }, []);
 
   return (
     <Box sx={{ maxWidth: 1200, margin: '0 auto', p: 3 }}>
@@ -175,7 +189,7 @@ const cities = pickupDrop || [];
         {/* Client Summary */}
         <Paper sx={{ p: 2, mb: 3, backgroundColor: '#f5f5f5' }}>
           <Typography variant="h6" gutterBottom>
-            Client Summary
+            Client Summary {leadData && "✓ Auto-filled from Lead Data"}
           </Typography>
           <Grid container spacing={2}>
             <Grid size={{xs:12, sm:6, md:3}}>
@@ -196,7 +210,7 @@ const cities = pickupDrop || [];
         {/* Quotation Details Section */}
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Quotation Details
+            Quotation Details {leadData && "✓ Auto-filled from Lead Data"}
           </Typography>
           
           <Grid container spacing={3} sx={{ mb: 2 }}>
@@ -281,7 +295,6 @@ const cities = pickupDrop || [];
                 </TableRow>
               </TableHead>
               <TableBody>
-                {/* Dynamic cities rows */}
                 {cities && cities.map((city, index) => (
                   <TableRow key={index}>
                     <TableCell>{city.cityName}</TableCell>
@@ -323,9 +336,12 @@ const cities = pickupDrop || [];
           </TableContainer>
 
           {/* Room Details */}
-          <Grid container spacing={3} sx={{ mt: 2 }}>
+          <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
+            Room Details {leadData && "✓ Auto-filled from Lead Data"}
+          </Typography>
+          <Grid container spacing={3} sx={{ mt: 1 }}>
             <Grid size={{xs:12, sm:4}}>
-              <Typography variant="subtitle1" gutterBottom>
+              <Typography variant="subtitle2" gutterBottom>
                 No. of Rooms
               </Typography>
               <TextField
@@ -356,6 +372,9 @@ const cities = pickupDrop || [];
                   <MenuItem value="standard">Standard</MenuItem>
                   <MenuItem value="deluxe">Deluxe</MenuItem>
                   <MenuItem value="superior">Superior</MenuItem>
+                  <MenuItem value="4 star">4 Star</MenuItem>
+                  <MenuItem value="5 star">5 Star</MenuItem>
+                  <MenuItem value="7 STAR">7 Star</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -395,6 +414,7 @@ const cities = pickupDrop || [];
           />
         </Paper>
 
+        {/* Rest of the component remains the same */}
         <Divider sx={{ my: 3 }} />
 
         {/* Company Margin Section */}

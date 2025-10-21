@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Button, Typography, Paper } from "@mui/material";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { createCustomQuotation } from "../../../../features/quotation/customQuotationSlice";
+import { getAllLeads } from "../../../../features/leads/leadSlice"; // Import your lead action
 
 // Import your step components
 import CustomQuotation from "./CustomQuotation";
@@ -11,13 +12,23 @@ import CustomQuotationStep3 from "./customquotationStep3";
 import CustomQuotationStep4 from "./customquotationStep4";
 import CustomQuotationStep5 from "./customquotationStep5";
 import CustomQuotationStep6 from "./customquotationStep6";
-console.log("Imported CustomQuotation component:", CustomQuotation);
 
 const CustomQuotationMain = () => {
   const dispatch = useDispatch();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-console.log("🔍 Current step:", step);
+  const [selectedLead, setSelectedLead] = useState(null); // Add this state
+
+  // Get leads from Redux store
+  const { list: leadList = [] } = useSelector((state) => state.leads);
+
+  // Fetch leads on component mount
+  useEffect(() => {
+    dispatch(getAllLeads());
+  }, [dispatch]);
+
+  console.log("🔍 Current step:", step);
+
   // unified formData across all steps
   const [formData, setFormData] = useState({
     clientDetails: {},
@@ -28,14 +39,36 @@ console.log("🔍 Current step:", step);
     vehicleDetails: {}
   });
 
+  // Helper function to find matching lead
+  const findMatchingLead = (clientName, sector) => {
+    if (!clientName || !sector) return null;
+    
+    const lead = leadList.find((lead) => {
+      const nameMatch = lead.personalDetails?.fullName?.trim().toLowerCase() === clientName?.trim().toLowerCase();
+      
+      const sectorMatch = 
+        lead.tourDetails?.tourDestination?.trim().toLowerCase() === sector?.trim().toLowerCase() ||
+        lead.location?.state?.trim().toLowerCase() === sector?.trim().toLowerCase();
+      
+      return nameMatch && sectorMatch;
+    });
+
+    console.log("🔍 Found matching lead:", lead);
+    return lead || null;
+  };
+
   // Step 1: Client Details
   const handleStep1 = (data) => {
-  console.log("📦 Received data from Step 1:", data);
-  setFormData((prev) => ({ ...prev, clientDetails: data }));
-  console.log("🧭 Moving to Step 2...");
-  setStep(2);
-};
-
+    console.log("📦 Received data from Step 1:", data);
+    setFormData((prev) => ({ ...prev, clientDetails: data }));
+    
+    // Find and set the selected lead
+    const matchingLead = findMatchingLead(data.clientName, data.sector);
+    setSelectedLead(matchingLead);
+    
+    console.log("🧭 Moving to Step 2...");
+    setStep(2);
+  };
 
   // Step 2: Pickup/Drop Cities
   const handleStep2 = (data) => {
@@ -137,23 +170,25 @@ console.log("🔍 Current step:", step);
             onNext={handleStep4}
           />
         )}
-{step === 5 && (
-  <CustomQuotationStep5
-    clientName={formData.clientDetails.clientName}
-    sector={formData.clientDetails.sector}
-    arrivalCity={formData.tourDetails?.arrivalCity || ""}
-    departureCity={formData.tourDetails?.departureCity || ""}
-    arrivalDate={formData.tourDetails?.arrivalDate || null}
-    departureDate={formData.tourDetails?.departureDate || null}
-    transport={formData.tourDetails?.transport || "Yes"} // Make sure this is passed from Step 3
-    cities={formData.pickupDrop}
-    onNext={handleStep5}
-  />
-)}
+
+        {step === 5 && (
+          <CustomQuotationStep5
+            clientName={formData.clientDetails.clientName}
+            sector={formData.clientDetails.sector}
+            arrivalCity={formData.tourDetails?.arrivalCity || ""}
+            departureCity={formData.tourDetails?.departureCity || ""}
+            arrivalDate={formData.tourDetails?.arrivalDate || null}
+            departureDate={formData.tourDetails?.departureDate || null}
+            transport={formData.tourDetails?.transport || "Yes"}
+            cities={formData.pickupDrop}
+            onNext={handleStep5}
+          />
+        )}
 
         {step === 6 && (
           <CustomQuotationStep6
-            formData={formData} // Pass all collected data
+            formData={formData}
+            leadData={selectedLead} // Now this is defined
             onSubmit={handleFinalSubmit}
             loading={loading}
           />
