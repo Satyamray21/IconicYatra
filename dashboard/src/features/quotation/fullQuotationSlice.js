@@ -101,7 +101,7 @@ export const getAllQuotations = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(`/fullQT/`);
-      return response.data.data;
+      return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
@@ -189,7 +189,7 @@ const fullQuotationSlice = createSlice({
     .addCase(getAllQuotations.pending, (state) => { state.loading = true; state.error = null; })
     .addCase(getAllQuotations.fulfilled, (state, action) => { 
       state.loading = false; 
-      state.quotationsList = action.payload; // new field to store all quotations
+      state.quotationsList = action.payload.data; // new field to store all quotations
     })
     .addCase(getAllQuotations.rejected, (state, action) => { state.loading = false; state.error = action.payload; });
 

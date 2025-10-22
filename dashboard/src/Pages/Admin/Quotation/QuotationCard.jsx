@@ -35,7 +35,7 @@ import { getAllVehicleQuotations } from "../../../features/quotation/vehicleQuot
 import { getAllFlightQuotations } from "../../../features/quotation/flightQuotationSlice";
 import { getAllCustomQuotations } from "../../../features/quotation/customQuotationSlice";
 import {
- getAllQuotations,
+  getAllQuotations,
   getQuotationById,
 } from "../../../features/quotation/fullQuotationSlice";
 
@@ -54,9 +54,9 @@ const QuotationCard = () => {
   const { list: vehicleList } = useSelector((state) => state.vehicleQuotation);
   const { quotations: flightList } = useSelector((state) => state.flightQuotation);
   const { quotations: customList = [] } = useSelector((state) => state.customQuotation);
-  const { fullQuotations:quotationsList = [], loading: fullLoading } = useSelector(
-    (state) => state.fullQuotation
-  );
+  const { quotationsList = [], loading: fullLoading } = useSelector(
+  (state) => state.fullQuotation
+);
 
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState("");
@@ -71,19 +71,18 @@ const QuotationCard = () => {
   }, [dispatch]);
 
   // === Auto-resume draft quotation when found ===
- useEffect(() => {
-  if (quotationsList && quotationsList.length > 0) {
-    const draft = quotationsList.find((q) => q.isDraft === true);
-    if (draft) {
-      const nextStep = (draft.currentStep || 0) + 1;
-      toast.info(`Resuming your draft quotation (${draft.quotationId})`);
-      navigate(`/fullquotation/${draft.quotationId}/step/${nextStep}`, {
-        state: { quotationData: draft },
-      });
+  useEffect(() => {
+    if (quotationsList && quotationsList.length > 0) {
+      const draft = quotationsList.find((q) => q.isDraft === true);
+      if (draft) {
+        const nextStep = (draft.currentStep || 0) + 1;
+        toast.info(`Resuming your draft quotation (${draft.quotationId})`);
+        navigate(`/fullquotation/${draft.quotationId}/step/${nextStep}`, {
+          state: { quotationData: draft },
+        });
+      }
     }
-  }
-}, [quotationsList, navigate]);
-
+  }, [quotationsList, navigate]);
 
   const handleDeleteClick = (id) => {
     console.log("Delete quotation id:", id);
@@ -92,7 +91,7 @@ const QuotationCard = () => {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  // === Handle “Next” in Modal ===
+  // === Handle "Next" in Modal ===
   const handleNext = async () => {
     handleClose();
 
@@ -108,7 +107,7 @@ const QuotationCard = () => {
         break;
       case "full":
         // 🔹 Check for draft before new full quotation
-        const drafts = fullQuotations?.filter((q) => q.isDraft === true);
+        const drafts = quotationsList?.filter((q) => q.isDraft === true);
         if (drafts?.length > 0) {
           const draft = drafts[0];
           toast.info(`Resuming your draft quotation (${draft.quotationId})`);
@@ -143,6 +142,17 @@ const QuotationCard = () => {
 
   const calculateTotalNights = (destinations = []) =>
     destinations.reduce((total, destination) => total + (destination.nights || 0), 0);
+
+  // Helper to calculate total nights from stayLocation array
+  const calculateFullQuotationNights = (stayLocations = []) =>
+    stayLocations.reduce((total, location) => total + (location.nights || 0), 0);
+
+  // Helper to get form status for full quotations
+  const getFullQuotationFormStatus = (quotation) => {
+    if (quotation.isFinalized) return "Finalized";
+    if (quotation.isDraft) return `Draft (Step ${quotation.currentStep || 1})`;
+    return "In Progress";
+  };
 
   const columns = [
     { field: "id", headerName: "Sr No.", width: 80 },
@@ -181,6 +191,25 @@ const QuotationCard = () => {
 
   // === Combine all quotations ===
   const combinedList = [
+    // Full Quotations
+    ...(quotationsList || []).map((item, index) => ({
+      id: `FQ-${index + 1}`,
+      quoteId: item?.quotationId || "N/A",
+      clientName: item?.clientDetails?.clientName || "N/A",
+      arrival: formatDate(item?.pickupDrop?.arrivalDate),
+      departure: formatDate(item?.pickupDrop?.departureDate),
+      sector: item?.clientDetails?.sector || "N/A",
+      title: item?.quotation?.quotationTitle || "Full Tour",
+      noOfNight: calculateFullQuotationNights(item?.stayLocation) || "-",
+      tourType: item?.clientDetails?.tourType || "-",
+      type: "Full",
+      quotationStatus: item?.isFinalized ? "Finalized" : "Pending",
+      formStatus: getFullQuotationFormStatus(item),
+      businessType: "Travel",
+      rawData: item,
+    })),
+    
+    // Vehicle Quotations
     ...(vehicleList || []).map((item, index) => ({
       id: `V-${index + 1}`,
       quoteId: item?.vehicleQuotationId || "N/A",
@@ -200,6 +229,8 @@ const QuotationCard = () => {
       businessType: "Travel",
       rawData: item,
     })),
+    
+    // Flight Quotations
     ...(flightList || []).map((item, index) => ({
       id: `F-${index + 1}`,
       quoteId: item?.flightQuotationId || "N/A",
@@ -218,6 +249,8 @@ const QuotationCard = () => {
       businessType: "Travel",
       rawData: item,
     })),
+    
+    // Custom Quotations
     ...(customList || []).map((item, index) => ({
       id: `C-${index + 1}`,
       quoteId: item?.quotationId || "N/A",
@@ -242,16 +275,46 @@ const QuotationCard = () => {
       String(value).toLowerCase().includes(search.toLowerCase())
     )
   );
+// Add this useEffect to debug the data
+useEffect(() => {
+  console.log("Full Quotations Data:", quotationsList);
+  console.log("Vehicle Quotations:", vehicleList);
+  console.log("Flight Quotations:", flightList);
+  console.log("Custom Quotations:", customList);
+}, [quotationsList, vehicleList, flightList, customList]);
 
+// Also add this to see the combined list
+useEffect(() => {
+  console.log("Combined List:", combinedList);
+}, [combinedList]);
   const handleRowClick = (params) => {
-    if (params.row.type === "Flight") {
-      navigate(`/flightfinalize/${params.row.quoteId}`);
-    } else if (params.row.type === "Vehicle") {
-      navigate(`/vehiclefinalize/${params.row.quoteId}`);
-    } else if (params.row.type === "Custom") {
-      navigate(`/customfinalize/${params.row.quoteId}`, {
-        state: { quotationData: params.row.rawData },
-      });
+    switch (params.row.type) {
+      case "Full":
+        if (params.row.rawData.isDraft) {
+          // Navigate to continue draft
+          navigate(`/fullquotation/${params.row.quoteId}/step/${params.row.rawData.currentStep + 1}`, {
+            state: { quotationData: params.row.rawData },
+          });
+        } else {
+          // Navigate to view finalized quotation
+          navigate(`/fullfinalize/${params.row.quoteId}`, {
+            state: { quotationData: params.row.rawData },
+          });
+        }
+        break;
+      case "Flight":
+        navigate(`/flightfinalize/${params.row.quoteId}`);
+        break;
+      case "Vehicle":
+        navigate(`/vehiclefinalize/${params.row.quoteId}`);
+        break;
+      case "Custom":
+        navigate(`/customfinalize/${params.row.quoteId}`, {
+          state: { quotationData: params.row.rawData },
+        });
+        break;
+      default:
+        break;
     }
   };
 
