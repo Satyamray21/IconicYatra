@@ -20,8 +20,7 @@ export const accommodationPlanSchema = new mongoose.Schema(
 
     withoutMattress: { type: Boolean, default: false },
     withoutBedCost: { type: Number },
-
-    roomNight: { type: Number },   
+  
     costNight: { type: Number },   
     totalCost: { type: Number }    
   },
