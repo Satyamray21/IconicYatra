@@ -82,9 +82,37 @@ export const finalizeQuotationApi = createAsyncThunk(
   }
 );
 
+// Step 6: Get quotation by ID
+export const getQuotationById = createAsyncThunk(
+  "fullQuotation/getById",
+  async ({ quotationId }, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`/fullQT/${quotationId}`);
+      return response.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+
+// Step 7: Get all quotations
+export const getAllQuotations = createAsyncThunk(
+  "fullQuotation/getAll",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`/fullQT/`);
+      return response.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+
+
 // ================== Slice ================== //
 const initialState = {
   quotation: null,
+  quotationsList: [],
   loading: false,
   error: null,
   quotationId: null,
@@ -147,7 +175,26 @@ const fullQuotationSlice = createSlice({
       .addCase(finalizeQuotationApi.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(finalizeQuotationApi.fulfilled, (state, action) => { state.loading = false; state.quotation = action.payload; })
       .addCase(finalizeQuotationApi.rejected, (state, action) => { state.loading = false; state.error = action.payload; });
-  },
+   builder
+    .addCase(getQuotationById.pending, (state) => { state.loading = true; state.error = null; })
+    .addCase(getQuotationById.fulfilled, (state, action) => { 
+      state.loading = false; 
+      state.quotation = action.payload; 
+      state.quotationId = action.payload?.quotationId;
+    })
+    .addCase(getQuotationById.rejected, (state, action) => { state.loading = false; state.error = action.payload; });
+
+  // Get All Quotations
+  builder
+    .addCase(getAllQuotations.pending, (state) => { state.loading = true; state.error = null; })
+    .addCase(getAllQuotations.fulfilled, (state, action) => { 
+      state.loading = false; 
+      state.quotationsList = action.payload; // new field to store all quotations
+    })
+    .addCase(getAllQuotations.rejected, (state, action) => { state.loading = false; state.error = action.payload; });
+
+  }
+ 
 });
 
 export const { resetQuotation } = fullQuotationSlice.actions;

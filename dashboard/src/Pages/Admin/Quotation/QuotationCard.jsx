@@ -29,10 +29,15 @@ import HotelIcon from "@mui/icons-material/Hotel";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
+import { toast } from "react-toastify";
 
 import { getAllVehicleQuotations } from "../../../features/quotation/vehicleQuotationSlice";
 import { getAllFlightQuotations } from "../../../features/quotation/flightQuotationSlice";
 import { getAllCustomQuotations } from "../../../features/quotation/customQuotationSlice";
+import {
+ getAllQuotations,
+  getQuotationById,
+} from "../../../features/quotation/fullQuotationSlice";
 
 const stats = [
   { title: "Today's", confirmed: 0, inProcess: 0, cancelledIncomplete: 0 },
@@ -46,35 +51,39 @@ const QuotationCard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const {
-    list: vehicleList,
-    loading: vehicleLoading,
-    error: vehicleError,
-  } = useSelector((state) => state.vehicleQuotation);
-
+  const { list: vehicleList } = useSelector((state) => state.vehicleQuotation);
   const { quotations: flightList } = useSelector((state) => state.flightQuotation);
-
- const { 
-  quotations: customList = [],
-  loading: customLoading,
-  error: customError 
-} = useSelector((state) => state.customQuotation);
+  const { quotations: customList = [] } = useSelector((state) => state.customQuotation);
+  const { fullQuotations:quotationsList = [], loading: fullLoading } = useSelector(
+    (state) => state.fullQuotation
+  );
 
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState("");
   const [search, setSearch] = useState("");
 
+  // === Fetch all quotation data ===
   useEffect(() => {
     dispatch(getAllVehicleQuotations());
     dispatch(getAllFlightQuotations());
     dispatch(getAllCustomQuotations());
+    dispatch(getAllQuotations());
   }, [dispatch]);
 
-  useEffect(() => {
-    console.log("Vehicle List:", vehicleList);
-    console.log("Flight List:", flightList);
-    console.log("Custom List:", customList);
-  }, [vehicleList, flightList, customList]);
+  // === Auto-resume draft quotation when found ===
+ useEffect(() => {
+  if (quotationsList && quotationsList.length > 0) {
+    const draft = quotationsList.find((q) => q.isDraft === true);
+    if (draft) {
+      const nextStep = (draft.currentStep || 0) + 1;
+      toast.info(`Resuming your draft quotation (${draft.quotationId})`);
+      navigate(`/fullquotation/${draft.quotationId}/step/${nextStep}`, {
+        state: { quotationData: draft },
+      });
+    }
+  }
+}, [quotationsList, navigate]);
+
 
   const handleDeleteClick = (id) => {
     console.log("Delete quotation id:", id);
@@ -83,8 +92,10 @@ const QuotationCard = () => {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const handleNext = () => {
+  // === Handle “Next” in Modal ===
+  const handleNext = async () => {
     handleClose();
+
     switch (selectedType) {
       case "vehicle":
         navigate("/vehiclequotation");
@@ -96,7 +107,18 @@ const QuotationCard = () => {
         navigate("/flightquotation");
         break;
       case "full":
-        navigate("/fullquotation");
+        // 🔹 Check for draft before new full quotation
+        const drafts = fullQuotations?.filter((q) => q.isDraft === true);
+        if (drafts?.length > 0) {
+          const draft = drafts[0];
+          toast.info(`Resuming your draft quotation (${draft.quotationId})`);
+          navigate(`/fullquotation/${draft.quotationId}/step/${(draft.currentStep || 0) + 1}`, {
+            state: { quotationData: draft },
+          });
+        } else {
+          // Start a new one
+          navigate("/fullquotation");
+        }
         break;
       case "quick":
         navigate("/quickquotation");
@@ -109,7 +131,7 @@ const QuotationCard = () => {
     }
   };
 
-  // Format Date Safely
+  // === Helpers ===
   const formatDate = (date) => {
     if (!date) return "N/A";
     try {
@@ -119,23 +141,9 @@ const QuotationCard = () => {
     }
   };
 
-  // Calculate total nights from destinations
-  const calculateTotalNights = (destinations = []) => {
-    return destinations.reduce((total, destination) => total + (destination.nights || 0), 0);
-  };
+  const calculateTotalNights = (destinations = []) =>
+    destinations.reduce((total, destination) => total + (destination.nights || 0), 0);
 
-  // Get room type display text
-  const getRoomTypeDisplay = (roomType) => {
-    const roomTypeMap = {
-      "deluxe": "Deluxe",
-      "standard": "Standard", 
-      "superior": "Superior",
-      "4 star": "4 Star"
-    };
-    return roomTypeMap[roomType] || roomType || "N/A";
-  };
-
-  // Table Columns
   const columns = [
     { field: "id", headerName: "Sr No.", width: 80 },
     { field: "quoteId", headerName: "Quote Id", width: 140 },
@@ -171,9 +179,8 @@ const QuotationCard = () => {
     },
   ];
 
-  // Combine Vehicle + Flight + Custom Quotations
+  // === Combine all quotations ===
   const combinedList = [
-    // Vehicle Quotations
     ...(vehicleList || []).map((item, index) => ({
       id: `V-${index + 1}`,
       quoteId: item?.vehicleQuotationId || "N/A",
@@ -193,16 +200,12 @@ const QuotationCard = () => {
       businessType: "Travel",
       rawData: item,
     })),
-
-    // Flight Quotations
     ...(flightList || []).map((item, index) => ({
       id: `F-${index + 1}`,
       quoteId: item?.flightQuotationId || "N/A",
       clientName: item?.clientDetails?.clientName || "N/A",
       arrival: formatDate(item?.flightDetails?.[0]?.departureDate),
-      departure: formatDate(
-        item?.flightDetails?.[item?.flightDetails?.length - 1]?.departureDate
-      ),
+      departure: formatDate(item?.flightDetails?.[item?.flightDetails?.length - 1]?.departureDate),
       sector: Array.isArray(item?.flightDetails)
         ? item.flightDetails.map((f) => `${f.from} → ${f.to}`).join(", ")
         : "N/A",
@@ -215,8 +218,6 @@ const QuotationCard = () => {
       businessType: "Travel",
       rawData: item,
     })),
-
-    // Custom Quotations
     ...(customList || []).map((item, index) => ({
       id: `C-${index + 1}`,
       quoteId: item?.quotationId || "N/A",
@@ -225,35 +226,32 @@ const QuotationCard = () => {
       departure: formatDate(item?.tourDetails?.departureDate),
       sector: item?.clientDetails?.sector || "N/A",
       title: item?.tourDetails?.quotationTitle || "Custom Tour",
-      noOfNight: calculateTotalNights(item?.tourDetails?.quotationDetails?.destinations) || "-",
+      noOfNight:
+        calculateTotalNights(item?.tourDetails?.quotationDetails?.destinations) || "-",
       tourType: item?.clientDetails?.tourType || "-",
       type: "Custom",
-      quotationStatus: "Pending", // You might want to add status field to your custom quotations
+      quotationStatus: "Pending",
       formStatus: "Completed",
       businessType: "Travel",
       rawData: item,
     })),
   ];
 
-  // Search Filter
   const filteredList = combinedList.filter((row) =>
     Object.values(row).some((value) =>
       String(value).toLowerCase().includes(search.toLowerCase())
     )
   );
 
-  // Handle row click navigation
   const handleRowClick = (params) => {
     if (params.row.type === "Flight") {
       navigate(`/flightfinalize/${params.row.quoteId}`);
     } else if (params.row.type === "Vehicle") {
       navigate(`/vehiclefinalize/${params.row.quoteId}`);
     } else if (params.row.type === "Custom") {
-      navigate(`/customfinalize/${params.row.quoteId}`, { 
-        state: { quotationData: params.row.rawData } 
+      navigate(`/customfinalize/${params.row.quoteId}`, {
+        state: { quotationData: params.row.rawData },
       });
-    } else {
-      navigate(`/quotation/${params.row.id}`);
     }
   };
 
@@ -264,7 +262,7 @@ const QuotationCard = () => {
         <Grid container spacing={2}>
           {stats.map((item, index) => (
             <Grid key={index} item xs={12} sm={6} md={4} lg={2.4}>
-              <Card sx={{ backgroundColor: "#0b6396ff", color: "#fff", height: "100%" }}>
+              <Card sx={{ backgroundColor: "#0b6396ff", color: "#fff" }}>
                 <CardContent>
                   <Typography variant="h6">
                     {item.title}: {item.confirmed}
@@ -280,7 +278,7 @@ const QuotationCard = () => {
           ))}
         </Grid>
 
-        {/* Actions */}
+        {/* Toolbar */}
         <Box
           mt={3}
           mb={2}
@@ -290,12 +288,7 @@ const QuotationCard = () => {
           alignItems={{ xs: "stretch", sm: "center" }}
           gap={2}
         >
-          <Button
-            variant="contained"
-            color="warning"
-            sx={{ minWidth: 100 }}
-            onClick={handleOpen}
-          >
+          <Button variant="contained" color="warning" onClick={handleOpen}>
             Add
           </Button>
 
@@ -318,34 +311,32 @@ const QuotationCard = () => {
           />
         </Box>
 
-        {/* Data Grid */}
+        {/* Data Table */}
         <Box sx={{ width: "100%", overflowX: "auto" }}>
-          <Box sx={{ minWidth: "600px" }}>
-            {filteredList.length === 0 ? (
-              <Typography
-                variant="h6"
-                color="textSecondary"
-                align="center"
-                sx={{ mt: 2 }}
-              >
-                No quotations available
-              </Typography>
-            ) : (
-              <DataGrid
-                rows={filteredList}
-                columns={columns}
-                pageSize={7}
-                rowsPerPageOptions={[7, 25, 50, 100]}
-                autoHeight
-                disableRowSelectionOnClick
-                onRowClick={handleRowClick}
-              />
-            )}
-          </Box>
+          {filteredList.length === 0 ? (
+            <Typography
+              variant="h6"
+              color="textSecondary"
+              align="center"
+              sx={{ mt: 2 }}
+            >
+              No quotations available
+            </Typography>
+          ) : (
+            <DataGrid
+              rows={filteredList}
+              columns={columns}
+              pageSize={7}
+              rowsPerPageOptions={[7, 25, 50]}
+              autoHeight
+              disableRowSelectionOnClick
+              onRowClick={handleRowClick}
+            />
+          )}
         </Box>
       </Box>
 
-      {/* Quotation Type Modal */}
+      {/* Quotation Type Dialog */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ color: "#0b6396ff" }}>
           How would you like to create Quotation?
@@ -356,11 +347,10 @@ const QuotationCard = () => {
             onChange={(e) => setSelectedType(e.target.value)}
           >
             <Grid container spacing={2} mt={1}>
-              {/* Full Quotation */}
+              {/* Full */}
               <Grid item xs={6} sm={4}>
                 <Card
                   sx={{
-                    height: "100%",
                     border:
                       selectedType === "full"
                         ? "2px solid #0b6396ff"
@@ -374,7 +364,7 @@ const QuotationCard = () => {
                       label={
                         <Box textAlign="center">
                           <ShoppingBasketIcon fontSize="large" sx={{ color: "#0b6396ff" }} />
-                          <Typography>Full Quotation</Typography>
+                          <Typography>Full</Typography>
                         </Box>
                       }
                     />
@@ -382,11 +372,10 @@ const QuotationCard = () => {
                 </Card>
               </Grid>
 
-              {/* Quick Quotation */}
+              {/* Quick */}
               <Grid item xs={6} sm={4}>
                 <Card
                   sx={{
-                    height: "100%",
                     border:
                       selectedType === "quick"
                         ? "2px solid #0b6396ff"
@@ -400,7 +389,7 @@ const QuotationCard = () => {
                       label={
                         <Box textAlign="center">
                           <QuestionAnswerIcon fontSize="large" sx={{ color: "#0b6396ff" }} />
-                          <Typography>Quick Quotation</Typography>
+                          <Typography>Quick</Typography>
                         </Box>
                       }
                     />
@@ -412,7 +401,6 @@ const QuotationCard = () => {
               <Grid item xs={6} sm={4}>
                 <Card
                   sx={{
-                    height: "100%",
                     border:
                       selectedType === "hotel"
                         ? "2px solid #0b6396ff"
@@ -435,10 +423,9 @@ const QuotationCard = () => {
               </Grid>
 
               {/* Vehicle */}
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={6} sm={4}>
                 <Card
                   sx={{
-                    height: "100%",
                     border:
                       selectedType === "vehicle"
                         ? "2px solid #0b6396ff"
@@ -464,7 +451,6 @@ const QuotationCard = () => {
               <Grid item xs={6} sm={4}>
                 <Card
                   sx={{
-                    height: "100%",
                     border:
                       selectedType === "flight"
                         ? "2px solid #0b6396ff"
@@ -486,11 +472,10 @@ const QuotationCard = () => {
                 </Card>
               </Grid>
 
-              {/* Custom Quotation */}
+              {/* Custom */}
               <Grid item xs={6} sm={4}>
                 <Card
                   sx={{
-                    height: "100%",
                     border:
                       selectedType === "custom"
                         ? "2px solid #0b6396ff"
@@ -510,7 +495,7 @@ const QuotationCard = () => {
                           >
                             CQ
                           </Typography>
-                          <Typography>Custom Quotation</Typography>
+                          <Typography>Custom</Typography>
                         </Box>
                       }
                     />

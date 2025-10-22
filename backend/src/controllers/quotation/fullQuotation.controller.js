@@ -164,3 +164,30 @@ export const finalizeQuotation = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, quotation, "Quotation finalized successfully"));
 });
+
+
+/* =====================================================
+   GET QUOTATION BY ID
+===================================================== */
+export const getQuotationById = asyncHandler(async (req, res) => {
+  const { quotationId } = req.params;
+
+  const quotation = await fullQuotation.findOne({ quotationId });
+  if (!quotation) throw new ApiError(404, "Quotation not found");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, quotation, "Quotation fetched successfully"));
+});
+
+
+/* =====================================================
+   VIEW ALL QUOTATIONS
+===================================================== */
+export const getAllQuotations = asyncHandler(async (req, res) => {
+  const quotations = await fullQuotation.find().sort({ createdAt: -1 }); // latest first
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, quotations, "All quotations fetched successfully"));
+});
