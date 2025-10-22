@@ -101,7 +101,8 @@ const FullQuotation = () => {
   const [servicesList, setServicesList] = useState(data.services);
   const [openDialog, setOpenDialog] = useState(false);
   const [newService, setNewService] = useState("");
-  const [showStep2, setShowStep2] = useState(false);
+  const [showStep2, setShowStep2] = useState({ show: false, quotationId: null });
+
 
   const formik = useFormik({
     initialValues: {
@@ -213,10 +214,14 @@ const FullQuotation = () => {
     // Dispatch the thunk
     const resultAction = await dispatch(step1CreateOrResume(formData));
 
-    if (step1CreateOrResume.fulfilled.match(resultAction)) {
-      console.log("Step 1 saved:", resultAction.payload);
-      setShowStep2(true);
-    } else {
+   if (step1CreateOrResume.fulfilled.match(resultAction)) {
+  console.log("Step 1 saved:", resultAction.payload);
+
+ const quotationId = resultAction.payload.quotationId; // or the correct ID field from your API
+  setShowStep2({ show: true, quotationId });
+}
+
+    else {
       console.error("Error saving Step 1:", resultAction.payload);
     }
   } catch (error) {
@@ -247,9 +252,10 @@ const FullQuotation = () => {
     { name: "departureLocation", label: "Departure Location", options: data.locations },
   ];
 
-  if (showStep2) {
-    return <FullQuotationStep2 formData={formik.values} />;
-  }
+ if (showStep2.show) {
+  return <FullQuotationStep2 quotationId={showStep2.quotationId} formData={formik.values} />;
+}
+
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>

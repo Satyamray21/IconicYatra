@@ -11,6 +11,8 @@ import {
 import RoomIcon from "@mui/icons-material/Room";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import FullQuotationStep3 from "./FullQuotationStep3"
+import { useDispatch } from "react-redux";
+import { step2Update } from "../../../../features/quotation/fullQuotationSlice"; // adjust path
 
 const initialLocations = [
   "Aritar",
@@ -23,11 +25,15 @@ const initialLocations = [
   "Dzongu",
 ];
 
-const FullQuotationStep2 = () => {
+const FullQuotationStep2 = ({ quotationId }) => {
   const [selectedState, setSelectedState] = useState("Sikkim");
   const [locations, setLocations] = useState(initialLocations);
   const [stayLocations, setStayLocations] = useState([]);
+ 
+
   const [showStep3, setShowStep3] = useState(false);
+  const dispatch = useDispatch();
+  
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
@@ -237,14 +243,36 @@ const FullQuotationStep2 = () => {
 
       {/* Save Button */}
       <Box textAlign="center" sx={{ mt: 3 }}>
-        <Button
-          variant="contained"
-          sx={{ px: 4, py: 1.5, borderRadius: 2 }}
-          onClick={() => setShowStep3(true)}
-        >
-          Save & Continue
-        </Button>
-      </Box>
+  <Button
+    variant="contained"
+    sx={{ px: 4, py: 1.5, borderRadius: 2 }}
+    onClick={async () => {
+      if (!quotationId) {
+        console.error("Quotation ID is missing!");
+        return;
+      }
+
+      try {
+        // Dispatch step2Update thunk
+        const resultAction = await dispatch(
+          step2Update({ quotationId, stayLocation: stayLocations })
+        );
+
+        if (step2Update.fulfilled.match(resultAction)) {
+          console.log("Step 2 saved:", resultAction.payload);
+          setShowStep3(true); // Proceed to next step
+        } else {
+          console.error("Error saving Step 2:", resultAction.payload);
+        }
+      } catch (error) {
+        console.error("Submission error:", error);
+      }
+    }}
+  >
+    Save & Continue
+  </Button>
+</Box>
+
     </Box>
   );
 };
