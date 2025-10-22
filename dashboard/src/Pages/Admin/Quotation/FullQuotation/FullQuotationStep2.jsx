@@ -10,9 +10,10 @@ import {
 } from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import FullQuotationStep3 from "./FullQuotationStep3"
 import { useDispatch } from "react-redux";
-import { step2Update } from "../../../../features/quotation/fullQuotationSlice"; // adjust path
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { step2Update } from "../../../../features/quotation/fullQuotationSlice";
 
 const initialLocations = [
   "Aritar",
@@ -29,12 +30,11 @@ const FullQuotationStep2 = ({ quotationId }) => {
   const [selectedState, setSelectedState] = useState("Sikkim");
   const [locations, setLocations] = useState(initialLocations);
   const [stayLocations, setStayLocations] = useState([]);
- 
 
-  const [showStep3, setShowStep3] = useState(false);
   const dispatch = useDispatch();
-  
+  const navigate = useNavigate();
 
+  // ---------- DRAG & DROP ----------
   const handleDragEnd = (result) => {
     if (!result.destination) return;
 
@@ -81,20 +81,38 @@ const FullQuotationStep2 = ({ quotationId }) => {
     }
   };
 
+  // ---------- Handle Nights ----------
   const handleNightsChange = (index, value) => {
     const updated = [...stayLocations];
     updated[index].nights = value;
     setStayLocations(updated);
   };
 
-  if (showStep3) {
-  return <FullQuotationStep3 
-           quotationId={quotationId} 
-           stayLocations={stayLocations} 
-         />;
-}
+  // ---------- Save & Continue ----------
+  const handleSave = async () => {
+    if (!quotationId) {
+      toast.error("Quotation ID is missing!");
+      return;
+    }
 
+    try {
+      const resultAction = await dispatch(
+        step2Update({ quotationId, stayLocation: stayLocations })
+      );
 
+      if (step2Update.fulfilled.match(resultAction)) {
+        toast.success("Step 2 saved successfully!");
+        navigate(`/fullquotation/${quotationId}/step/3`);
+      } else {
+        toast.error("Failed to save Step 2");
+        console.error("Error:", resultAction.payload);
+      }
+    } catch (error) {
+      console.error("Submission error:", error);
+    }
+  };
+
+  // ---------- UI ----------
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
@@ -119,7 +137,7 @@ const FullQuotationStep2 = ({ quotationId }) => {
       <DragDropContext onDragEnd={handleDragEnd}>
         <Grid container spacing={2}>
           {/* Left: Locations */}
-          <Grid size={{xs:12, md:6}}>
+          <Grid item xs={12} md={6}>
             <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
               Locations
             </Typography>
@@ -173,7 +191,7 @@ const FullQuotationStep2 = ({ quotationId }) => {
           </Grid>
 
           {/* Right: Stay Locations */}
-          <Grid size={{xs:12, md:6}}>
+          <Grid item xs={12} md={6}>
             <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
               Stay Locations
             </Typography>
@@ -247,36 +265,14 @@ const FullQuotationStep2 = ({ quotationId }) => {
 
       {/* Save Button */}
       <Box textAlign="center" sx={{ mt: 3 }}>
-  <Button
-    variant="contained"
-    sx={{ px: 4, py: 1.5, borderRadius: 2 }}
-    onClick={async () => {
-      if (!quotationId) {
-        console.error("Quotation ID is missing!");
-        return;
-      }
-
-      try {
-        // Dispatch step2Update thunk
-        const resultAction = await dispatch(
-          step2Update({ quotationId, stayLocation: stayLocations })
-        );
-
-        if (step2Update.fulfilled.match(resultAction)) {
-          console.log("Step 2 saved:", resultAction.payload);
-          setShowStep3(true); // Proceed to next step
-        } else {
-          console.error("Error saving Step 2:", resultAction.payload);
-        }
-      } catch (error) {
-        console.error("Submission error:", error);
-      }
-    }}
-  >
-    Save & Continue
-  </Button>
-</Box>
-
+        <Button
+          variant="contained"
+          sx={{ px: 4, py: 1.5, borderRadius: 2 }}
+          onClick={handleSave}
+        >
+          Save & Continue
+        </Button>
+      </Box>
     </Box>
   );
 };

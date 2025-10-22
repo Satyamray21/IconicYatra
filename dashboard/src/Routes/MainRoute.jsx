@@ -28,7 +28,7 @@ import VehicleQuotation from "../Pages/Admin/Quotation/VehicleQuotation/VehicleQ
 import HotelQuotation from "../Pages/Admin/Quotation/HotelQuotation/hotelquotation";
 import FlightQuotation from "../Pages/Admin/Quotation/FlightQuotation/flightquotation";
 import QuickQuotation from "../Pages/Admin/Quotation/QuickQuotation/quickquotation";
-import FullQuotation from "../Pages/Admin/Quotation/FullQuotation/fullquotation";
+import FullQuotation from "../Pages/Admin/Quotation/FullQuotation/FullQuotationMain";
 import CustomQuotation from "../Pages/Admin/Quotation/CustomQuotation/CustomQuotationMain";
 import FlightFinalize from "../Pages/Admin/Quotation/FlightQuotation/FlightFinalize";
 import VehicleFinalize from "../Pages/Admin/Quotation/VehicleQuotation/VehicleFinalize";
@@ -83,6 +83,7 @@ const MainRoute = () => {
         <Route path="/flightquotation" element={<FlightQuotation />} />
         <Route path="/quickquotation" element={<QuickQuotation />} />
         <Route path="/fullquotation" element={<FullQuotation />} />
+          <Route path="/fullquotation/:quotationId/step/:stepNumber" element={<FullQuotation />} />
         <Route path="/customquotation" element={<CustomQuotation />} />
         <Route path="/flightfinalize/:id" element={<FlightFinalize />} />
         <Route path="/vehiclefinalize/:id" element={<VehicleFinalize />} />

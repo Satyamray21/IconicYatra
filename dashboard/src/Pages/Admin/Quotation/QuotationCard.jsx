@@ -51,16 +51,26 @@ const QuotationCard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { list: vehicleList } = useSelector((state) => state.vehicleQuotation);
-  const { quotations: flightList } = useSelector((state) => state.flightQuotation);
+  const { list: vehicleList = [] } = useSelector((state) => state.vehicleQuotation);
+  const { quotations: flightList = [] } = useSelector((state) => state.flightQuotation);
   const { quotations: customList = [] } = useSelector((state) => state.customQuotation);
   const { quotationsList = [], loading: fullLoading } = useSelector(
-  (state) => state.fullQuotation
-);
+    (state) => state.fullQuotation
+  );
 
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState("");
   const [search, setSearch] = useState("");
+
+  // Debug effect
+  useEffect(() => {
+    console.log("=== QUOTATION DATA DEBUG ===");
+    console.log("Full Quotations Count:", quotationsList?.length);
+    console.log("Full Quotations:", quotationsList);
+    console.log("Vehicle Count:", vehicleList?.length);
+    console.log("Flight Count:", flightList?.length);
+    console.log("Custom Count:", customList?.length);
+  }, [quotationsList, vehicleList, flightList, customList]);
 
   // === Fetch all quotation data ===
   useEffect(() => {
@@ -70,19 +80,7 @@ const QuotationCard = () => {
     dispatch(getAllQuotations());
   }, [dispatch]);
 
-  // === Auto-resume draft quotation when found ===
-  useEffect(() => {
-    if (quotationsList && quotationsList.length > 0) {
-      const draft = quotationsList.find((q) => q.isDraft === true);
-      if (draft) {
-        const nextStep = (draft.currentStep || 0) + 1;
-        toast.info(`Resuming your draft quotation (${draft.quotationId})`);
-        navigate(`/fullquotation/${draft.quotationId}/step/${nextStep}`, {
-          state: { quotationData: draft },
-        });
-      }
-    }
-  }, [quotationsList, navigate]);
+  // REMOVED: Auto-resume draft quotation effect
 
   const handleDeleteClick = (id) => {
     console.log("Delete quotation id:", id);
@@ -191,23 +189,27 @@ const QuotationCard = () => {
 
   // === Combine all quotations ===
   const combinedList = [
-    // Full Quotations
-    ...(quotationsList || []).map((item, index) => ({
-      id: `FQ-${index + 1}`,
-      quoteId: item?.quotationId || "N/A",
-      clientName: item?.clientDetails?.clientName || "N/A",
-      arrival: formatDate(item?.pickupDrop?.arrivalDate),
-      departure: formatDate(item?.pickupDrop?.departureDate),
-      sector: item?.clientDetails?.sector || "N/A",
-      title: item?.quotation?.quotationTitle || "Full Tour",
-      noOfNight: calculateFullQuotationNights(item?.stayLocation) || "-",
-      tourType: item?.clientDetails?.tourType || "-",
-      type: "Full",
-      quotationStatus: item?.isFinalized ? "Finalized" : "Pending",
-      formStatus: getFullQuotationFormStatus(item),
-      businessType: "Travel",
-      rawData: item,
-    })),
+    // Full Quotations - Updated mapping based on API response
+    ...(quotationsList || []).map((item, index) => {
+      const totalNights = calculateFullQuotationNights(item?.stayLocation);
+      
+      return {
+        id: `FQ-${index + 1}`,
+        quoteId: item?.quotationId || "N/A",
+        clientName: item?.clientDetails?.clientName || "N/A",
+        arrival: formatDate(item?.pickupDrop?.arrivalDate),
+        departure: formatDate(item?.pickupDrop?.departureDate),
+        sector: item?.clientDetails?.sector || "N/A",
+        title: item?.quotation?.quotationTitle || "Full Tour",
+        noOfNight: totalNights > 0 ? totalNights.toString() : "0",
+        tourType: item?.clientDetails?.tourType || "-",
+        type: "Full",
+        quotationStatus: item?.isFinalized ? "Finalized" : item?.isDraft ? "Draft" : "Pending",
+        formStatus: getFullQuotationFormStatus(item),
+        businessType: "Travel",
+        rawData: item,
+      };
+    }),
     
     // Vehicle Quotations
     ...(vehicleList || []).map((item, index) => ({
@@ -275,24 +277,14 @@ const QuotationCard = () => {
       String(value).toLowerCase().includes(search.toLowerCase())
     )
   );
-// Add this useEffect to debug the data
-useEffect(() => {
-  console.log("Full Quotations Data:", quotationsList);
-  console.log("Vehicle Quotations:", vehicleList);
-  console.log("Flight Quotations:", flightList);
-  console.log("Custom Quotations:", customList);
-}, [quotationsList, vehicleList, flightList, customList]);
 
-// Also add this to see the combined list
-useEffect(() => {
-  console.log("Combined List:", combinedList);
-}, [combinedList]);
   const handleRowClick = (params) => {
     switch (params.row.type) {
       case "Full":
         if (params.row.rawData.isDraft) {
-          // Navigate to continue draft
-          navigate(`/fullquotation/${params.row.quoteId}/step/${params.row.rawData.currentStep + 1}`, {
+          // Navigate to continue draft - use currentStep from API
+          const nextStep = (params.row.rawData.currentStep || 0) + 1;
+          navigate(`/fullquotation/${params.row.quoteId}/step/${nextStep}`, {
             state: { quotationData: params.row.rawData },
           });
         } else {

@@ -96,7 +96,7 @@ const Section = ({ title, children }) => (
   </Paper>
 );
 
-const FullQuotation = () => {
+const FullQuotationStep1 = () => {
   const dispatch = useDispatch();
   const [servicesList, setServicesList] = useState(data.services);
   const [openDialog, setOpenDialog] = useState(false);
@@ -138,7 +138,7 @@ const FullQuotation = () => {
       banner: null,
     },
     validationSchema,
-    onSubmit: async (values, { setSubmitting }) => {
+  onSubmit: async (values, { setSubmitting }) => {
   try {
     const formData = new FormData();
 
@@ -211,18 +211,21 @@ const FullQuotation = () => {
       formData.append("banner", values.banner);
     }
 
-    // Dispatch the thunk
+    // Dispatch API call
     const resultAction = await dispatch(step1CreateOrResume(formData));
 
-   if (step1CreateOrResume.fulfilled.match(resultAction)) {
-  console.log("Step 1 saved:", resultAction.payload);
+    if (step1CreateOrResume.fulfilled.match(resultAction)) {
+      const quotationId = resultAction.payload?.quotationId;
+      console.log("✅ Step 1 saved:", resultAction.payload);
 
- const quotationId = resultAction.payload.quotationId; // or the correct ID field from your API
-  setShowStep2({ show: true, quotationId });
-}
-
-    else {
-      console.error("Error saving Step 1:", resultAction.payload);
+      // Go to Step 2 using the parent navigation prop
+      if (quotationId) {
+        if (typeof onNextStep === "function") {
+          onNextStep(quotationId);
+        }
+      }
+    } else {
+      console.error("❌ Error saving Step 1:", resultAction.payload);
     }
   } catch (error) {
     console.error("Submission error:", error);
@@ -230,6 +233,7 @@ const FullQuotation = () => {
     setSubmitting(false);
   }
 }
+
 
   });
 
@@ -598,4 +602,4 @@ const FullQuotation = () => {
   );
 };
 
-export default FullQuotation;
+export default FullQuotationStep1;
