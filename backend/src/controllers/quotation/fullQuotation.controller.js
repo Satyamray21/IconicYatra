@@ -71,7 +71,13 @@ export const updateStep2 = asyncHandler(async (req, res) => {
   const quotation = await fullQuotation.findOne({ quotationId });
   if (!quotation) throw new ApiError(404, "Quotation not found");
 
-  quotation.stayLocation = stayLocation;
+  // Map frontend data to schema requirements
+  quotation.stayLocation = stayLocation.map((loc, index) => ({
+    city: loc.name,
+    order: index + 1,
+    nights: Number(loc.nights) || 1,
+  }));
+
   quotation.currentStep = Math.max(quotation.currentStep, 2);
   await quotation.save();
 
@@ -79,6 +85,7 @@ export const updateStep2 = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, quotation, "Step 2: Stay location saved"));
 });
+
 
 /* =====================================================
    STEP 3 - UPDATE ITINERARY
