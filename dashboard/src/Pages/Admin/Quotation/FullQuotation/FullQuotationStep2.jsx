@@ -88,8 +88,12 @@ const FullQuotationStep2 = ({ quotationId }) => {
   };
 
   if (showStep3) {
-    return <FullQuotationStep3 />;
-  }
+  return <FullQuotationStep3 
+           quotationId={quotationId} 
+           stayLocations={stayLocations} 
+         />;
+}
+
 
   return (
     <Box sx={{ p: 3 }}>

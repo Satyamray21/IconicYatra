@@ -35,7 +35,7 @@ export const step3Update = createAsyncThunk(
   "fullQuotation/step3Update",
   async ({ quotationId, itinerary }, { rejectWithValue }) => {
     try {
-      const response = await axios.put(`/api/v1/fullQT/step3/${quotationId}`, { itinerary });
+      const response = await axios.put(`/fullQT/step3/${quotationId}`, { itinerary });
       return response.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);

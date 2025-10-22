@@ -14,7 +14,8 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FullQuotationStep4 from "./FullQuotationStep4";
-
+import { useDispatch } from "react-redux";
+import { step3Update } from "../../../../features/quotation/fullQuotationSlice";
 const daySchema = Yup.object({
   arrivalAt: Yup.string().required("Required"),
   driveTo: Yup.string().required("Required"),
@@ -26,7 +27,7 @@ const daySchema = Yup.object({
   dayImage: Yup.mixed().required("Image is required"),
 });
 
-const FullQuotationStep3 = () => {
+const FullQuotationStep3 = ({ quotationId, stayLocations }) => {
   const [days, setDays] = useState([
     {
       arrivalAt: "",
@@ -40,7 +41,7 @@ const FullQuotationStep3 = () => {
     },
   ]);
   const [showStep4, setShowStep4] = useState(false);
-
+  const dispatch = useDispatch();
   const handleAddDay = () => {
     setDays((prev) => [
       ...prev,
@@ -257,12 +258,37 @@ const FullQuotationStep3 = () => {
           * Fields Are Mandatory
         </Typography>
          <Button
-                  variant="contained"
-                  sx={{ px: 4, py: 1.5, borderRadius: 2 }}
-                  onClick={() => setShowStep4(true)}
-                >
-                  Save & Continue
-                </Button>
+  variant="contained"
+  sx={{ px: 4, py: 1.5, borderRadius: 2 }}
+  onClick={async () => {
+    try {
+      // Validate all days first
+      await Promise.all(days.map(day => daySchema.validate(day)));
+
+      // Map frontend data to backend schema
+      const itinerary = days.map(day => ({
+        dayTitle: day.title,
+        dayNote: day.itineraryDetails,
+        aboutCity: day.aboutCity,
+        image: day.dayImage?.name || "", // adjust for uploaded file path
+      }));
+
+      // Call backend via Redux thunk
+      const resultAction = await dispatch(step3Update({ quotationId, itinerary }));
+
+      if (step3Update.fulfilled.match(resultAction)) {
+        console.log("Step 3 saved:", resultAction.payload);
+        setShowStep4(true); // proceed to Step 4
+      } else {
+        console.error("Error saving Step 3:", resultAction.payload);
+      }
+    } catch (err) {
+      alert(`Validation Error: ${err.message}`);
+    }
+  }}
+>
+  Save & Continue
+</Button>
       </Box>
     </Box>
   );
