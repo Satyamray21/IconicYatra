@@ -7,6 +7,7 @@ import locationReducer from "../features/location/locationSlice"
 import vehicleQuotationReducer from "../features/quotation/vehicleQuotationSlice"
 import flightQuotationReducer from "../features/quotation/flightQuotationSlice"
 import customQuotationReducer from "../features/quotation/customQuotationSlice"
+import fullQuotationReducer from "../features/quotation/fullQuotationSlice"
 export const store = configureStore({
   reducer: {
     leads:LeadReducer,
@@ -17,6 +18,7 @@ export const store = configureStore({
     vehicleQuotation:vehicleQuotationReducer,
     flightQuotation:flightQuotationReducer,
     customQuotation:customQuotationReducer,
+    fullQuotation:fullQuotationReducer,
 
 
   },
