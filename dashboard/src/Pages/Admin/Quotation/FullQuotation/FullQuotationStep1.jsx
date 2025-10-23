@@ -73,8 +73,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
   const [manageField, setManageField] = useState("");
   const [showStep2, setShowStep2] = useState({ show: false, quotationId: null });
 
-const { countries, states, cities } = useSelector((state) => state.location);
-
+  const { countries, states, cities } = useSelector((state) => state.location);
   const { options } = useSelector((state) => state.leads);
 
   // Dynamic field options
@@ -253,7 +252,6 @@ const { countries, states, cities } = useSelector((state) => state.location);
 
   useEffect(() => {
     const { tourType, sector } = formik.values;
-
     if (!sector) return;
 
     if (tourType === "Domestic") {
@@ -335,7 +333,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
       <form onSubmit={formik.handleSubmit}>
         {/* Client Details */}
         <Section title="Client Details">
-          <Grid size={{xs:6}}>
+          <Grid item xs={6}>
             <TextField
               fullWidth
               name="clientName"
@@ -348,7 +346,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
             />
           </Grid>
 
-          <Grid size={{xs:6}}>
+          <Grid item xs={6}>
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Tour Type</Typography>
             <RadioGroup row name="tourType" value={formik.values.tourType} onChange={formik.handleChange}>
               {["Domestic", "International"].map((t) => (
@@ -357,7 +355,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
             </RadioGroup>
           </Grid>
 
-          <Grid size={{xs:6}}>
+          <Grid item xs={6}>
             <TextField
               select
               fullWidth
@@ -372,14 +370,14 @@ const { countries, states, cities } = useSelector((state) => state.location);
             </TextField>
           </Grid>
 
-          <Grid size={{xs:6}}>
+          <Grid item xs={6}>
             <FormControlLabel
               control={<Checkbox name="showCostPerAdult" checked={formik.values.showCostPerAdult} onChange={formik.handleChange} />}
               label="Show Cost Per Adult"
             />
           </Grid>
 
-          <Grid size={{xs:12}}>
+          <Grid item xs={12}>
             <Box display="flex" alignItems="center" justifyContent="space-between">
               <Typography variant="body2" fontWeight={600}>Services Required</Typography>
               <IconButton color="primary" onClick={() => { setManageField("services"); setOpenOptionDialog(true); }}>
@@ -396,7 +394,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
           </Grid>
 
           {["adults", "children", "kids", "infants"].map((f) => (
-            <Grid size={{xs:3}} key={f}>
+            <Grid item xs={3} key={f}>
               <TextField
                 fullWidth
                 name={f}
@@ -407,7 +405,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
             </Grid>
           ))}
 
-          <Grid size={{xs:12}}>
+          <Grid item xs={12}>
             <FormControlLabel
               control={<Checkbox name="withoutMattress" checked={formik.values.withoutMattress} onChange={formik.handleChange} />}
               label="Without Mattress"
@@ -419,7 +417,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
         {/* Accommodation & Facility */}
         <Section title="Accommodation & Facility">
           {[["hotelType", hotelTypeList], ["mealPlan", mealPlanList], ["sharingType", sharingTypeList]].map(([field, list]) => (
-            <Grid size={{xs:4}} key={field}>
+            <Grid item xs={4} key={field}>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
                   {field.charAt(0).toUpperCase() + field.slice(1)}
@@ -434,7 +432,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
             </Grid>
           ))}
 
-          <Grid size={{xs:4}}>
+          <Grid item xs={4}>
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Transport</Typography>
             <RadioGroup row name="transport" value={formik.values.transport} onChange={formik.handleChange}>
               {["Yes", "No"].map((t) => <FormControlLabel key={t} value={t} control={<Radio />} label={t} />)}
@@ -442,7 +440,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
           </Grid>
 
           {["noOfRooms", "noOfMattress"].map((f) => (
-            <Grid size={{xs:4}} key={f}>
+            <Grid item xs={4} key={f}>
               <TextField
                 fullWidth
                 name={f}
@@ -458,46 +456,37 @@ const { countries, states, cities } = useSelector((state) => state.location);
         {/* Pickup / Drop */}
         <Section title="Pickup / Drop">
           {pickupDropFields.map((f) => (
-            <Grid size={{xs:4}} key={f.name}>
-  {f.type === "date" ? (
-    <DatePicker
-      label={f.label}
-      value={formik.values[f.name]}
-      onChange={(v) => formik.setFieldValue(f.name, v)}
-      slotProps={{ textField: { fullWidth: true } }}
-    />
-  ) : f.name === "arrivalCity" || f.name === "departureCity" ? (
-    <TextField
-      select
-      fullWidth
-      name={f.name}
-      label={f.label}
-      value={formik.values[f.name]}
-      onChange={formik.handleChange}
-    >
-      {cities.map((city) => (
-        <MenuItem key={city} value={city}>
-          {city}
-        </MenuItem>
-      ))}
-    </TextField>
-  ) : (
-    <TextField
-      select
-      fullWidth
-      name={f.name}
-      value={formik.values[f.name]}
-      onChange={formik.handleChange}
-    >
-      {(f.name === "arrivalLocation" ? arrivalLocationList : departureLocationList).map((o) => (
-        <MenuItem key={o} value={o}>{o}</MenuItem>
-      ))}
-    </TextField>
-  )}
-</Grid>
-
+            <Grid item xs={4} key={f.name}>
+              {f.type === "date" ? (
+                <DatePicker
+                  label={f.label}
+                  value={formik.values[f.name]}
+                  onChange={(v) => formik.setFieldValue(f.name, v)}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              ) : f.name === "arrivalCity" || f.name === "departureCity" ? (
+                <Autocomplete
+                  options={cities}
+                  value={formik.values[f.name]}
+                  onChange={(_, val) => formik.setFieldValue(f.name, val || "")}
+                  renderInput={(params) => <TextField {...params} label={f.label} fullWidth />}
+                />
+              ) : (
+                <TextField
+                  select
+                  fullWidth
+                  name={f.name}
+                  value={formik.values[f.name]}
+                  onChange={formik.handleChange}
+                >
+                  {(f.name === "arrivalLocation" ? arrivalLocationList : departureLocationList).map((o) => (
+                    <MenuItem key={o} value={o}>{o}</MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </Grid>
           ))}
-          <Grid size={{xs:4}}>
+          <Grid item xs={4}>
             <TextField fullWidth name="nights" label="Nights" type="number" value={formik.values.nights} onChange={formik.handleChange} />
           </Grid>
         </Section>
@@ -505,7 +494,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
         {/* Quotation Validity */}
         <Section title="Quotation Validity">
           {["validFrom", "validTill"].map((f) => (
-            <Grid size={{xs:6}} key={f}>
+            <Grid item xs={6} key={f}>
               <DatePicker
                 label={f === "validFrom" ? "Valid From" : "Valid Till"}
                 value={formik.values[f]}
@@ -518,14 +507,14 @@ const { countries, states, cities } = useSelector((state) => state.location);
 
         {/* Quotation */}
         <Section title="Quotation">
-          <Grid size={{xs:4}}>
+          <Grid item xs={4}>
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Create By</Typography>
             <RadioGroup row name="createBy" value={formik.values.createBy} onChange={formik.handleChange}>
               <FormControlLabel value="New Quotation" control={<Radio />} label="New Quotation" />
             </RadioGroup>
           </Grid>
 
-          <Grid size={{xs:8}}>
+          <Grid item xs={8}>
             <TextField
               fullWidth
               name="quotationTitle"
@@ -537,7 +526,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
             />
           </Grid>
 
-          <Grid size={{xs:12}}>
+          <Grid item xs={12}>
             <TextField
               fullWidth
               multiline
@@ -551,7 +540,7 @@ const { countries, states, cities } = useSelector((state) => state.location);
             <Typography variant="caption" color="green">{formik.values.initialNotes.length}/200 characters</Typography>
           </Grid>
 
-          <Grid size={{xs:12}}>
+          <Grid item xs={12}>
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Select Banner Image (860px X 400px)</Typography>
             <Button variant="outlined" component="label" sx={{ mt: 1 }}>
               Upload
