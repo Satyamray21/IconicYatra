@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Grid,
@@ -17,61 +17,18 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
-  
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { useDispatch,useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { step1CreateOrResume } from "../../../../features/quotation/fullQuotationSlice"; 
 import { fetchCountries, fetchStatesByCountry, clearStates } from '../../../../features/location/locationSlice';
 import FullQuotationStep2 from "./FullQuotationStep2";
 import LeadOptionsManager from "../../../../Components/LeadOptionsManager";
 import { getLeadOptions } from "../../../../features/leads/leadSlice";
 import { Settings as SettingsIcon } from "@mui/icons-material";
-const data = {
-  clients: ["Client A", "Client B", "Client C"],
-  sectors: [
-    "Andhra Pradesh",
-    "Arunachal Pradesh",
-    "Assam",
-    "Bihar",
-    "Chhattisgarh",
-    "Delhi",
-    "Goa",
-    "Gujarat",
-    "Haryana",
-    "Himachal Pradesh",
-    "Manipur",
-  ],
-  countries: [
-    "United States",
-    "United Kingdom",
-    "Canada",
-    "Australia",
-    "France",
-    "Germany",
-    "Japan",
-    "Singapore",
-    "Thailand",
-    "UAE",
-  ],
-  cities: ["Delhi", "Mumbai", "Chennai"],
-  locations: ["Airport", "Railway Station", "Hotel"],
-  services: [
-    "Air Ticket",
-    "Bus Ticket",
-    "Covid Pass",
-    "Cruise",
-    "Hotel",
-    "Vehicle",
-    "Visa",
-  ],
-  hotelTypes: ["3 Star", "4 Star", "5 Star"],
-  mealPlans: ["Breakfast Only", "Half Board", "Full Board"],
-  sharingTypes: ["Single", "Double", "Triple"],
-};
 
 const validationSchema = Yup.object({
   clientName: Yup.string().required("Required"),
@@ -103,19 +60,54 @@ const Section = ({ title, children }) => (
 
 const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
   const dispatch = useDispatch();
-  const [servicesList, setServicesList] = useState(data.services);
-  const [openDialog, setOpenDialog] = useState(false);
   const [openOptionDialog, setOpenOptionDialog] = useState(false);
   const [manageField, setManageField] = useState("");
-  const [newService, setNewService] = useState("");
   const [showStep2, setShowStep2] = useState({ show: false, quotationId: null });
-   const {
-      countries,
-      states,             
-      loading: locationLoading,
-    } = useSelector((state) => state.location);
-  
-    const { options } = useSelector((state) => state.leads);
+
+  const { countries, states, loading: locationLoading } = useSelector((state) => state.location);
+  const { options } = useSelector((state) => state.leads);
+
+  // Dynamic field options
+  const [servicesList, setServicesList] = useState([]);
+  const [hotelTypeList, setHotelTypeList] = useState([]);
+  const [mealPlanList, setMealPlanList] = useState([]);
+  const [sharingTypeList, setSharingTypeList] = useState([]);
+  const [arrivalLocationList, setArrivalLocationList] = useState([]);
+  const [departureLocationList, setDepartureLocationList] = useState([]);
+
+  // Fetch lead options dynamically
+  useEffect(() => {
+    dispatch(getLeadOptions());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (Array.isArray(options)) {
+      options.forEach((opt) => {
+        switch (opt.fieldName) {
+          case "services":
+            setServicesList((prev) => [...prev, opt.value]);
+            break;
+          case "hotelType":
+            setHotelTypeList((prev) => [...prev, opt.value]);
+            break;
+          case "mealPlan":
+            setMealPlanList((prev) => [...prev, opt.value]);
+            break;
+          case "sharingType":
+            setSharingTypeList((prev) => [...prev, opt.value]);
+            break;
+          case "arrivalLocation":
+            setArrivalLocationList((prev) => [...prev, opt.value]);
+            break;
+          case "departureLocation":
+            setDepartureLocationList((prev) => [...prev, opt.value]);
+            break;
+          default:
+            break;
+        }
+      });
+    }
+  }, [options]);
 
   const formik = useFormik({
     initialValues: {
@@ -146,163 +138,160 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
       validTill: null,
       createBy: "New Quotation",
       quotationTitle: "",
-      initialNotes:
-        "This is only tentative schedule for sightseeing and travel. Actual sightseeing may get affected due to weather, road conditions, local authority notices, shortage of timing, or off days.",
+      initialNotes: "This is only tentative schedule for sightseeing and travel...",
       banner: null,
     },
     validationSchema,
-  onSubmit: async (values, { setSubmitting }) => {
-  try {
-    const formData = new FormData();
+    onSubmit: async (values, { setSubmitting }) => {
+      try {
+        const formData = new FormData();
 
-    // Client Details
-    formData.append(
-      "clientDetails",
-      JSON.stringify({
-        clientName: values.clientName,
-        tourType: values.tourType,
-        sector: values.sector,
-        showCostPerAdult: values.showCostPerAdult,
-        servicesRequired: values.services,
-        members: {
-          adults: values.adults,
-          children: values.children,
-          kidsWithoutMattress: values.kids,
-          infants: values.infants,
-        },
-      })
-    );
+        formData.append("clientDetails", JSON.stringify({
+          clientName: values.clientName,
+          tourType: values.tourType,
+          sector: values.sector,
+          showCostPerAdult: values.showCostPerAdult,
+          servicesRequired: values.services,
+          members: {
+            adults: values.adults,
+            children: values.children,
+            kidsWithoutMattress: values.kids,
+            infants: values.infants,
+          },
+        }));
 
-    // Accommodation
-    formData.append(
-      "accommodation",
-      JSON.stringify({
-        hotelType: [values.hotelType],
-        mealPlan: values.mealPlan,
-        transport: values.transport === "Yes",
-        sharingType: values.sharingType,
-        noOfRooms: values.noOfRooms,
-        noOfMattress: values.noOfMattress,
-        noOfNights: values.nights,
-      })
-    );
+        formData.append("accommodation", JSON.stringify({
+          hotelType: [values.hotelType],
+          mealPlan: values.mealPlan,
+          transport: values.transport === "Yes",
+          sharingType: values.sharingType,
+          noOfRooms: values.noOfRooms,
+          noOfMattress: values.noOfMattress,
+          noOfNights: values.nights,
+        }));
 
-    // Pickup / Drop
-    formData.append(
-      "pickupDrop",
-      JSON.stringify({
-        arrivalDate: values.arrivalDate,
-        arrivalCity: values.arrivalCity,
-        arrivalLocation: values.arrivalLocation,
-        departureDate: values.departureDate,
-        departureCity: values.departureCity,
-        departureLocation: values.departureLocation,
-      })
-    );
+        formData.append("pickupDrop", JSON.stringify({
+          arrivalDate: values.arrivalDate,
+          arrivalCity: values.arrivalCity,
+          arrivalLocation: values.arrivalLocation,
+          departureDate: values.departureDate,
+          departureCity: values.departureCity,
+          departureLocation: values.departureLocation,
+        }));
 
-    // Quotation Validity
-    formData.append(
-      "quotationValidity",
-      JSON.stringify({
-        validFrom: values.validFrom,
-        validTill: values.validTill,
-      })
-    );
+        formData.append("quotationValidity", JSON.stringify({
+          validFrom: values.validFrom,
+          validTill: values.validTill,
+        }));
 
-    // Quotation
-    formData.append(
-      "quotation",
-      JSON.stringify({
-        createBy: values.createBy,
-        quotationTitle: values.quotationTitle,
-        initalNotes: values.initialNotes,
-      })
-    );
+        formData.append("quotation", JSON.stringify({
+          createBy: values.createBy,
+          quotationTitle: values.quotationTitle,
+          initalNotes: values.initialNotes,
+        }));
 
-    // Banner file
-    if (values.banner) {
-      formData.append("banner", values.banner);
-    }
-
-    // Dispatch API call
-    const resultAction = await dispatch(step1CreateOrResume(formData));
-
-    if (step1CreateOrResume.fulfilled.match(resultAction)) {
-      const quotationId = resultAction.payload?.quotationId;
-      console.log("✅ Step 1 saved:", resultAction.payload);
-
-      // Go to Step 2 using the parent navigation prop
-      if (quotationId) {
-        if (typeof onNextStep === "function") {
-          onNextStep(quotationId);
+        if (values.banner) {
+          formData.append("banner", values.banner);
         }
+
+        const resultAction = await dispatch(step1CreateOrResume(formData));
+
+        if (step1CreateOrResume.fulfilled.match(resultAction)) {
+          const quotationId = resultAction.payload?.quotationId;
+          if (quotationId && typeof onNextStep === "function") {
+            onNextStep(quotationId);
+          }
+        } else {
+          console.error("❌ Error saving Step 1:", resultAction.payload);
+        }
+      } catch (error) {
+        console.error("Submission error:", error);
+      } finally {
+        setSubmitting(false);
       }
-    } else {
-      console.error("❌ Error saving Step 1:", resultAction.payload);
     }
-  } catch (error) {
-    console.error("Submission error:", error);
-  } finally {
-    setSubmitting(false);
-  }
-}
-
-
   });
-useEffect(() => {
-  if (formik.values.tourType === "Domestic") {
-    dispatch(fetchStatesByCountry("India"));
-  } else {
-    dispatch(clearStates());
-    dispatch(fetchCountries());
-  }
-}, [formik.values.tourType, dispatch]);
 
-useEffect(() => {
-  formik.setFieldValue("sector", ""); // reset when type changes
-}, [formik.values.tourType]);
-useEffect(() => {
-  dispatch(getLeadOptions());
-}, [dispatch]);
-useEffect(() => {
-  if (Array.isArray(options)) {
-    const serviceOptions = options
-      .filter((opt) => opt.fieldName === "services")
-      .map((opt) => opt.value);
-    setServicesList(serviceOptions);
-  }
-}, [options]);
-
-  const handleAddService = () => {
-    if (newService && !servicesList.includes(newService)) {
-      const updated = [...servicesList, newService];
-      setServicesList(updated);
-      formik.setFieldValue("services", [...formik.values.services, newService]);
+  useEffect(() => {
+    if (formik.values.tourType === "Domestic") {
+      dispatch(fetchStatesByCountry("India"));
+    } else {
+      dispatch(clearStates());
+      dispatch(fetchCountries());
     }
-    setNewService("");
-    setOpenDialog(false);
+  }, [formik.values.tourType, dispatch]);
+
+  useEffect(() => {
+    formik.setFieldValue("sector", "");
+  }, [formik.values.tourType]);
+
+  const handleAddOption = (newOption) => {
+    if (!newOption) return;
+
+    switch (manageField) {
+      case "services":
+        if (!servicesList.includes(newOption)) {
+          setServicesList([...servicesList, newOption]);
+          formik.setFieldValue("services", [...formik.values.services, newOption]);
+        }
+        break;
+      case "hotelType":
+        if (!hotelTypeList.includes(newOption)) {
+          setHotelTypeList([...hotelTypeList, newOption]);
+          formik.setFieldValue("hotelType", newOption);
+        }
+        break;
+      case "mealPlan":
+        if (!mealPlanList.includes(newOption)) {
+          setMealPlanList([...mealPlanList, newOption]);
+          formik.setFieldValue("mealPlan", newOption);
+        }
+        break;
+      case "sharingType":
+        if (!sharingTypeList.includes(newOption)) {
+          setSharingTypeList([...sharingTypeList, newOption]);
+          formik.setFieldValue("sharingType", newOption);
+        }
+        break;
+      case "arrivalLocation":
+        if (!arrivalLocationList.includes(newOption)) {
+          setArrivalLocationList([...arrivalLocationList, newOption]);
+          formik.setFieldValue("arrivalLocation", newOption);
+        }
+        break;
+      case "departureLocation":
+        if (!departureLocationList.includes(newOption)) {
+          setDepartureLocationList([...departureLocationList, newOption]);
+          formik.setFieldValue("departureLocation", newOption);
+        }
+        break;
+      default:
+        break;
+    }
+
+    setOpenOptionDialog(false);
   };
 
   const pickupDropFields = [
     { name: "arrivalDate", label: "Arrival Date", type: "date" },
-    { name: "arrivalCity", label: "Arrival City", options: data.cities },
-    { name: "arrivalLocation", label: "Arrival Location", options: data.locations },
+    { name: "arrivalCity", label: "Arrival City" },
+    { name: "arrivalLocation", label: "Arrival Location" },
     { name: "departureDate", label: "Departure Date", type: "date" },
-    { name: "departureCity", label: "Departure City", options: data.cities },
-    { name: "departureLocation", label: "Departure Location", options: data.locations },
+    { name: "departureCity", label: "Departure City" },
+    { name: "departureLocation", label: "Departure Location" },
   ];
 
- if (showStep2.show) {
-  return <FullQuotationStep2 quotationId={showStep2.quotationId} formData={formik.values} />;
-}
-
+  if (showStep2.show) {
+    return <FullQuotationStep2 quotationId={showStep2.quotationId} formData={formik.values} />;
+  }
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <form onSubmit={formik.handleSubmit}>
+
         {/* Client Details */}
         <Section title="Client Details">
-          <Grid size={{xs:6}} >
+          <Grid size={{xs:6}}>
             <TextField
               select
               fullWidth
@@ -313,88 +302,57 @@ useEffect(() => {
               error={formik.touched.clientName && !!formik.errors.clientName}
               helperText={formik.touched.clientName && formik.errors.clientName}
             >
-              {data.clients.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {c}
-                </MenuItem>
-              ))}
+              {/* You can load clientName dynamically from API if needed */}
             </TextField>
           </Grid>
 
-          <Grid size={{xs:6}} >
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-              Tour Type
-            </Typography>
-            <RadioGroup
-              row
-              name="tourType"
-              value={formik.values.tourType}
-              onChange={formik.handleChange}
-            >
+          <Grid size={{xs:6}}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Tour Type</Typography>
+            <RadioGroup row name="tourType" value={formik.values.tourType} onChange={formik.handleChange}>
               {["Domestic", "International"].map((t) => (
                 <FormControlLabel key={t} value={t} control={<Radio />} label={t} />
               ))}
             </RadioGroup>
           </Grid>
 
-          <Grid size={{xs:6}} >
-           <TextField
-  select
-  fullWidth
-  name="sector"
-  label={formik.values.tourType === "Domestic" ? "State" : "Country"}
-  value={formik.values.sector}
-  onChange={formik.handleChange}
-  error={formik.touched.sector && !!formik.errors.sector}
-  helperText={formik.touched.sector && formik.errors.sector}
->
-  {(formik.values.tourType === "Domestic" ? states : countries).map((s) => (
-    <MenuItem key={s.isoCode || s.name} value={s.name}>
-      {s.name}
-    </MenuItem>
-  ))}
-</TextField>
-
-
+          <Grid size={{xs:6}}>
+            <TextField
+              select
+              fullWidth
+              name="sector"
+              label={formik.values.tourType === "Domestic" ? "State" : "Country"}
+              value={formik.values.sector}
+              onChange={formik.handleChange}
+            >
+              {(formik.values.tourType === "Domestic" ? states : countries).map((s) => (
+                <MenuItem key={s.isoCode || s.name} value={s.name}>{s.name}</MenuItem>
+              ))}
+            </TextField>
           </Grid>
 
-          <Grid size={{xs:6}} >
+          <Grid size={{xs:6}}>
             <FormControlLabel
-              control={
-                <Checkbox
-                  name="showCostPerAdult"
-                  checked={formik.values.showCostPerAdult}
-                  onChange={formik.handleChange}
-                />
-              }
+              control={<Checkbox name="showCostPerAdult" checked={formik.values.showCostPerAdult} onChange={formik.handleChange} />}
               label="Show Cost Per Adult"
             />
           </Grid>
 
-          <Grid size={{xs:12}} >
+          <Grid size={{xs:12}}>
             <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Typography variant="body2" fontWeight={600}>
-                Services Required
-              </Typography>
-              <IconButton
-                color="primary"
-                onClick={() => {
-                  setManageField("services");
-                  setOpenOptionDialog(true);
-                }}
-              >
+              <Typography variant="body2" fontWeight={600}>Services Required</Typography>
+              <IconButton color="primary" onClick={() => { setManageField("services"); setOpenOptionDialog(true); }}>
                 <SettingsIcon />
               </IconButton>
             </Box>
             <Autocomplete
-  multiple
-options={servicesList}
-  value={formik.values.services}
-  onChange={(_, val) => formik.setFieldValue("services", val)}
-  renderInput={(params) => <TextField {...params} label="Select Services" />}
-/>
-
+              multiple
+              options={servicesList}
+              value={formik.values.services}
+              onChange={(_, val) => formik.setFieldValue("services", val)}
+              renderInput={(params) => <TextField {...params} label="Select Services" />}
+            />
           </Grid>
+
           {["adults", "children", "kids", "infants"].map((f) => (
             <Grid size={{xs:3}} key={f}>
               <TextField
@@ -407,72 +365,43 @@ options={servicesList}
             </Grid>
           ))}
 
-          <Grid size={{xs:12}} >
+          <Grid size={{xs:12}}>
             <FormControlLabel
-              control={
-                <Checkbox
-                  name="withoutMattress"
-                  checked={formik.values.withoutMattress}
-                  onChange={formik.handleChange}
-                />
-              }
+              control={<Checkbox name="withoutMattress" checked={formik.values.withoutMattress} onChange={formik.handleChange} />}
               label="Without Mattress"
               sx={{ color: "orange" }}
             />
           </Grid>
         </Section>
 
-        {/* Accommodation & Facility */}
+        {/* Accommodation */}
         <Section title="Accommodation & Facility">
-          {[
-            { name: "hotelType", label: "Hotel Type", options: data.hotelTypes },
-            { name: "mealPlan", label: "Meal Plan", options: data.mealPlans },
-            { name: "sharingType", label: "Sharing Type", options: data.sharingTypes },
-          ].map((f) => (
-            <Grid size={{xs:4}} key={f.name}>
-              <TextField
-                select
-                fullWidth
-                name={f.name}
-                label={f.label}
-                value={formik.values[f.name]}
-                onChange={formik.handleChange}
-              >
-                {f.options.map((o) => (
-                  <MenuItem key={o} value={o}>
-                    {o}
-                  </MenuItem>
-                ))}
+          {[["hotelType", hotelTypeList], ["mealPlan", mealPlanList], ["sharingType", sharingTypeList]].map(([field, list]) => (
+            <Grid size={{xs:4}} key={field}>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                  {field.charAt(0).toUpperCase() + field.slice(1)}
+                </Typography>
+                <IconButton color="primary" onClick={() => { setManageField(field); setOpenOptionDialog(true); }}>
+                  <SettingsIcon />
+                </IconButton>
+              </Box>
+              <TextField select fullWidth name={field} value={formik.values[field]} onChange={formik.handleChange}>
+                {list.map((o) => (<MenuItem key={o} value={o}>{o}</MenuItem>))}
               </TextField>
             </Grid>
           ))}
 
           <Grid item xs={4}>
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-              Transport
-            </Typography>
-            <RadioGroup
-              row
-              name="transport"
-              value={formik.values.transport}
-              onChange={formik.handleChange}
-            >
-              {["Yes", "No"].map((t) => (
-                <FormControlLabel key={t} value={t} control={<Radio />} label={t} />
-              ))}
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Transport</Typography>
+            <RadioGroup row name="transport" value={formik.values.transport} onChange={formik.handleChange}>
+              {["Yes", "No"].map((t) => <FormControlLabel key={t} value={t} control={<Radio />} label={t} />)}
             </RadioGroup>
           </Grid>
 
           {["noOfRooms", "noOfMattress"].map((f) => (
-            <Grid size={{xs:4}}  key={f}>
-              <TextField
-                fullWidth
-                name={f}
-                label={f === "noOfMattress" ? "No of Mattress" : "No of Rooms"}
-                type={f === "noOfMattress" ? "number" : "text"}
-                value={formik.values[f]}
-                onChange={formik.handleChange}
-              />
+            <Grid size={{xs:4}} key={f}>
+              <TextField fullWidth name={f} label={f === "noOfMattress" ? "No of Mattress" : "No of Rooms"} type={f === "noOfMattress" ? "number" : "text"} value={formik.values[f]} onChange={formik.handleChange} />
             </Grid>
           ))}
         </Section>
@@ -480,54 +409,38 @@ options={servicesList}
         {/* Pickup / Drop */}
         <Section title="Pickup / Drop">
           {pickupDropFields.map((f) => (
-            <Grid size={{xs:4}}  key={f.name}>
+            <Grid size={{xs:4}} key={f.name}>
               {f.type === "date" ? (
                 <DatePicker
                   label={f.label}
                   value={formik.values[f.name]}
                   onChange={(v) => formik.setFieldValue(f.name, v)}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      error: formik.touched[f.name] && !!formik.errors[f.name],
-                      helperText: formik.touched[f.name] && formik.errors[f.name],
-                    },
-                  }}
+                  slotProps={{ textField: { fullWidth: true } }}
                 />
               ) : (
-                <TextField
-                  select
-                  fullWidth
-                  name={f.name}
-                  label={f.label}
-                  value={formik.values[f.name]}
-                  onChange={formik.handleChange}
-                >
-                  {f.options.map((o) => (
-                    <MenuItem key={o} value={o}>
-                      {o}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                <Box>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>{f.label}</Typography>
+                    <IconButton color="primary" onClick={() => { setManageField(f.name); setOpenOptionDialog(true); }}>
+                      <SettingsIcon />
+                    </IconButton>
+                  </Box>
+                  <TextField select fullWidth name={f.name} value={formik.values[f.name]} onChange={formik.handleChange}>
+                    {(f.name === "arrivalLocation" ? arrivalLocationList : departureLocationList).map((o) => (<MenuItem key={o} value={o}>{o}</MenuItem>))}
+                  </TextField>
+                </Box>
               )}
             </Grid>
           ))}
-          <Grid size={{xs:4}} >
-            <TextField
-              fullWidth
-              name="nights"
-              label="Nights"
-              type="number"
-              value={formik.values.nights}
-              onChange={formik.handleChange}
-            />
+          <Grid size={{xs:4}}>
+            <TextField fullWidth name="nights" label="Nights" type="number" value={formik.values.nights} onChange={formik.handleChange} />
           </Grid>
         </Section>
 
         {/* Quotation Validity */}
         <Section title="Quotation Validity">
           {["validFrom", "validTill"].map((f) => (
-            <Grid size={{xs:6}}  key={f}>
+            <Grid size={{xs:6}} key={f}>
               <DatePicker
                 label={f === "validFrom" ? "Valid From" : "Valid Till"}
                 value={formik.values[f]}
@@ -540,89 +453,43 @@ options={servicesList}
 
         {/* Quotation */}
         <Section title="Quotation">
-          <Grid size={{xs:4}} >
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-              Create By
-            </Typography>
-            <RadioGroup
-              row
-              name="createBy"
-              value={formik.values.createBy}
-              onChange={formik.handleChange}
-            >
+          <Grid size={{xs:4}}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Create By</Typography>
+            <RadioGroup row name="createBy" value={formik.values.createBy} onChange={formik.handleChange}>
               <FormControlLabel value="New Quotation" control={<Radio />} label="New Quotation" />
             </RadioGroup>
           </Grid>
 
-          <Grid size={{xs:8}} >
-            <TextField
-              fullWidth
-              name="quotationTitle"
-              label="Quotation Title"
-              value={formik.values.quotationTitle}
-              onChange={formik.handleChange}
-              error={formik.touched.quotationTitle && !!formik.errors.quotationTitle}
-              helperText={formik.touched.quotationTitle && formik.errors.quotationTitle}
-            />
+          <Grid size={{xs:8}}>
+            <TextField fullWidth name="quotationTitle" label="Quotation Title" value={formik.values.quotationTitle} onChange={formik.handleChange} error={formik.touched.quotationTitle && !!formik.errors.quotationTitle} helperText={formik.touched.quotationTitle && formik.errors.quotationTitle} />
           </Grid>
 
-          <Grid size={{xs:12}} >
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              name="initialNotes"
-              label="Initial Notes"
-              value={formik.values.initialNotes}
-              onChange={formik.handleChange}
-              InputProps={{ sx: { color: "#555" } }}
-            />
-            <Typography variant="caption" color="green">
-              {formik.values.initialNotes.length}/200 characters
-            </Typography>
+          <Grid size={{xs:12}}>
+            <TextField fullWidth multiline rows={4} name="initialNotes" label="Initial Notes" value={formik.values.initialNotes} onChange={formik.handleChange} InputProps={{ sx: { color: "#555" } }} />
+            <Typography variant="caption" color="green">{formik.values.initialNotes.length}/200 characters</Typography>
           </Grid>
 
-          <Grid size={{xs:12}} >
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-              Select Banner Image (860px X 400px)
-            </Typography>
-            <Button
-              variant="outlined"
-              component="label"
-              sx={{ textTransform: "none", borderRadius: 2, px: 3, py: 1 }}
-            >
-              Upload Banner
-              <input
-                type="file"
-                hidden
-                onChange={(e) => formik.setFieldValue("banner", e.currentTarget.files[0])}
-              />
+          <Grid size={{xs:12}}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Select Banner Image (860px X 400px)</Typography>
+            <Button variant="outlined" component="label" sx={{ mt: 1 }}>
+              Upload
+              <input hidden accept="image/*" type="file" onChange={(e) => formik.setFieldValue("banner", e.currentTarget.files[0])} />
             </Button>
-            {formik.values.banner && (
-              <Typography variant="body2" sx={{ ml: 2, mt: 1 }}>
-                {formik.values.banner.name}
-              </Typography>
-            )}
           </Grid>
         </Section>
 
-        <Box textAlign="center" sx={{ mt: 3 }}>
-          <Button type="submit" variant="contained" sx={{ px: 4, py: 1.5, borderRadius: 2 }}>
-            Save & Continue
+        <Box textAlign="right" mt={3}>
+          <Button type="submit" variant="contained" color="primary">
+            Next Step
           </Button>
         </Box>
       </form>
 
-      {/* Add New Service Dialog */}
-       <Dialog
-        open={openOptionDialog}
-        onClose={() => setOpenOptionDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
+      {/* Lead Options Dialog */}
+      <Dialog open={openOptionDialog} onClose={() => setOpenOptionDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Manage {manageField} Options</DialogTitle>
         <DialogContent>
-          <LeadOptionsManager fieldName={manageField} />
+          <LeadOptionsManager fieldName={manageField} onAdd={handleAddOption} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenOptionDialog(false)}>Close</Button>
