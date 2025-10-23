@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Grid,
@@ -12,9 +12,19 @@ import {
   DialogContent,
   DialogActions,
   Divider,
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
+  CircularProgress,
 } from "@mui/material";
 import { useFormik } from "formik";
-import FullQuotationStep5 from "./FullQuotationStep5";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import {
+  step4Update,
+  getQuotationById,
+} from "../../../../features/quotation/fullQuotationSlice";
 
 const hotelTypes = ["5 Star", "4 Star", "3 Star", "Budget", "Guest House"];
 const roomTypes = ["Single", "Double", "Triple"];
@@ -27,323 +37,464 @@ const initialHotelNames = [
   "Hotel Ocean Breeze",
 ];
 
-const emptySection = {
+const emptyAccommodationPlan = {
   hotelType: "",
   hotelName: "",
   roomType: "",
   mealPlan: "",
-  noNights: "",
-  noRooms: "",
-  mattressAdult: "",
-  mattressChild: "",
-  costAdultEx: "",
-  costChildEx: "",
-  costWithout: "",
-  costRoom: "",
-  totalCost: "",
+  noNights: 1,
+  noOfRooms: 1,
+  mattressForAdult: false,
+  adultExBed: false,
+  mattressForChildren: false,
+  adultExMattress: 0,
+  adultExCost: 0,
+  childrenExMattress: 0,
+  childrenExCost: 0,
+  withoutMattress: false,
+  withoutBedCost: 0,
+  costNight: 0,
+  totalCost: 0,
 };
 
-const FullQuotationStep4 = () => {
+const FullQuotationStep4 = ({ quotationId }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { quotation, fetchLoading, loading } = useSelector(
+    (state) => state.fullQuotation
+  );
+
   const [hotelNames, setHotelNames] = useState(initialHotelNames);
   const [openDialog, setOpenDialog] = useState(false);
   const [newHotelName, setNewHotelName] = useState("");
-  const [showStep5, setShowStep5] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [dataFetched, setDataFetched] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
+  // Fetch quotation once
+  useEffect(() => {
+    if (
+      quotationId &&
+      quotationId !== "new" &&
+      !dataFetched &&
+      (!quotation || quotation.quotationId !== quotationId)
+    ) {
+      dispatch(getQuotationById({ quotationId }));
+      setDataFetched(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotationId]);
+
+  // Initialize form when quotation data is loaded
+  useEffect(() => {
+    if (
+      quotation?.stayLocation?.length > 0 &&
+      !initialized &&
+      !fetchLoading
+    ) {
+      formik.setValues({
+        stayLocation: quotation.stayLocation.map((loc, i) => ({
+          city: loc.city || `City ${i + 1}`,
+          order: loc.order || i + 1,
+          nights: loc.nights || 1,
+          standard: loc.standard || { ...emptyAccommodationPlan },
+          deluxe: loc.deluxe || { ...emptyAccommodationPlan },
+          superior: loc.superior || { ...emptyAccommodationPlan },
+        })),
+      });
+      setInitialized(true);
+    }
+  }, [quotation, fetchLoading, initialized]);
+
+  // ---------- Formik ----------
   const formik = useFormik({
-    initialValues: {
-      sections: [
-        { ...emptySection, label: "Standard (Anantpur)", removable: false },
-        { ...emptySection, label: "Deluxe (Garacharma)", removable: false },
-        { ...emptySection, label: "Superior (Garacharma)", removable: false },
-      ],
-    },
-    onSubmit: (values) => {
-      console.log("Form Values:", values);
+    initialValues: { stayLocation: [] },
+    enableReinitialize: false,
+    onSubmit: async (values) => {
+      if (!quotationId || quotationId === "new") {
+        toast.error("Quotation ID is missing!");
+        return;
+      }
+
+      if (!values.stayLocation?.length) {
+        toast.error("Please complete Step 2 before filling accommodations.");
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const res = await dispatch(
+          step4Update({ quotationId, stayLocation: values.stayLocation })
+        );
+        if (step4Update.fulfilled.match(res)) {
+          toast.success("Accommodation details saved successfully!");
+          navigate(`/fullquotation/${quotationId}/step/5`);
+        } else {
+          toast.error(
+            res.payload?.message || "Failed to save accommodation details"
+          );
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Unexpected error while saving");
+      } finally {
+        setSubmitting(false);
+      }
     },
   });
+
+  // ---------- Helpers ----------
+  const calculateTotalCost = (cityIndex, category) => {
+    const loc = formik.values.stayLocation[cityIndex];
+    if (!loc) return;
+    const plan = loc[category];
+
+    const total =
+      (plan.costNight || 0) * (plan.noOfRooms || 1) * (loc.nights || 1) +
+      (plan.adultExCost || 0) * (plan.adultExMattress || 0) +
+      (plan.childrenExCost || 0) * (plan.childrenExMattress || 0) +
+      (plan.withoutBedCost || 0);
+
+    formik.setFieldValue(
+      `stayLocation[${cityIndex}].${category}.totalCost`,
+      total
+    );
+  };
 
   const handleAddHotel = () => {
     if (newHotelName.trim()) {
       setHotelNames([...hotelNames, newHotelName.trim()]);
+      toast.success("Hotel added successfully!");
       setNewHotelName("");
       setOpenDialog(false);
     }
   };
 
-  const handleAddMore = () => {
-    const count =
-      formik.values.sections.filter((s) => s.removable).length / 3 + 1;
+  // ---------- Render Accommodation Plan ----------
+  const renderAccommodationPlan = (label, category, cityIndex) => {
+    const loc = formik.values.stayLocation[cityIndex];
+    const plan = loc[category] || {};
 
-    const newGroup = [
-      { ...emptySection, label: `Standard (City ${count})`, removable: true },
-      { ...emptySection, label: `Deluxe (City ${count})`, removable: true },
-      { ...emptySection, label: `Superior (City ${count})`, removable: true },
-    ];
-
-    formik.setFieldValue("sections", [...formik.values.sections, ...newGroup]);
-  };
-
-  const handleDeleteSection = (index) => {
-    const updatedSections = formik.values.sections.filter(
-      (_, i) => i !== index
-    );
-    formik.setFieldValue("sections", updatedSections);
-  };
-
-  const renderHotelSection = (section, index) => (
-    <Paper
-      sx={{ p: 2, mb: 2, position: "relative" }}
-      variant="outlined"
-      key={index}
-    >
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={2}
-      >
-        <Typography variant="h6">{section.label}</Typography>
-
-        {section.removable && (
-          <Button
-            color="error"
-            variant="outlined"
-            size="small"
-            onClick={() => handleDeleteSection(index)}
-          >
-            Delete
-          </Button>
-        )}
-      </Box>
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 3 }}>
-          <TextField
-            select
-            fullWidth
-            label="Hotel Type"
-            name={`sections[${index}].hotelType`}
-            value={formik.values.sections[index].hotelType}
-            onChange={formik.handleChange}
-          >
-            {hotelTypes.map((type) => (
-              <MenuItem key={type} value={type}>
-                {type}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-
-        {/* Hotel Name */}
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            select
-            fullWidth
-            label="Hotel Name"
-            name={`sections[${index}].hotelName`}
-            value={formik.values.sections[index].hotelName}
-            onChange={(e) => {
-              if (e.target.value === "add_new") {
-                setOpenDialog(true);
-              } else {
-                formik.handleChange(e);
-              }
-            }}
-          >
-            {hotelNames.map((name) => (
-              <MenuItem key={name} value={name}>
-                {name}
-              </MenuItem>
-            ))}
-            <MenuItem
-              value="add_new"
-              sx={{ fontWeight: "bold", color: "blue" }}
+    return (
+      <Paper sx={{ p: 2, bgcolor: "#fafafa" }} variant="outlined">
+        <Typography variant="subtitle1" gutterBottom color="primary">
+          {label}
+        </Typography>
+        <Grid container spacing={1.5}>
+          {/* Hotel Type */}
+          <Grid item xs={12}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Hotel Type"
+              name={`stayLocation[${cityIndex}].${category}.hotelType`}
+              value={plan.hotelType || ""}
+              onChange={formik.handleChange}
             >
-              + Add New
-            </MenuItem>
-          </TextField>
-        </Grid>
+              {hotelTypes.map((type) => (
+                <MenuItem key={type} value={type}>
+                  {type}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
 
-        {/* Room Type */}
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            select
-            fullWidth
-            label="Room Type"
-            name={`sections[${index}].roomType`}
-            value={formik.values.sections[index].roomType}
-            onChange={formik.handleChange}
-          >
-            {roomTypes.map((type) => (
-              <MenuItem key={type} value={type}>
-                {type}
+          {/* Hotel Name */}
+          <Grid item xs={12}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Hotel Name"
+              name={`stayLocation[${cityIndex}].${category}.hotelName`}
+              value={plan.hotelName || ""}
+              onChange={(e) => {
+                if (e.target.value === "add_new") setOpenDialog(true);
+                else formik.handleChange(e);
+              }}
+            >
+              {hotelNames.map((name) => (
+                <MenuItem key={name} value={name}>
+                  {name}
+                </MenuItem>
+              ))}
+              <MenuItem value="add_new" sx={{ color: "blue", fontWeight: "bold" }}>
+                + Add New Hotel
               </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
+            </TextField>
+          </Grid>
 
-        {/* Meal Plan */}
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            select
-            fullWidth
-            label="Meal Plan"
-            name={`sections[${index}].mealPlan`}
-            value={formik.values.sections[index].mealPlan}
-            onChange={formik.handleChange}
-          >
-            {mealPlans.map((plan) => (
-              <MenuItem key={plan} value={plan}>
-                {plan}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
+          {/* Room Type */}
+          <Grid item xs={12}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Room Type"
+              name={`stayLocation[${cityIndex}].${category}.roomType`}
+              value={plan.roomType || ""}
+              onChange={formik.handleChange}
+            >
+              {roomTypes.map((r) => (
+                <MenuItem key={r} value={r}>
+                  {r}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
 
-        {/* Nights & Rooms */}
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            fullWidth
-            label="No Nights"
-            name={`sections[${index}].noNights`}
-            value={formik.values.sections[index].noNights}
-            onChange={formik.handleChange}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            fullWidth
-            label="No of Rooms"
-            name={`sections[${index}].noRooms`}
-            value={formik.values.sections[index].noRooms}
-            onChange={formik.handleChange}
-          />
-        </Grid>
+          {/* Meal Plan */}
+          <Grid item xs={12}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Meal Plan"
+              name={`stayLocation[${cityIndex}].${category}.mealPlan`}
+              value={plan.mealPlan || ""}
+              onChange={formik.handleChange}
+            >
+              {mealPlans.map((mp) => (
+                <MenuItem key={mp} value={mp}>
+                  {mp}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
 
-        {/* Mattress */}
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            fullWidth
-            label="Mattress For Adult"
-            name={`sections[${index}].mattressAdult`}
-            value={formik.values.sections[index].mattressAdult}
-            onChange={formik.handleChange}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            fullWidth
-            label="Mattress For Children"
-            name={`sections[${index}].mattressChild`}
-            value={formik.values.sections[index].mattressChild}
-            onChange={formik.handleChange}
-          />
-        </Grid>
+          {/* Nights & Rooms */}
+          <Grid item xs={6}>
+            <TextField
+              fullWidth
+              size="small"
+              type="number"
+              label="No of Nights"
+              name={`stayLocation[${cityIndex}].${category}.noNights`}
+              value={plan.noNights || 1}
+              onChange={formik.handleChange}
+            />
+          </Grid>
+          <Grid item xs={6}>
+            <TextField
+              fullWidth
+              size="small"
+              type="number"
+              label="No of Rooms"
+              name={`stayLocation[${cityIndex}].${category}.noOfRooms`}
+              value={plan.noOfRooms || 1}
+              onChange={(e) => {
+                formik.handleChange(e);
+                calculateTotalCost(cityIndex, category);
+              }}
+            />
+          </Grid>
 
-        {/* Divider row */}
-        <Grid size={{ xs: 12 }}>
-          <Divider color="#000" sx={{ my: 2 }}>
-            <Typography variant="body1">Cost Per Unit</Typography>
-          </Divider>
-        </Grid>
+          {/* Cost/Night */}
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              size="small"
+              type="number"
+              label="Cost per Night (₹)"
+              name={`stayLocation[${cityIndex}].${category}.costNight`}
+              value={plan.costNight || 0}
+              onChange={(e) => {
+                formik.handleChange(e);
+                calculateTotalCost(cityIndex, category);
+              }}
+            />
+          </Grid>
 
-        {/* Costs */}
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            fullWidth
-            label="Adult Ex Mattress"
-            name={`sections[${index}].costAdultEx`}
-            value={formik.values.sections[index].costAdultEx}
-            onChange={formik.handleChange}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            fullWidth
-            label="Children Ex Mattress"
-            name={`sections[${index}].costChildEx`}
-            value={formik.values.sections[index].costChildEx}
-            onChange={formik.handleChange}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            fullWidth
-            label="Without Mattress"
-            name={`sections[${index}].costWithout`}
-            value={formik.values.sections[index].costWithout}
-            onChange={formik.handleChange}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <TextField
-            fullWidth
-            label="Room/Night"
-            name={`sections[${index}].costRoom`}
-            value={formik.values.sections[index].costRoom}
-            onChange={formik.handleChange}
-          />
-        </Grid>
+          <Grid item xs={12}>
+            <Divider sx={{ my: 1 }} />
+            <Typography variant="subtitle2">Extra Bed / Mattress Options</Typography>
+          </Grid>
 
-        {/* Total */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            label="Total Cost"
-            name={`sections[${index}].totalCost`}
-            value={formik.values.sections[index].totalCost}
-            onChange={formik.handleChange}
-          />
+          {/* Checkboxes */}
+          {[
+            ["mattressForAdult", "Mattress For Adult"],
+            ["adultExBed", "Adult Extra Bed"],
+            ["mattressForChildren", "Mattress For Children"],
+            ["withoutMattress", "Without Mattress"],
+          ].map(([key, label]) => (
+            <Grid item xs={12} key={key}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name={`stayLocation[${cityIndex}].${category}.${key}`}
+                    checked={plan[key] || false}
+                    onChange={formik.handleChange}
+                  />
+                }
+                label={label}
+              />
+            </Grid>
+          ))}
+
+          {/* Extra Costs */}
+          {[
+            ["adultExMattress", "Adult Ex Mattress Qty"],
+            ["adultExCost", "Adult Ex Cost (₹)"],
+            ["childrenExMattress", "Child Ex Mattress Qty"],
+            ["childrenExCost", "Child Ex Cost (₹)"],
+            ["withoutBedCost", "Without Bed Cost (₹)"],
+          ].map(([key, label]) => (
+            <Grid item xs={12} key={key}>
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                label={label}
+                name={`stayLocation[${cityIndex}].${category}.${key}`}
+                value={plan[key] || 0}
+                onChange={(e) => {
+                  formik.handleChange(e);
+                  calculateTotalCost(cityIndex, category);
+                }}
+              />
+            </Grid>
+          ))}
+
+          {/* Total */}
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              size="small"
+              type="number"
+              label="Total Cost (₹)"
+              name={`stayLocation[${cityIndex}].${category}.totalCost`}
+              value={plan.totalCost || 0}
+              InputProps={{ readOnly: true }}
+              sx={{ "& input": { fontWeight: "bold", color: "primary.main" } }}
+            />
+          </Grid>
+        </Grid>
+      </Paper>
+    );
+  };
+
+  // ---------- Render City ----------
+  const renderCityAccommodation = (city, i) => (
+    <Paper sx={{ p: 3, mb: 3 }} variant="outlined" key={i}>
+      <Typography variant="h6" gutterBottom>
+        {city.city} – {city.nights} Night(s)
+      </Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={4}>
+          {renderAccommodationPlan("Standard", "standard", i)}
+        </Grid>
+        <Grid item xs={12} md={4}>
+          {renderAccommodationPlan("Deluxe", "deluxe", i)}
+        </Grid>
+        <Grid item xs={12} md={4}>
+          {renderAccommodationPlan("Superior", "superior", i)}
         </Grid>
       </Grid>
     </Paper>
   );
-  if (showStep5) {
-    return <FullQuotationStep5 />;
+
+  // ---------- Loading ----------
+  if (fetchLoading && !initialized) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="50vh"
+        flexDirection="column"
+      >
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Loading accommodation details...</Typography>
+      </Box>
+    );
   }
+
+  // ---------- Main UI ----------
   return (
     <Box sx={{ p: 3 }}>
-      <form onSubmit={formik.handleSubmit}>
-        {formik.values.sections.map((section, index) =>
-          renderHotelSection(section, index)
-        )}
+      <Typography variant="h5" gutterBottom fontWeight="bold">
+        Step 4: Accommodation Details
+      </Typography>
 
-        <Box sx={{ mt: 2, textAlign: "center" }}>
+      {!initialized ? (
+        <Paper sx={{ p: 4, textAlign: "center" }}>
+          <Typography color="textSecondary" variant="h6">
+            Please complete Step 2 to add stay locations.
+          </Typography>
           <Button
-            type="button"
-            variant="outlined"
-            sx={{ mr: 2 }}
-            onClick={handleAddMore}
+            variant="contained"
+            sx={{ mt: 2 }}
+            onClick={() => navigate(`/fullquotation/${quotationId}/step/2`)}
           >
-            + Add More
+            Go to Step 2
           </Button>
-          <Box textAlign="center" sx={{ mt: 3 }}>
+        </Paper>
+      ) : (
+        <form onSubmit={formik.handleSubmit}>
+          <Typography color="textSecondary" sx={{ mb: 2 }}>
+            Configure accommodation details for each city in your quotation.
+          </Typography>
+
+          {formik.values.stayLocation.map((city, i) =>
+            renderCityAccommodation(city, i)
+          )}
+
+          <Box
+            mt={4}
+            display="flex"
+            justifyContent="center"
+            gap={2}
+            textAlign="center"
+          >
             <Button
-              variant="contained"
-              sx={{ px: 4, py: 1.5, borderRadius: 2 }}
-              onClick={() => setShowStep5(true)}
+              variant="outlined"
+              size="large"
+              onClick={() =>
+                navigate(`/fullquotation/${quotationId}/step/3`)
+              }
+              disabled={submitting}
             >
-              Save & Continue
+              Back
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              disabled={submitting || loading}
+            >
+              {submitting ? "Saving..." : "Save & Continue → Step 5"}
             </Button>
           </Box>
-        </Box>
-      </form>
+        </form>
+      )}
 
       {/* Add Hotel Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Add New Hotel</DialogTitle>
         <DialogContent>
           <TextField
+            fullWidth
+            label="Hotel Name"
             autoFocus
             margin="dense"
-            label="Hotel Name"
-            fullWidth
             value={newHotelName}
             onChange={(e) => setNewHotelName(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleAddHotel()}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddHotel} variant="contained">
+          <Button
+            variant="contained"
+            onClick={handleAddHotel}
+            disabled={!newHotelName.trim()}
+          >
             Add
           </Button>
         </DialogActions>

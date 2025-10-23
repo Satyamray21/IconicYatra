@@ -96,7 +96,7 @@ const Section = ({ title, children }) => (
   </Paper>
 );
 
-const FullQuotationStep1 = () => {
+const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
   const dispatch = useDispatch();
   const [servicesList, setServicesList] = useState(data.services);
   const [openDialog, setOpenDialog] = useState(false);

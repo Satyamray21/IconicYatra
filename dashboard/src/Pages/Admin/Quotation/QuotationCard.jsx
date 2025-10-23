@@ -105,17 +105,10 @@ const QuotationCard = () => {
         break;
       case "full":
         // 🔹 Check for draft before new full quotation
-        const drafts = quotationsList?.filter((q) => q.isDraft === true);
-        if (drafts?.length > 0) {
-          const draft = drafts[0];
-          toast.info(`Resuming your draft quotation (${draft.quotationId})`);
-          navigate(`/fullquotation/${draft.quotationId}/step/${(draft.currentStep || 0) + 1}`, {
-            state: { quotationData: draft },
-          });
-        } else {
+        
           // Start a new one
           navigate("/fullquotation");
-        }
+        
         break;
       case "quick":
         navigate("/quickquotation");

@@ -71,11 +71,15 @@ export const updateStep2 = asyncHandler(async (req, res) => {
   const quotation = await fullQuotation.findOne({ quotationId });
   if (!quotation) throw new ApiError(404, "Quotation not found");
 
-  // Map frontend data to schema requirements
+  // Transform frontend data to match schema with accommodation plans
   quotation.stayLocation = stayLocation.map((loc, index) => ({
-    city: loc.name,
+    city: loc.name, // Note: frontend uses 'name', schema uses 'city'
     order: index + 1,
     nights: Number(loc.nights) || 1,
+    // Initialize empty accommodation plans
+    standard: {},
+    deluxe: {},
+    superior: {}
   }));
 
   quotation.currentStep = Math.max(quotation.currentStep, 2);
@@ -105,11 +109,50 @@ export const updateStep3 = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, quotation, "Step 3: Itinerary saved"));
 });
+// controllers/fullQuotation/fullQuotation.controller.js
 
+/* =====================================================
+   STEP 4 - ACCOMMODATION DETAILS
+===================================================== */
+export const updateStep4 = asyncHandler(async (req, res) => {
+  const { quotationId } = req.params;
+  const { stayLocation } = req.body;
+
+  const quotation = await fullQuotation.findOne({ quotationId });
+  if (!quotation) throw new ApiError(404, "Quotation not found");
+
+  // Update stayLocation with accommodation details
+  quotation.stayLocation = stayLocation.map((location, index) => ({
+    city: location.city,
+    order: location.order,
+    nights: Number(location.nights) || 1,
+    standard: location.standard || {},
+    deluxe: location.deluxe || {},
+    superior: location.superior || {}
+  }));
+
+  quotation.currentStep = Math.max(quotation.currentStep, 4);
+  await quotation.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, quotation, "Step 4: Accommodation details saved"));
+});
+
+export const getStep4 = asyncHandler(async (req, res) => {
+  const { quotationId } = req.params;
+
+  const quotation = await fullQuotation.findOne({ quotationId });
+  if (!quotation) throw new ApiError(404, "Quotation not found");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, quotation.stayLocation, "Accommodation details fetched"));
+});
 /* =====================================================
    STEP 4 - VEHICLE & POLICIES
 ===================================================== */
-export const updateStep4 = asyncHandler(async (req, res) => {
+export const updateStep7 = asyncHandler(async (req, res) => {
   const { quotationId } = req.params;
   const { vehicleDetails, policies } = req.body;
 
