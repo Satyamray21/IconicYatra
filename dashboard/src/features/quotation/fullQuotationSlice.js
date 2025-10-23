@@ -55,13 +55,23 @@ export const step4Update = createAsyncThunk(
     }
   }
 );
-
-// Step 5
 export const step5Update = createAsyncThunk(
+  "fullQuotation/step5Update",
+  async ({ quotationId, vehicleDetails }, { rejectWithValue }) => {
+    try {
+      const res = await axios.put(`/fullQT/step5/${quotationId}`, { vehicleDetails });
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+// Step 5
+export const step6Update = createAsyncThunk(
   "fullQuotation/step5Update",
   async ({ quotationId, pricing }, { rejectWithValue }) => {
     try {
-      const res = await axios.put(`/fullQT/step5/${quotationId}`, { pricing });
+      const res = await axios.put(`/fullQT/step6/${quotationId}`, { pricing });
       return res.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);

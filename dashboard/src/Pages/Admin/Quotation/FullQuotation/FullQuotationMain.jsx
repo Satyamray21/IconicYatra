@@ -33,8 +33,7 @@ const FullQuotation = () => {
       dispatch(getQuotationById({ quotationId }));
       setActiveQuotationId(quotationId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotationId]);
+  }, [quotationId, quotation, dispatch]);
 
   // Step control from URL
   useEffect(() => {
@@ -46,33 +45,44 @@ const FullQuotation = () => {
     navigate(`/fullquotation/${newQuotationId}/step/2`);
   };
 
+  const handleNextStep = () => {
+    navigate(`/fullquotation/${activeQuotationId}/step/${currentStep + 1}`);
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      navigate(`/fullquotation/${activeQuotationId}/step/${currentStep - 1}`);
+    }
+  };
+
   const renderStep = () => {
-    const props = {
+    const commonProps = {
       quotationId: activeQuotationId,
-      onNextStep: () =>
-        navigate(`/fullquotation/${activeQuotationId}/step/${currentStep + 1}`),
+      quotation, // pass quotation as prop
+      onNextStep: handleNextStep,
+      onPrevStep: handlePrevStep,
     };
 
     switch (currentStep) {
       case 1:
-        return <FullQuotationStep1 {...props} onNextStep={handleStep1Complete} />;
+        return <FullQuotationStep1 {...commonProps} onNextStep={handleStep1Complete} />;
       case 2:
-        return <FullQuotationStep2 {...props} />;
+        return <FullQuotationStep2 {...commonProps} />;
       case 3:
-        return <FullQuotationStep3 {...props} stayLocations={quotation?.stayLocation || []} />;
+        return <FullQuotationStep3 {...commonProps} />;
       case 4:
-        return <FullQuotationStep4 {...props} />;
+        return <FullQuotationStep4 {...commonProps} />;
       case 5:
-        return <FullQuotationStep5 {...props} />;
+        return <FullQuotationStep5 {...commonProps} />;
       case 6:
         return (
           <FullQuotationStep6
-            {...props}
+            {...commonProps}
             onFinalize={() => navigate(`/fullfinalize/${activeQuotationId}`)}
           />
         );
       default:
-        return <FullQuotationStep1 {...props} onNextStep={handleStep1Complete} />;
+        return <FullQuotationStep1 {...commonProps} onNextStep={handleStep1Complete} />;
     }
   };
 

@@ -152,27 +152,27 @@ export const getStep4 = asyncHandler(async (req, res) => {
 /* =====================================================
    STEP 4 - VEHICLE & POLICIES
 ===================================================== */
-export const updateStep7 = asyncHandler(async (req, res) => {
+export const updateStep5 = asyncHandler(async (req, res) => {
   const { quotationId } = req.params;
-  const { vehicleDetails, policies } = req.body;
+  const { vehicleDetails } = req.body;
 
   const quotation = await fullQuotation.findOne({ quotationId });
   if (!quotation) throw new ApiError(404, "Quotation not found");
 
   quotation.vehicleDetails = vehicleDetails;
-  quotation.policies = policies;
+ // quotation.policies = policies;
   quotation.currentStep = Math.max(quotation.currentStep, 4);
   await quotation.save();
 
   return res
     .status(200)
-    .json(new ApiResponse(200, quotation, "Step 4: Vehicle & policies saved"));
+    .json(new ApiResponse(200, quotation, "Step 4: Vehicle saved"));
 });
 
 /* =====================================================
    STEP 5 - PRICING DETAILS
 ===================================================== */
-export const updateStep5 = asyncHandler(async (req, res) => {
+export const updateStep6 = asyncHandler(async (req, res) => {
   const { quotationId } = req.params;
   const { pricing } = req.body;
 
