@@ -25,6 +25,9 @@ app.use('/upload', express.static(path.join(__dirname, '/upload')));
 // Routes
 import leadRouter from "./src/routers/lead.router.js"
 app.use('/api/v1/lead',leadRouter);
+
+import leadOptionsRoutes from "./src/routers/leadOptionsRoutes.js";
+app.use("/api/v1/lead-options", leadOptionsRoutes);
 import staffRouter from "./src/routers/staff.router.js"
 app.use('/api/v1/staff',staffRouter);
 

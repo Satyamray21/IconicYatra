@@ -16,6 +16,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  IconButton,
+  
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -25,7 +27,9 @@ import { useDispatch,useSelector } from "react-redux";
 import { step1CreateOrResume } from "../../../../features/quotation/fullQuotationSlice"; 
 import { fetchCountries, fetchStatesByCountry, clearStates } from '../../../../features/location/locationSlice';
 import FullQuotationStep2 from "./FullQuotationStep2";
-
+import LeadOptionsManager from "../../../../Components/LeadOptionsManager";
+import { getLeadOptions } from "../../../../features/leads/leadSlice";
+import { Settings as SettingsIcon } from "@mui/icons-material";
 const data = {
   clients: ["Client A", "Client B", "Client C"],
   sectors: [
@@ -101,6 +105,8 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
   const dispatch = useDispatch();
   const [servicesList, setServicesList] = useState(data.services);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openOptionDialog, setOpenOptionDialog] = useState(false);
+  const [manageField, setManageField] = useState("");
   const [newService, setNewService] = useState("");
   const [showStep2, setShowStep2] = useState({ show: false, quotationId: null });
    const {
@@ -109,7 +115,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
       loading: locationLoading,
     } = useSelector((state) => state.location);
   
-
+    const { options } = useSelector((state) => state.leads);
 
   const formik = useFormik({
     initialValues: {
@@ -255,6 +261,17 @@ useEffect(() => {
 useEffect(() => {
   formik.setFieldValue("sector", ""); // reset when type changes
 }, [formik.values.tourType]);
+useEffect(() => {
+  dispatch(getLeadOptions());
+}, [dispatch]);
+useEffect(() => {
+  if (Array.isArray(options)) {
+    const serviceOptions = options
+      .filter((opt) => opt.fieldName === "services")
+      .map((opt) => opt.value);
+    setServicesList(serviceOptions);
+  }
+}, [options]);
 
   const handleAddService = () => {
     if (newService && !servicesList.includes(newService)) {
@@ -355,30 +372,29 @@ useEffect(() => {
           </Grid>
 
           <Grid size={{xs:12}} >
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Typography variant="body2" fontWeight={600}>
+                Services Required
+              </Typography>
+              <IconButton
+                color="primary"
+                onClick={() => {
+                  setManageField("services");
+                  setOpenOptionDialog(true);
+                }}
+              >
+                <SettingsIcon />
+              </IconButton>
+            </Box>
             <Autocomplete
-              multiple
-              options={[...servicesList, "➕ Add New"]}
-              value={formik.values.services}
-              onChange={(_, val) => {
-                if (val.includes("➕ Add New")) {
-                  const filtered = val.filter((v) => v !== "➕ Add New");
-                  formik.setFieldValue("services", filtered);
-                  setOpenDialog(true);
-                } else {
-                  formik.setFieldValue("services", val);
-                }
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Services Required"
-                  error={formik.touched.services && !!formik.errors.services}
-                  helperText={formik.touched.services && formik.errors.services}
-                />
-              )}
-            />
-          </Grid>
+  multiple
+options={servicesList}
+  value={formik.values.services}
+  onChange={(_, val) => formik.setFieldValue("services", val)}
+  renderInput={(params) => <TextField {...params} label="Select Services" />}
+/>
 
+          </Grid>
           {["adults", "children", "kids", "infants"].map((f) => (
             <Grid size={{xs:3}} key={f}>
               <TextField
@@ -598,23 +614,18 @@ useEffect(() => {
       </form>
 
       {/* Add New Service Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Add New Service</DialogTitle>
+       <Dialog
+        open={openOptionDialog}
+        onClose={() => setOpenOptionDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Manage {manageField} Options</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Service Name"
-            fullWidth
-            value={newService}
-            onChange={(e) => setNewService(e.target.value)}
-          />
+          <LeadOptionsManager fieldName={manageField} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddService} variant="contained">
-            Add
-          </Button>
+          <Button onClick={() => setOpenOptionDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </LocalizationProvider>
