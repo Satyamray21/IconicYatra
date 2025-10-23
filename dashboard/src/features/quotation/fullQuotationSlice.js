@@ -68,7 +68,7 @@ export const step5Update = createAsyncThunk(
 );
 // Step 5
 export const step6Update = createAsyncThunk(
-  "fullQuotation/step5Update",
+  "fullQuotation/step6Update",
   async ({ quotationId, pricing }, { rejectWithValue }) => {
     try {
       const res = await axios.put(`/fullQT/step6/${quotationId}`, { pricing });
@@ -150,7 +150,7 @@ const fullQuotationSlice = createSlice({
     const handleRejected = (state, action) => { state.loading = false; state.error = action.payload; };
 
     // Step 1–5 and finalize (saving)
-    [step1CreateOrResume, step2Update, step3Update, step4Update, step5Update, finalizeQuotationApi].forEach((thunk) => {
+    [step1CreateOrResume, step2Update, step3Update, step4Update, step5Update, step6Update,finalizeQuotationApi].forEach((thunk) => {
       builder
         .addCase(thunk.pending, handlePending)
         .addCase(thunk.fulfilled, handleFulfilled)

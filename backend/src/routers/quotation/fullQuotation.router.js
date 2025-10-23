@@ -6,6 +6,7 @@ import {
   updateStep3,
   updateStep4,
   updateStep5,
+  updateStep6,
   finalizeQuotation,
   getQuotationById,
   getAllQuotations,
@@ -22,6 +23,7 @@ router.put("/step2/:quotationId", updateStep2);
 router.put("/step3/:quotationId", updateStep3);
 router.put("/step4/:quotationId", updateStep4);
 router.put("/step5/:quotationId", updateStep5);
+router.put("/step6/:quotationId", updateStep6);
 router.put("/finalize/:quotationId", finalizeQuotation);
 router.get("/:quotationId", getQuotationById);
 router.get("/", getAllQuotations);

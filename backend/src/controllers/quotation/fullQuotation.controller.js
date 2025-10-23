@@ -172,21 +172,29 @@ export const updateStep5 = asyncHandler(async (req, res) => {
 /* =====================================================
    STEP 5 - PRICING DETAILS
 ===================================================== */
-export const updateStep6 = asyncHandler(async (req, res) => {
-  const { quotationId } = req.params;
-  const { pricing } = req.body;
+export const updateStep6 = async (req, res) => {
+   const { quotationId } = req.params;
+  const {  pricing } = req.body;
 
   const quotation = await fullQuotation.findOne({ quotationId });
-  if (!quotation) throw new ApiError(404, "Quotation not found");
+  if (!quotation) return res.status(404).json({ message: "Quotation not found" });
 
-  quotation.pricing = pricing;
-  quotation.currentStep = Math.max(quotation.currentStep, 5);
+  // Merge pricing with defaults
+  quotation.pricing = {
+    totals: pricing.totals || { standard: 0, deluxe: 0, superior: 0 },
+    margins: pricing.margins || {
+      standard: { percent: "0", value: 0 },
+      deluxe: { percent: "0", value: 0 },
+      superior: { percent: "0", value: 0 },
+    },
+    discounts: pricing.discounts || { standard: 0, deluxe: 0, superior: 0 },
+    taxes: pricing.taxes || { gstOn: "Full", taxPercent: "18", applyGST: false },
+    contactDetails: pricing.contactDetails || "",
+  };
+
   await quotation.save();
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, quotation, "Step 5: Pricing saved"));
-});
+  res.status(200).json({ message: "Step 6: Pricing saved", data: quotation });
+};
 
 /* =====================================================
    FINAL STEP - SUBMIT

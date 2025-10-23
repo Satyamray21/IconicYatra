@@ -1,53 +1,25 @@
 import mongoose from "mongoose";
 
-const marginSchema = new mongoose.Schema(
-  {
-    standard: {
-      marginPercent: { type: Number, default: 0 },
-      marginAmount: { type: Number, default: 0 },
-    },
-    deluxe: {
-      marginPercent: { type: Number, default: 0 },
-      marginAmount: { type: Number, default: 0 },
-    },
-    superior: {
-      marginPercent: { type: Number, default: 0 },
-      marginAmount: { type: Number, default: 0 },
-    },
+export const pricingSchema = new mongoose.Schema({
+  totals: {
+    standard: { type: Number, default: 0 },
+    deluxe: { type: Number, default: 0 },
+    superior: { type: Number, default: 0 },
   },
-  { _id: false }
-);
-
-const discountSchema = new mongoose.Schema(
-  {
-    standardDiscountInRupees: { type: Number, default: 0 },
-    standardDiscountPercent: { type: Number, default: 0 },
-    deluxeDiscountInRupees: { type: Number, default: 0 },
-    deluxeDiscountPercent: { type: Number, default: 0 },
-    superiorDiscountInRupees: { type: Number, default: 0 },
-    superiorDiscountPercent: { type: Number, default: 0 },
+  margins: {
+    standard: { percent: { type: String, default: "0" }, value: { type: Number, default: 0 } },
+    deluxe: { percent: { type: String, default: "0" }, value: { type: Number, default: 0 } },
+    superior: { percent: { type: String, default: "0" }, value: { type: Number, default: 0 } },
   },
-  { _id: false }
-);
-
-const taxSchema = new mongoose.Schema(
-  {
-    gstOn: {
-      type: String,
-      enum: ["Full", "Margin", "None"],
-      default: "Margin",
-    },
+  discounts: {
+    standard: { type: Number, default: 0 },
+    deluxe: { type: Number, default: 0 },
+    superior: { type: Number, default: 0 },
+  },
+  taxes: {
+    gstOn: { type: String, enum: ["Full", "Margin", "None"], default: "Full" },
+    taxPercent: { type: String, default: "18" },
     applyGST: { type: Boolean, default: false },
   },
-  { _id: false }
-);
-
-export const pricingSchema = new mongoose.Schema(
-  {
-    companyMargin: marginSchema,
-    agentMargin: marginSchema,
-    discount: discountSchema,
-    taxes: taxSchema,
-  },
-  { _id: false }
-);
+  contactDetails: { type: String, default: "" },
+});

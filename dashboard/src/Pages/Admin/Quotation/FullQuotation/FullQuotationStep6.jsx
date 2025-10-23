@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Grid,
@@ -13,29 +13,63 @@ import {
 } from "@mui/material";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { useDispatch } from "react-redux";
+import { step6Update } from "../../../../features/quotation/fullQuotationSlice";
+import { toast } from "react-toastify";
 
-const FullQuotationStep6 = () => {
+const FullQuotationStep6 = ({ quotation, quotationId }) => {
+  const dispatch = useDispatch();
+
+  const [totals, setTotals] = useState({
+    standard: 0,
+    deluxe: 0,
+    superior: 0,
+  });
+
+  // Calculate total cost for each type
+  useEffect(() => {
+    if (quotation?.stayLocation?.length) {
+      setTotals({
+        standard: quotation.stayLocation.reduce(
+          (sum, loc) => sum + (loc.standard?.totalCost || 0),
+          0
+        ),
+        deluxe: quotation.stayLocation.reduce(
+          (sum, loc) => sum + (loc.deluxe?.totalCost || 0),
+          0
+        ),
+        superior: quotation.stayLocation.reduce(
+          (sum, loc) => sum + (loc.superior?.totalCost || 0),
+          0
+        ),
+      });
+    }
+  }, [quotation]);
+
   const formik = useFormik({
+    enableReinitialize: true,
     initialValues: {
-      // Company Margin
-      standardMarginPercent: "",
-      standardMarginValue: "",
-      deluxeMarginPercent: "",
-      deluxeMarginValue: "",
-      superiorMarginPercent: "",
-      superiorMarginValue: "",
+      // Margins
+      standardMarginPercent:
+        quotation?.pricing?.margins?.standard?.percent || 0,
+      standardMarginValue: quotation?.pricing?.margins?.standard?.value || 0,
+      deluxeMarginPercent: quotation?.pricing?.margins?.deluxe?.percent || 0,
+      deluxeMarginValue: quotation?.pricing?.margins?.deluxe?.value || 0,
+      superiorMarginPercent:
+        quotation?.pricing?.margins?.superior?.percent || 0,
+      superiorMarginValue: quotation?.pricing?.margins?.superior?.value || 0,
 
-      // Discount
-      standardDiscount: "",
-      deluxeDiscount: "",
-      superiorDiscount: "",
+      // Discounts
+      standardDiscount: quotation?.pricing?.discounts?.standard || 0,
+      deluxeDiscount: quotation?.pricing?.discounts?.deluxe || 0,
+      superiorDiscount: quotation?.pricing?.discounts?.superior || 0,
 
       // Taxes
-      gstOn: "Full",
-      taxPercent: "",
+      gstOn: quotation?.pricing?.taxes?.gstOn || "Full",
+      taxPercent: quotation?.pricing?.taxes?.taxPercent || "18",
 
-      // Signature
-      contactDetails: "",
+      // Contact
+      contactDetails: quotation?.pricing?.contactDetails || "",
     },
     validationSchema: Yup.object({
       standardMarginPercent: Yup.number().required("Required"),
@@ -51,328 +85,200 @@ const FullQuotationStep6 = () => {
       taxPercent: Yup.string().required("Required"),
       contactDetails: Yup.string().required("Required"),
     }),
-    onSubmit: (values) => {
-      console.log("Form Data:", values);
-      alert("Form Submitted");
+    onSubmit: async (values) => {
+      try {
+        const pricing = {
+          totals,
+          margins: {
+            standard: {
+              percent: values.standardMarginPercent,
+              value: values.standardMarginValue,
+            },
+            deluxe: {
+              percent: values.deluxeMarginPercent,
+              value: values.deluxeMarginValue,
+            },
+            superior: {
+              percent: values.superiorMarginPercent,
+              value: values.superiorMarginValue,
+            },
+          },
+          discounts: {
+            standard: values.standardDiscount,
+            deluxe: values.deluxeDiscount,
+            superior: values.superiorDiscount,
+          },
+          taxes: { gstOn: values.gstOn, taxPercent: values.taxPercent },
+          contactDetails: values.contactDetails,
+        };
+
+        const resultAction = await dispatch(
+          step6Update({ quotationId, pricing })
+        );
+        if (step6Update.fulfilled.match(resultAction)) {
+          toast.success("Step 6 saved successfully!");
+        } else {
+          toast.error("Failed to save Step 6");
+          console.error(resultAction.payload);
+        }
+      } catch (err) {
+        toast.error("Error saving Step 6");
+        console.error(err);
+      }
     },
   });
+
+  // Auto-calculate Margin Value when Percent changes
+  useEffect(() => {
+    formik.setFieldValue(
+      "standardMarginValue",
+      ((formik.values.standardMarginPercent || 0) * totals.standard) / 100
+    );
+  }, [formik.values.standardMarginPercent, totals.standard]);
+
+  useEffect(() => {
+    formik.setFieldValue(
+      "deluxeMarginValue",
+      ((formik.values.deluxeMarginPercent || 0) * totals.deluxe) / 100
+    );
+  }, [formik.values.deluxeMarginPercent, totals.deluxe]);
+
+  useEffect(() => {
+    formik.setFieldValue(
+      "superiorMarginValue",
+      ((formik.values.superiorMarginPercent || 0) * totals.superior) / 100
+    );
+  }, [formik.values.superiorMarginPercent, totals.superior]);
 
   return (
     <Box
       component="form"
       onSubmit={formik.handleSubmit}
-      sx={{
-        border: "1px solid #ccc",
-        borderRadius: 2,
-        p: 3,
-        mt: 2,
-        maxWidth: 900,
-        mx: "auto",
-      }}
+      sx={{ p: 3, maxWidth: 900, mx: "auto", border: "1px solid #ccc", borderRadius: 2 }}
     >
       <Typography variant="h6" fontWeight={600} mb={2}>
-        Quotation
+        Quotation Pricing
       </Typography>
 
-      {/* Company Margin Section */}
-      <Box
-        sx={{
-          border: "1px solid #ddd",
-          borderRadius: 2,
-          p: 2,
-          mb: 3,
-        }}
-      >
-        <Typography variant="subtitle1" fontWeight={600} mb={2}>
-          Company Margin
+      {/* Totals */}
+      <Box mb={3}>
+        <Typography variant="subtitle1" fontWeight={600}>
+          Total Stay Costs
         </Typography>
-
-        <Grid container spacing={2} alignItems="center">
-          <Grid size={{xs:4}}> </Grid> 
-          <Grid size={{xs:4}}>
-            <Typography variant="body2" fontWeight={600}>
-              Margin %
-            </Typography>
-          </Grid>
-          <Grid size={{xs:4}}>
-            <Typography variant="body2" fontWeight={600}>
-              Margin ₹
-            </Typography>
-          </Grid>
-
-          {/* Standard */}
-          <Grid size={{xs:4}}>
-            <Typography>Standard</Typography>
-          </Grid>
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              name="standardMarginPercent"
-              value={formik.values.standardMarginPercent}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.standardMarginPercent &&
-                Boolean(formik.errors.standardMarginPercent)
-              }
-              helperText={
-                formik.touched.standardMarginPercent &&
-                formik.errors.standardMarginPercent
-              }
-            />
-          </Grid>
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              name="standardMarginValue"
-              value={formik.values.standardMarginValue}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.standardMarginValue &&
-                Boolean(formik.errors.standardMarginValue)
-              }
-              helperText={
-                formik.touched.standardMarginValue &&
-                formik.errors.standardMarginValue
-              }
-            />
-          </Grid>
-
-          {/* Deluxe */}
-          <Grid size={{xs:4}}>
-            <Typography>Deluxe</Typography>
-          </Grid>
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              name="deluxeMarginPercent"
-              value={formik.values.deluxeMarginPercent}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.deluxeMarginPercent &&
-                Boolean(formik.errors.deluxeMarginPercent)
-              }
-              helperText={
-                formik.touched.deluxeMarginPercent &&
-                formik.errors.deluxeMarginPercent
-              }
-            />
-          </Grid>
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              name="deluxeMarginValue"
-              value={formik.values.deluxeMarginValue}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.deluxeMarginValue &&
-                Boolean(formik.errors.deluxeMarginValue)
-              }
-              helperText={
-                formik.touched.deluxeMarginValue &&
-                formik.errors.deluxeMarginValue
-              }
-            />
-          </Grid>
-
-          {/* Superior */}
-          <Grid size={{xs:4}}>
-            <Typography>Superior</Typography>
-          </Grid>
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              name="superiorMarginPercent"
-              value={formik.values.superiorMarginPercent}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.superiorMarginPercent &&
-                Boolean(formik.errors.superiorMarginPercent)
-              }
-              helperText={
-                formik.touched.superiorMarginPercent &&
-                formik.errors.superiorMarginPercent
-              }
-            />
-          </Grid>
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              name="superiorMarginValue"
-              value={formik.values.superiorMarginValue}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.superiorMarginValue &&
-                Boolean(formik.errors.superiorMarginValue)
-              }
-              helperText={
-                formik.touched.superiorMarginValue &&
-                formik.errors.superiorMarginValue
-              }
-            />
-          </Grid>
-        </Grid>
-      </Box>
-
-      {/* Discount Section */}
-      <Box
-        sx={{
-          border: "1px solid #ddd",
-          borderRadius: 2,
-          p: 2,
-          mb: 3,
-        }}
-      >
-        <Typography variant="subtitle1" fontWeight={600} mb={2}>
-          Discount
-        </Typography>
-
         <Grid container spacing={2}>
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              label="Standard Discount"
-              name="standardDiscount"
-              value={formik.values.standardDiscount}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.standardDiscount &&
-                Boolean(formik.errors.standardDiscount)
-              }
-              helperText={
-                formik.touched.standardDiscount &&
-                formik.errors.standardDiscount
-              }
-            />
+          <Grid item xs={4}>
+            <Typography>Standard: ₹{totals.standard}</Typography>
           </Grid>
-
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              label="Deluxe Discount"
-              name="deluxeDiscount"
-              value={formik.values.deluxeDiscount}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.deluxeDiscount &&
-                Boolean(formik.errors.deluxeDiscount)
-              }
-              helperText={
-                formik.touched.deluxeDiscount && formik.errors.deluxeDiscount
-              }
-            />
+          <Grid item xs={4}>
+            <Typography>Deluxe: ₹{totals.deluxe}</Typography>
           </Grid>
-
-          <Grid size={{xs:4}}>
-            <TextField
-              fullWidth
-              label="Superior Discount"
-              name="superiorDiscount"
-              value={formik.values.superiorDiscount}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={
-                formik.touched.superiorDiscount &&
-                Boolean(formik.errors.superiorDiscount)
-              }
-              helperText={
-                formik.touched.superiorDiscount &&
-                formik.errors.superiorDiscount
-              }
-            />
+          <Grid item xs={4}>
+            <Typography>Superior: ₹{totals.superior}</Typography>
           </Grid>
         </Grid>
       </Box>
 
-      {/* Taxes Section */}
-      <Box
-        sx={{
-          border: "1px solid #ddd",
-          borderRadius: 2,
-          p: 2,
-          mb: 3,
-        }}
-      >
-        <Typography variant="subtitle1" fontWeight={600} mb={2}>
-          Taxes
-        </Typography>
+      <Divider sx={{ my: 2 }} />
 
-        <RadioGroup
-          row
-          name="gstOn"
-          value={formik.values.gstOn}
+      {/* Company Margin */}
+      <Typography variant="subtitle1" fontWeight={600} mb={1}>
+        Company Margin
+      </Typography>
+      <Grid container spacing={2} mb={3}>
+        {["standard", "deluxe", "superior"].map((type) => (
+          <React.Fragment key={type}>
+            <Grid item xs={4}>
+              <Typography>{type.charAt(0).toUpperCase() + type.slice(1)}</Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                name={`${type}MarginPercent`}
+                value={formik.values[`${type}MarginPercent`]}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                label="%"
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                name={`${type}MarginValue`}
+                value={formik.values[`${type}MarginValue`]}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                label="₹"
+              />
+            </Grid>
+          </React.Fragment>
+        ))}
+      </Grid>
+
+      {/* Discount */}
+      <Typography variant="subtitle1" fontWeight={600} mb={1}>
+        Discount
+      </Typography>
+      <Grid container spacing={2} mb={3}>
+        {["standard", "deluxe", "superior"].map((type) => (
+          <Grid item xs={4} key={type}>
+            <TextField
+              fullWidth
+              name={`${type}Discount`}
+              value={formik.values[`${type}Discount`]}
+              onChange={formik.handleChange}
+              label={`${type.charAt(0).toUpperCase() + type.slice(1)} Discount`}
+            />
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Taxes */}
+      <Typography variant="subtitle1" fontWeight={600} mb={1}>
+        Taxes
+      </Typography>
+      <RadioGroup
+        row
+        name="gstOn"
+        value={formik.values.gstOn}
+        onChange={formik.handleChange}
+      >
+        <FormControlLabel value="Full" control={<Radio />} label="Full" />
+        <FormControlLabel value="Margin" control={<Radio />} label="Margin" />
+        <FormControlLabel value="None" control={<Radio />} label="None" />
+      </RadioGroup>
+      <Box mt={2} mb={3}>
+        <TextField
+          select
+          fullWidth
+          label="GST %"
+          name="taxPercent"
+          value={formik.values.taxPercent}
           onChange={formik.handleChange}
         >
-          <FormControlLabel value="Full" control={<Radio />} label="Full" />
-          <FormControlLabel value="Margin" control={<Radio />} label="Margin" />
-          <FormControlLabel value="None" control={<Radio />} label="None" />
-        </RadioGroup>
-
-        <Box mt={2}>
-          <TextField
-            select
-            fullWidth
-            label="Apply GST (Tax %)"
-            name="taxPercent"
-            value={formik.values.taxPercent}
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            error={
-              formik.touched.taxPercent && Boolean(formik.errors.taxPercent)
-            }
-            helperText={formik.touched.taxPercent && formik.errors.taxPercent}
-          >
-            <MenuItem value="5">5%</MenuItem>
-            <MenuItem value="12">12%</MenuItem>
-            <MenuItem value="18">18%</MenuItem>
-            <MenuItem value="28">28%</MenuItem>
-          </TextField>
-        </Box>
+          <MenuItem value="5">5%</MenuItem>
+          <MenuItem value="12">12%</MenuItem>
+          <MenuItem value="18">18%</MenuItem>
+          <MenuItem value="28">28%</MenuItem>
+        </TextField>
       </Box>
 
-      {/* Signature Details */}
-      <Box
-        sx={{
-          border: "1px solid #ddd",
-          borderRadius: 2,
-          p: 2,
-          mb: 3,
-        }}
-      >
-        <Typography variant="subtitle1" fontWeight={600} mb={2}>
-          Signature Details
-        </Typography>
+      {/* Contact / Signature */}
+      <Typography variant="subtitle1" fontWeight={600} mb={1}>
+        Contact Details
+      </Typography>
+      <TextField
+        fullWidth
+        multiline
+        rows={2}
+        name="contactDetails"
+        value={formik.values.contactDetails}
+        onChange={formik.handleChange}
+        sx={{ mb: 3 }}
+      />
 
-        <TextField
-          fullWidth
-          multiline
-          rows={2}
-          label="Contact Details"
-          name="contactDetails"
-          value={formik.values.contactDetails}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          error={
-            formik.touched.contactDetails &&
-            Boolean(formik.errors.contactDetails)
-          }
-          helperText={
-            formik.touched.contactDetails && formik.errors.contactDetails
-          }
-        />
-      </Box>
-
-      {/* Submit */}
       <Box textAlign="center">
-        <Button type="submit" variant="contained">
-          Submit
+        <Button type="submit" variant="contained" color="primary">
+          Save & Continue
         </Button>
       </Box>
     </Box>
