@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import {
   Box,
   Grid,
@@ -21,8 +21,9 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { useDispatch } from "react-redux";
-import { step1CreateOrResume } from "../../../../features/quotation/fullQuotationSlice"; // adjust path
+import { useDispatch,useSelector } from "react-redux";
+import { step1CreateOrResume } from "../../../../features/quotation/fullQuotationSlice"; 
+import { fetchCountries, fetchStatesByCountry, clearStates } from '../../../../features/location/locationSlice';
 import FullQuotationStep2 from "./FullQuotationStep2";
 
 const data = {
@@ -102,6 +103,12 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [newService, setNewService] = useState("");
   const [showStep2, setShowStep2] = useState({ show: false, quotationId: null });
+   const {
+      countries,
+      states,             
+      loading: locationLoading,
+    } = useSelector((state) => state.location);
+  
 
 
   const formik = useFormik({
@@ -236,6 +243,18 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
 
 
   });
+useEffect(() => {
+  if (formik.values.tourType === "Domestic") {
+    dispatch(fetchStatesByCountry("India"));
+  } else {
+    dispatch(clearStates());
+    dispatch(fetchCountries());
+  }
+}, [formik.values.tourType, dispatch]);
+
+useEffect(() => {
+  formik.setFieldValue("sector", ""); // reset when type changes
+}, [formik.values.tourType]);
 
   const handleAddService = () => {
     if (newService && !servicesList.includes(newService)) {
@@ -302,24 +321,24 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
           </Grid>
 
           <Grid size={{xs:6}} >
-            <TextField
-              select
-              fullWidth
-              name="sector"
-              label="Sector"
-              value={formik.values.sector}
-              onChange={formik.handleChange}
-              error={formik.touched.sector && !!formik.errors.sector}
-              helperText={formik.touched.sector && formik.errors.sector}
-            >
-              {(formik.values.tourType === "Domestic" ? data.sectors : data.countries).map(
-                (s) => (
-                  <MenuItem key={s} value={s}>
-                    {s}
-                  </MenuItem>
-                )
-              )}
-            </TextField>
+           <TextField
+  select
+  fullWidth
+  name="sector"
+  label={formik.values.tourType === "Domestic" ? "State" : "Country"}
+  value={formik.values.sector}
+  onChange={formik.handleChange}
+  error={formik.touched.sector && !!formik.errors.sector}
+  helperText={formik.touched.sector && formik.errors.sector}
+>
+  {(formik.values.tourType === "Domestic" ? states : countries).map((s) => (
+    <MenuItem key={s.isoCode || s.name} value={s.name}>
+      {s.name}
+    </MenuItem>
+  ))}
+</TextField>
+
+
           </Grid>
 
           <Grid size={{xs:6}} >
