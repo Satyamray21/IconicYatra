@@ -266,7 +266,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
       <form onSubmit={formik.handleSubmit}>
         {/* Client Details */}
         <Section title="Client Details">
-          <Grid item xs={6}>
+          <Grid size={{xs:6}} >
             <TextField
               select
               fullWidth
@@ -285,7 +285,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             </TextField>
           </Grid>
 
-          <Grid item xs={6}>
+          <Grid size={{xs:6}} >
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
               Tour Type
             </Typography>
@@ -301,7 +301,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             </RadioGroup>
           </Grid>
 
-          <Grid item xs={6}>
+          <Grid size={{xs:6}} >
             <TextField
               select
               fullWidth
@@ -322,7 +322,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             </TextField>
           </Grid>
 
-          <Grid item xs={6}>
+          <Grid size={{xs:6}} >
             <FormControlLabel
               control={
                 <Checkbox
@@ -335,7 +335,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{xs:12}} >
             <Autocomplete
               multiple
               options={[...servicesList, "➕ Add New"]}
@@ -361,7 +361,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
           </Grid>
 
           {["adults", "children", "kids", "infants"].map((f) => (
-            <Grid item xs={3} key={f}>
+            <Grid size={{xs:3}} key={f}>
               <TextField
                 fullWidth
                 name={f}
@@ -372,7 +372,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             </Grid>
           ))}
 
-          <Grid item xs={12}>
+          <Grid size={{xs:12}} >
             <FormControlLabel
               control={
                 <Checkbox
@@ -394,7 +394,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             { name: "mealPlan", label: "Meal Plan", options: data.mealPlans },
             { name: "sharingType", label: "Sharing Type", options: data.sharingTypes },
           ].map((f) => (
-            <Grid item xs={4} key={f.name}>
+            <Grid size={{xs:4}} key={f.name}>
               <TextField
                 select
                 fullWidth
@@ -429,7 +429,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
           </Grid>
 
           {["noOfRooms", "noOfMattress"].map((f) => (
-            <Grid item xs={4} key={f}>
+            <Grid size={{xs:4}}  key={f}>
               <TextField
                 fullWidth
                 name={f}
@@ -445,7 +445,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
         {/* Pickup / Drop */}
         <Section title="Pickup / Drop">
           {pickupDropFields.map((f) => (
-            <Grid item xs={4} key={f.name}>
+            <Grid size={{xs:4}}  key={f.name}>
               {f.type === "date" ? (
                 <DatePicker
                   label={f.label}
@@ -477,7 +477,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
               )}
             </Grid>
           ))}
-          <Grid item xs={4}>
+          <Grid size={{xs:4}} >
             <TextField
               fullWidth
               name="nights"
@@ -492,7 +492,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
         {/* Quotation Validity */}
         <Section title="Quotation Validity">
           {["validFrom", "validTill"].map((f) => (
-            <Grid item xs={6} key={f}>
+            <Grid size={{xs:6}}  key={f}>
               <DatePicker
                 label={f === "validFrom" ? "Valid From" : "Valid Till"}
                 value={formik.values[f]}
@@ -505,7 +505,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
 
         {/* Quotation */}
         <Section title="Quotation">
-          <Grid item xs={4}>
+          <Grid size={{xs:4}} >
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
               Create By
             </Typography>
@@ -519,7 +519,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             </RadioGroup>
           </Grid>
 
-          <Grid item xs={8}>
+          <Grid size={{xs:8}} >
             <TextField
               fullWidth
               name="quotationTitle"
@@ -531,7 +531,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{xs:12}} >
             <TextField
               fullWidth
               multiline
@@ -547,7 +547,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             </Typography>
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{xs:12}} >
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
               Select Banner Image (860px X 400px)
             </Typography>
