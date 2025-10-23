@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Grid,
@@ -24,12 +24,19 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
 import { step1CreateOrResume } from "../../../../features/quotation/fullQuotationSlice"; 
-import { fetchCountries, fetchStatesByCountry, clearStates } from '../../../../features/location/locationSlice';
+import { 
+  fetchCountries, 
+  fetchStatesByCountry, 
+  clearStates, 
+  fetchAllIndianCities, 
+  fetchAllCitiesByCountry 
+} from '../../../../features/location/locationSlice';
 import FullQuotationStep2 from "./FullQuotationStep2";
 import LeadOptionsManager from "../../../../Components/LeadOptionsManager";
 import { getLeadOptions } from "../../../../features/leads/leadSlice";
 import { Settings as SettingsIcon } from "@mui/icons-material";
 
+// ------------------- VALIDATION -------------------
 const validationSchema = Yup.object({
   clientName: Yup.string().required("Required"),
   sector: Yup.string().required("Required"),
@@ -39,6 +46,7 @@ const validationSchema = Yup.object({
   services: Yup.array().min(1, "At least one service is required").required(),
 });
 
+// ------------------- SECTION WRAPPER -------------------
 const Section = ({ title, children }) => (
   <Paper
     sx={{
@@ -58,13 +66,15 @@ const Section = ({ title, children }) => (
   </Paper>
 );
 
+// ------------------- COMPONENT -------------------
 const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
   const dispatch = useDispatch();
   const [openOptionDialog, setOpenOptionDialog] = useState(false);
   const [manageField, setManageField] = useState("");
   const [showStep2, setShowStep2] = useState({ show: false, quotationId: null });
 
-  const { countries, states, loading: locationLoading } = useSelector((state) => state.location);
+const { countries, states, cities } = useSelector((state) => state.location);
+
   const { options } = useSelector((state) => state.leads);
 
   // Dynamic field options
@@ -75,40 +85,55 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
   const [arrivalLocationList, setArrivalLocationList] = useState([]);
   const [departureLocationList, setDepartureLocationList] = useState([]);
 
-  // Fetch lead options dynamically
+  // ------------------- FETCH LEAD OPTIONS -------------------
   useEffect(() => {
     dispatch(getLeadOptions());
   }, [dispatch]);
 
   useEffect(() => {
     if (Array.isArray(options)) {
+      const services = [];
+      const hotelTypes = [];
+      const mealPlans = [];
+      const sharingTypes = [];
+      const arrivalLocations = [];
+      const departureLocations = [];
+
       options.forEach((opt) => {
         switch (opt.fieldName) {
           case "services":
-            setServicesList((prev) => [...prev, opt.value]);
+            services.push(opt.value);
             break;
           case "hotelType":
-            setHotelTypeList((prev) => [...prev, opt.value]);
+            hotelTypes.push(opt.value);
             break;
           case "mealPlan":
-            setMealPlanList((prev) => [...prev, opt.value]);
+            mealPlans.push(opt.value);
             break;
           case "sharingType":
-            setSharingTypeList((prev) => [...prev, opt.value]);
+            sharingTypes.push(opt.value);
             break;
           case "arrivalLocation":
-            setArrivalLocationList((prev) => [...prev, opt.value]);
+            arrivalLocations.push(opt.value);
             break;
           case "departureLocation":
-            setDepartureLocationList((prev) => [...prev, opt.value]);
+            departureLocations.push(opt.value);
             break;
           default:
             break;
         }
       });
+
+      setServicesList(Array.from(new Set(services)));
+      setHotelTypeList(Array.from(new Set(hotelTypes)));
+      setMealPlanList(Array.from(new Set(mealPlans)));
+      setSharingTypeList(Array.from(new Set(sharingTypes)));
+      setArrivalLocationList(Array.from(new Set(arrivalLocations)));
+      setDepartureLocationList(Array.from(new Set(departureLocations)));
     }
   }, [options]);
 
+  // ------------------- FORMIK -------------------
   const formik = useFormik({
     initialValues: {
       clientName: "",
@@ -212,6 +237,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
     }
   });
 
+  // ------------------- LOCATION LOGIC -------------------
   useEffect(() => {
     if (formik.values.tourType === "Domestic") {
       dispatch(fetchStatesByCountry("India"));
@@ -225,6 +251,19 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
     formik.setFieldValue("sector", "");
   }, [formik.values.tourType]);
 
+  useEffect(() => {
+    const { tourType, sector } = formik.values;
+
+    if (!sector) return;
+
+    if (tourType === "Domestic") {
+      dispatch(fetchAllIndianCities());
+    } else if (tourType === "International") {
+      dispatch(fetchAllCitiesByCountry(sector));
+    }
+  }, [formik.values.tourType, formik.values.sector, dispatch]);
+
+  // ------------------- ADD OPTION -------------------
   const handleAddOption = (newOption) => {
     if (!newOption) return;
 
@@ -281,19 +320,23 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
     { name: "departureLocation", label: "Departure Location" },
   ];
 
+  // ------------------- RENDER STEP 2 -------------------
   if (showStep2.show) {
     return <FullQuotationStep2 quotationId={showStep2.quotationId} formData={formik.values} />;
   }
 
+  // ------------------- MEMOIZED OPTIONS -------------------
+  const memoizedStates = useMemo(() => states || [], [states]);
+  const memoizedCountries = useMemo(() => countries || [], [countries]);
+
+  // ------------------- RENDER -------------------
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <form onSubmit={formik.handleSubmit}>
-
         {/* Client Details */}
         <Section title="Client Details">
           <Grid size={{xs:6}}>
             <TextField
-              select
               fullWidth
               name="clientName"
               label="Client Name"
@@ -301,9 +344,8 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
               onChange={formik.handleChange}
               error={formik.touched.clientName && !!formik.errors.clientName}
               helperText={formik.touched.clientName && formik.errors.clientName}
-            >
-              {/* You can load clientName dynamically from API if needed */}
-            </TextField>
+              placeholder="Enter client name"
+            />
           </Grid>
 
           <Grid size={{xs:6}}>
@@ -324,7 +366,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
               value={formik.values.sector}
               onChange={formik.handleChange}
             >
-              {(formik.values.tourType === "Domestic" ? states : countries).map((s) => (
+              {(formik.values.tourType === "Domestic" ? memoizedStates : memoizedCountries).map((s) => (
                 <MenuItem key={s.isoCode || s.name} value={s.name}>{s.name}</MenuItem>
               ))}
             </TextField>
@@ -374,7 +416,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
           </Grid>
         </Section>
 
-        {/* Accommodation */}
+        {/* Accommodation & Facility */}
         <Section title="Accommodation & Facility">
           {[["hotelType", hotelTypeList], ["mealPlan", mealPlanList], ["sharingType", sharingTypeList]].map(([field, list]) => (
             <Grid size={{xs:4}} key={field}>
@@ -392,7 +434,7 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
             </Grid>
           ))}
 
-          <Grid item xs={4}>
+          <Grid size={{xs:4}}>
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Transport</Typography>
             <RadioGroup row name="transport" value={formik.values.transport} onChange={formik.handleChange}>
               {["Yes", "No"].map((t) => <FormControlLabel key={t} value={t} control={<Radio />} label={t} />)}
@@ -401,7 +443,14 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
 
           {["noOfRooms", "noOfMattress"].map((f) => (
             <Grid size={{xs:4}} key={f}>
-              <TextField fullWidth name={f} label={f === "noOfMattress" ? "No of Mattress" : "No of Rooms"} type={f === "noOfMattress" ? "number" : "text"} value={formik.values[f]} onChange={formik.handleChange} />
+              <TextField
+                fullWidth
+                name={f}
+                label={f === "noOfMattress" ? "No of Mattress" : "No of Rooms"}
+                type={f === "noOfMattress" ? "number" : "text"}
+                value={formik.values[f]}
+                onChange={formik.handleChange}
+              />
             </Grid>
           ))}
         </Section>
@@ -410,27 +459,43 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
         <Section title="Pickup / Drop">
           {pickupDropFields.map((f) => (
             <Grid size={{xs:4}} key={f.name}>
-              {f.type === "date" ? (
-                <DatePicker
-                  label={f.label}
-                  value={formik.values[f.name]}
-                  onChange={(v) => formik.setFieldValue(f.name, v)}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-              ) : (
-                <Box>
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>{f.label}</Typography>
-                    <IconButton color="primary" onClick={() => { setManageField(f.name); setOpenOptionDialog(true); }}>
-                      <SettingsIcon />
-                    </IconButton>
-                  </Box>
-                  <TextField select fullWidth name={f.name} value={formik.values[f.name]} onChange={formik.handleChange}>
-                    {(f.name === "arrivalLocation" ? arrivalLocationList : departureLocationList).map((o) => (<MenuItem key={o} value={o}>{o}</MenuItem>))}
-                  </TextField>
-                </Box>
-              )}
-            </Grid>
+  {f.type === "date" ? (
+    <DatePicker
+      label={f.label}
+      value={formik.values[f.name]}
+      onChange={(v) => formik.setFieldValue(f.name, v)}
+      slotProps={{ textField: { fullWidth: true } }}
+    />
+  ) : f.name === "arrivalCity" || f.name === "departureCity" ? (
+    <TextField
+      select
+      fullWidth
+      name={f.name}
+      label={f.label}
+      value={formik.values[f.name]}
+      onChange={formik.handleChange}
+    >
+      {cities.map((city) => (
+        <MenuItem key={city} value={city}>
+          {city}
+        </MenuItem>
+      ))}
+    </TextField>
+  ) : (
+    <TextField
+      select
+      fullWidth
+      name={f.name}
+      value={formik.values[f.name]}
+      onChange={formik.handleChange}
+    >
+      {(f.name === "arrivalLocation" ? arrivalLocationList : departureLocationList).map((o) => (
+        <MenuItem key={o} value={o}>{o}</MenuItem>
+      ))}
+    </TextField>
+  )}
+</Grid>
+
           ))}
           <Grid size={{xs:4}}>
             <TextField fullWidth name="nights" label="Nights" type="number" value={formik.values.nights} onChange={formik.handleChange} />
@@ -461,11 +526,28 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
           </Grid>
 
           <Grid size={{xs:8}}>
-            <TextField fullWidth name="quotationTitle" label="Quotation Title" value={formik.values.quotationTitle} onChange={formik.handleChange} error={formik.touched.quotationTitle && !!formik.errors.quotationTitle} helperText={formik.touched.quotationTitle && formik.errors.quotationTitle} />
+            <TextField
+              fullWidth
+              name="quotationTitle"
+              label="Quotation Title"
+              value={formik.values.quotationTitle}
+              onChange={formik.handleChange}
+              error={formik.touched.quotationTitle && !!formik.errors.quotationTitle}
+              helperText={formik.touched.quotationTitle && formik.errors.quotationTitle}
+            />
           </Grid>
 
           <Grid size={{xs:12}}>
-            <TextField fullWidth multiline rows={4} name="initialNotes" label="Initial Notes" value={formik.values.initialNotes} onChange={formik.handleChange} InputProps={{ sx: { color: "#555" } }} />
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              name="initialNotes"
+              label="Initial Notes"
+              value={formik.values.initialNotes}
+              onChange={formik.handleChange}
+              InputProps={{ sx: { color: "#555" } }}
+            />
             <Typography variant="caption" color="green">{formik.values.initialNotes.length}/200 characters</Typography>
           </Grid>
 
