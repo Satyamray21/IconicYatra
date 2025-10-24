@@ -64,9 +64,19 @@ const CustomQuotationForm = ({
       days: generateDaysArray(totalDays || 1), // Default to 1 day if no cities
     },
     validationSchema,
-    onSubmit: (values) => {
-      onNext(values);
-    },
+   onSubmit: (values) => {
+  // Prepare only itinerary from Step 4
+  const itineraryData = values.days.map((day) => ({
+    dayTitle: day.dayTitle,
+    dayNote: day.dayNote,
+    aboutCity: day.aboutCity,
+    image: day.image || null,
+  }));
+
+  // Call onNext with only itinerary
+  onNext({ itinerary: itineraryData });
+},
+
     enableReinitialize: true,
   });
 

@@ -1,8 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "../../utils/axios";
 
-
-
 // -------------------- Thunks --------------------
 
 // Create new quotation
@@ -10,7 +8,7 @@ export const createCustomQuotation = createAsyncThunk(
   "customQuotation/create",
   async (formData, { rejectWithValue }) => {
     try {
-      const res = await axios.post('/customQT', formData);
+      const res = await axios.post("/customQT/", formData);
       return res.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Create failed");
@@ -23,7 +21,7 @@ export const getAllCustomQuotations = createAsyncThunk(
   "customQuotation/getAll",
   async (_, { rejectWithValue }) => {
     try {
-      const res = await axios.get('/customQT');
+      const res = await axios.get("/customQT");
       return res.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Fetch failed");
@@ -31,7 +29,7 @@ export const getAllCustomQuotations = createAsyncThunk(
   }
 );
 
-// Get single quotation by MongoDB _id
+// Get single quotation by ID
 export const getCustomQuotationById = createAsyncThunk(
   "customQuotation/getById",
   async (quotationId, { rejectWithValue }) => {
@@ -44,7 +42,7 @@ export const getCustomQuotationById = createAsyncThunk(
   }
 );
 
-// Update quotation
+// Update full quotation
 export const updateCustomQuotation = createAsyncThunk(
   "customQuotation/update",
   async ({ id, formData }, { rejectWithValue }) => {
@@ -53,6 +51,23 @@ export const updateCustomQuotation = createAsyncThunk(
       return res.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || "Update failed");
+    }
+  }
+);
+
+// -------------------- New Step-wise Update --------------------
+export const updateQuotationStep = createAsyncThunk(
+  "customQuotation/updateStep",
+  async ({ quotationId, stepNumber, stepData }, { rejectWithValue }) => {
+    try {
+      const res = await axios.post("/customQT/update-step", {
+        quotationId,
+        stepNumber,
+        stepData,
+      });
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || "Step update failed");
     }
   }
 );
@@ -128,8 +143,7 @@ const customQuotationSlice = createSlice({
       state.error = action.payload;
     });
 
-   
-    // Update
+    // Full Update
     builder.addCase(updateCustomQuotation.pending, (state) => {
       state.loading = true;
     });
@@ -139,8 +153,30 @@ const customQuotationSlice = createSlice({
         (q) => q._id === action.payload._id
       );
       if (idx !== -1) state.quotations[idx] = action.payload;
+      if (state.selectedQuotation?._id === action.payload._id) {
+        state.selectedQuotation = action.payload;
+      }
     });
     builder.addCase(updateCustomQuotation.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+
+    // Step-wise Update
+    builder.addCase(updateQuotationStep.pending, (state) => {
+      state.loading = true;
+    });
+    builder.addCase(updateQuotationStep.fulfilled, (state, action) => {
+      state.loading = false;
+      const idx = state.quotations.findIndex(
+        (q) => q._id === action.payload._id
+      );
+      if (idx !== -1) state.quotations[idx] = action.payload;
+      if (state.selectedQuotation?._id === action.payload._id) {
+        state.selectedQuotation = action.payload;
+      }
+    });
+    builder.addCase(updateQuotationStep.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload;
     });
@@ -154,6 +190,9 @@ const customQuotationSlice = createSlice({
       state.quotations = state.quotations.filter(
         (q) => q._id !== action.payload._id
       );
+      if (state.selectedQuotation?._id === action.payload._id) {
+        state.selectedQuotation = null;
+      }
     });
     builder.addCase(deleteCustomQuotation.rejected, (state, action) => {
       state.loading = false;

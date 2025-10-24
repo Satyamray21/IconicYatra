@@ -76,10 +76,33 @@ const TourDetailsForm = ({ clientName, sector,cities,onNext }) => {
       arrivalDate: Yup.date().nullable().required("Arrival Date is required"),
       departureDate: Yup.date().nullable(),
     }),
-   onSubmit: (values) => {
-      console.log("Step 3 Submitted:", values);
-      onNext(values); 
+  onSubmit: (values) => {
+  const step3Data = {
+    ...values,
+    quotationDetails: {
+      adults: 1,
+      children: 0,
+      kids: 0,
+      infants: 0,
+      mealPlan: "N/A",
+      destinations: [], // optional, can populate later
+      rooms: {
+        numberOfRooms: 1,
+        roomType: "Standard",
+        sharingType: "Single",
+        showCostPerAdult: false,
+      },
+      companyMargin: { marginPercent: 0, marginAmount: 0 },
+      discount: 0,
+      taxes: { gstOn: "None", applyGST: false },
+      signatureDetails: { regardsText: "Best Regards", signedBy: "" },
     },
+  };
+
+  console.log("Step 3 Submitted:", step3Data);
+  onNext(step3Data);
+},
+
   });
 
   // Auto-fill from lead data only once when lead is found
