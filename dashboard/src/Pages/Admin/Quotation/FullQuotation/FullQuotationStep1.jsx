@@ -325,6 +325,15 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
     { name: "departureCity", label: "Departure City" },
     { name: "departureLocation", label: "Departure Location" },
   ];
+// ------------------- AUTO CALCULATE NIGHTS -------------------
+useEffect(() => {
+  const { arrivalDate, departureDate } = formik.values;
+  if (arrivalDate && departureDate) {
+    const diffTime = new Date(departureDate).getTime() - new Date(arrivalDate).getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    formik.setFieldValue("nights", diffDays > 0 ? diffDays : 0);
+  }
+}, [formik.values.arrivalDate, formik.values.departureDate]);
 
   // ------------------- RENDER STEP 2 -------------------
   if (showStep2.show) {
@@ -512,13 +521,14 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
   ))}
   <Grid item xs={4}>
     <TextField
-      fullWidth
-      name="nights"
-      label="Nights"
-      type="number"
-      value={formik.values.nights}
-      onChange={formik.handleChange}
-    />
+  fullWidth
+  name="nights"
+  label="Nights"
+  type="number"
+  value={formik.values.nights}
+  InputProps={{ readOnly: true }}
+/>
+
   </Grid>
 </Section>
 
@@ -592,9 +602,15 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
         </Section>
 
         <Box textAlign="right" mt={3}>
-          <Button type="submit" variant="contained" color="primary">
-            Next Step
-          </Button>
+          <Button
+  type="submit"
+  variant="contained"
+  color="primary"
+  disabled={formik.isSubmitting}
+>
+  {formik.isSubmitting ? "Saving..." : "Next Step"}
+</Button>
+
         </Box>
       </form>
 
