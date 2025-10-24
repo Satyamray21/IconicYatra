@@ -66,85 +66,107 @@ const CustomQuotationMain = () => {
   };
 
   // Step 1: Client Details
-  const handleStep1 = async (data) => {
-    if (!data.clientName || !data.sector) {
-      toast.error("Client Name and Sector are required.");
-      return;
-    }
+  // Step 1: Client Details
+const handleStep1 = async (data) => {
+  if (!data.clientName || !data.sector) {
+    toast.error("Client Name and Sector are required.");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    const sanitizedClientDetails = {
-      clientName: data.clientName.trim(),
-      tourType: data.tourType,
-      sector: data.sector.trim(),
-    };
+  const sanitizedClientDetails = {
+    clientName: data.clientName.trim(),
+    tourType: data.tourType,
+    sector: data.sector.trim(),
+  };
 
-    setFormData((prev) => ({ ...prev, clientDetails: sanitizedClientDetails }));
+  // ✅ Try to find matching lead
+  const matchedLead = findMatchingLead(data.clientName, data.sector);
+  setSelectedLead(matchedLead);
 
-    const initialQuotationData = {
-      clientDetails: sanitizedClientDetails,
-      tourDetails: {
-        arrivalCity: "TBD",
-        departureCity: "TBD",
-        quotationTitle: `Quotation for ${sanitizedClientDetails.clientName}`,
-        arrivalDate: new Date().toISOString(),
-        departureDate: new Date().toISOString(),
-        initalNotes: "",
-        bannerImage: "",
-        transport: "Yes",
-        itinerary: [],
-        policies: {},
-        quotationDetails: {
-          adults: 1,
-          children: 0,
-          kids: 0,
-          infants: 0,
-          mealPlan: "N/A",
-          destinations: [],
-          rooms: {
-            numberOfRooms: 1,
-            roomType: "Standard",
-            sharingType: "Single",
-            showCostPerAdult: false,
-          },
-          companyMargin: { marginPercent: 0, marginAmount: 0 },
-          discount: 0,
-          taxes: { gstOn: "None", applyGST: false },
-          signatureDetails: { regardsText: "Best Regards", signedBy: "" },
+  // ✅ Extract values from matched lead if available
+  const members = matchedLead?.tourDetails?.members || {};
+  const accommodation = matchedLead?.tourDetails?.accommodation || {};
+  const pickupDropLead = matchedLead?.tourDetails?.pickupDrop || {};
+
+  // nights + 1 → days
+  const noOfNights = accommodation?.noOfNights || 0;
+  const noOfDays = noOfNights > 0 ? noOfNights + 1 : 1;
+
+  setFormData((prev) => ({ ...prev, clientDetails: sanitizedClientDetails }));
+
+  const initialQuotationData = {
+    clientDetails: sanitizedClientDetails,
+    pickupDrop: [
+      {
+        cityName: "TBC",
+        nights: 0,
+      },
+    ],
+    tourDetails: {
+      arrivalCity: pickupDropLead?.arrivalCity || "TBD",
+      departureCity: pickupDropLead?.departureCity || "TBD",
+      arrivalDate: pickupDropLead?.arrivalDate || new Date().toISOString(),
+      departureDate: pickupDropLead?.departureDate || new Date().toISOString(),
+      quotationTitle: `Quotation for ${sanitizedClientDetails.clientName}`,
+      initalNotes: "",
+      bannerImage: "",
+      transport: accommodation?.transport ? "Yes" : "No",
+      itinerary: [],
+      policies: {},
+      quotationDetails: {
+        adults: members?.adults || 1,
+        children: members?.children || 0,
+        kids: members?.kidsWithoutMattress || 0,
+        infants: members?.infants || 0,
+        mealPlan: accommodation?.mealPlan || "N/A",
+        destinations: [],
+        rooms: {
+          numberOfRooms: accommodation?.noOfRooms || 1,
+          roomType: accommodation?.hotelType?.[0] || "Standard",
+          sharingType: accommodation?.sharingType || "Double",
+          showCostPerAdult: false,
         },
-        vehicleDetails: {
-          pickupDropDetails: {
-            pickupLocation: "TBD",
-            pickupDate: new Date().toISOString(),
-            pickupTime: "12:00",
-            dropLocation: "TBD",
-            dropDate: new Date().toISOString(),
-            dropTime: "12:00",
-          },
-          basicsDetails: {
-            vehicleType: "Sedan",
-            tripType: "One Way", // matches enum
-            noOfDays: 1,
-            perDayCost: 0,
-            clientName: sanitizedClientDetails.clientName,
-          },
-          costDetails: { totalCost: 0 },
+        companyMargin: { marginPercent: 0, marginAmount: 0 },
+        discount: 0,
+        taxes: { gstOn: "None", applyGST: false },
+        signatureDetails: { regardsText: "Best Regards", signedBy: "" },
+      },
+      // ✅ Vehicle details using your defined schema
+      vehicleDetails: {
+        basicsDetails: {
+          clientName: sanitizedClientDetails.clientName,
+          vehicleType: "Sedan",
+          tripType: "One Way",
+          noOfDays,
+          perDayCost: 0,
+        },
+        costDetails: { totalCost: 0 },
+        pickupDropDetails: {
+          pickupDate: pickupDropLead?.arrivalDate || new Date().toISOString(),
+          pickupTime: "12:00",
+          pickupLocation: pickupDropLead?.arrivalLocation || "TBD",
+          dropDate: pickupDropLead?.departureDate || new Date().toISOString(),
+          dropTime: "12:00",
+          dropLocation: pickupDropLead?.departureLocation || "TBD",
         },
       },
-    };
-
-    try {
-      const created = await dispatch(createCustomQuotation(initialQuotationData)).unwrap();
-      setQuotationId(created.quotationId);
-      setStep(2);
-    } catch (err) {
-      console.error(err);
-      toast.error(err?.message || "Failed to create quotation");
-    } finally {
-      setLoading(false);
-    }
+    },
   };
+
+  try {
+    const created = await dispatch(createCustomQuotation(initialQuotationData)).unwrap();
+    setQuotationId(created.quotationId);
+    setStep(2);
+  } catch (err) {
+    console.error(err);
+    toast.error(err?.message || "Failed to create quotation");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Step 2-6 handlers remain unchanged
   const handleStep2 = async (data) => { setFormData(prev => ({ ...prev, pickupDrop: data })); await saveStep(2, data); setStep(3); };
