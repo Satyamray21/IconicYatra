@@ -7,14 +7,25 @@ import {
   TextField,
   Typography,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Chip,
 } from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
+import AddIcon from "@mui/icons-material/Add";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { step2Update } from "../../../../features/quotation/fullQuotationSlice";
-import { fetchStatesByCountry, fetchCitiesByState } from "../../../../features/location/locationSlice";
+import { 
+  fetchStatesByCountry, 
+  fetchCitiesByState,
+  fetchAllCitiesByCountry 
+} from "../../../../features/location/locationSlice";
 
 const FullQuotationStep2 = ({ quotationId, quotation }) => {
   const dispatch = useDispatch();
@@ -26,58 +37,84 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
 
   const country = "India"; // default
   const sector = quotation?.clientDetails?.sector || "Kerala";
+  const tourType = quotation?.tourType || "domestic"; // domestic or international
 
-  const [locations, setLocations] = useState([]); // dynamic
+  const [locations, setLocations] = useState([]);
   const [stayLocations, setStayLocations] = useState([]);
   const [selectedState, setSelectedState] = useState("");
-  const [selectedCity, setSelectedCity] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState("");
   const [loading, setLoading] = useState(false);
+  const [customCityDialog, setCustomCityDialog] = useState(false);
+  const [customCityName, setCustomCityName] = useState("");
 
-  // Fetch states when sector/country changes
+  // Fetch states when component mounts (for domestic)
   useEffect(() => {
-    if (country) {
+    if (country && tourType === "domestic") {
       dispatch(fetchStatesByCountry(country));
     }
-  }, [country, dispatch]);
+  }, [country, tourType, dispatch]);
 
-  // Set state based on sector if matches - FIXED
+  // Set state based on sector if matches
   useEffect(() => {
-    if (states.length > 0) {
-      // Extract state names from state objects
+    if (tourType === "domestic" && states.length > 0) {
       const stateNames = states.map(state => state.name);
       
-      // If sector exists as a state name, preselect
       if (stateNames.includes(sector)) {
         setSelectedState(sector);
-      } else {
+      } else if (stateNames.length > 0) {
         setSelectedState(stateNames[0]);
       }
     }
-  }, [states, sector]);
+  }, [states, sector, tourType]);
 
-  // Fetch cities when state changes
+  // Fetch cities based on tour type
   useEffect(() => {
-    if (selectedState) {
+    if (tourType === "domestic" && selectedState) {
       dispatch(fetchCitiesByState({ countryName: country, stateName: selectedState }));
+    } else if (tourType === "international" && selectedCountry) {
+      dispatch(fetchAllCitiesByCountry(selectedCountry));
     }
-  }, [selectedState, country, dispatch]);
+  }, [selectedState, selectedCountry, tourType, country, dispatch]);
 
-  // Update available locations when cities are fetched - FIXED
+  // Update available locations when cities are fetched
   useEffect(() => {
     if (cities && cities.length > 0) {
-      // Extract just the city names from the city objects
-      const cityNames = cities.map(city => city.name);
-      setLocations(cityNames);
+      if (typeof cities[0] === 'object') {
+        // If cities are objects, extract names
+        const cityNames = cities.map(city => city.name);
+        setLocations(cityNames);
+      } else {
+        // If cities are already strings
+        setLocations(cities);
+      }
     } else {
       setLocations([]);
     }
   }, [cities]);
 
-  // Clear locations when state changes
+  // Clear locations when selection changes
   useEffect(() => {
     setLocations([]);
     setStayLocations([]);
-  }, [selectedState]);
+  }, [selectedState, selectedCountry, tourType]);
+
+  // Add custom city
+  const handleAddCustomCity = () => {
+    if (!customCityName.trim()) {
+      toast.error("Please enter a city name");
+      return;
+    }
+
+    if (locations.includes(customCityName.trim())) {
+      toast.error("This city already exists");
+      return;
+    }
+
+    setLocations(prev => [...prev, customCityName.trim()]);
+    setCustomCityName("");
+    setCustomCityDialog(false);
+    toast.success("Custom city added successfully");
+  };
 
   // ---------- DRAG & DROP ----------
   const handleDragEnd = (result) => {
@@ -131,9 +168,12 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
 
   // ---------- Handle Nights ----------
   const handleNightsChange = (index, value) => {
-    const numericValue = Math.max(1, Math.min(30, parseInt(value) || 1));
+    // Remove any non-numeric characters and limit to 2 digits
+    const numericValue = value.replace(/[^0-9]/g, '').slice(0, 2);
+    const finalValue = numericValue === '' ? 1 : Math.max(1, Math.min(30, parseInt(numericValue) || 1));
+    
     const updated = [...stayLocations];
-    updated[index].nights = numericValue;
+    updated[index].nights = finalValue;
     setStayLocations(updated);
   };
 
@@ -193,13 +233,19 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
   const totalNights = stayLocations.reduce((total, loc) => total + loc.nights, 0);
   const totalDays = totalNights + 1;
 
-  // Get state names for dropdown - FIXED
+  // Get state names for dropdown
   const stateNames = states.map(state => state.name);
 
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
         Quotation Itinerary {totalNights}N/{totalDays}D
+        <Chip 
+          label={tourType === 'domestic' ? 'Domestic Tour' : 'International Tour'} 
+          color={tourType === 'domestic' ? 'primary' : 'secondary'}
+          size="small"
+          sx={{ ml: 2 }}
+        />
       </Typography>
 
       {quotationId && quotationId !== "new" && (
@@ -208,21 +254,42 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
         </Typography>
       )}
 
-      {/* Select State */}
+      {/* Selection based on tour type */}
       <Box sx={{ mb: 3 }}>
-        <TextField
-          select
-          fullWidth
-          label="Select State"
-          value={selectedState}
-          onChange={(e) => setSelectedState(e.target.value)}
+        {tourType === "domestic" ? (
+          <TextField
+            select
+            fullWidth
+            label="Select State"
+            value={selectedState}
+            onChange={(e) => setSelectedState(e.target.value)}
+          >
+            {stateNames.map((stateName) => (
+              <MenuItem key={stateName} value={stateName}>
+                {stateName}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : (
+          <TextField
+            fullWidth
+            label="Enter Country Name"
+            value={selectedCountry}
+            onChange={(e) => setSelectedCountry(e.target.value)}
+            placeholder="e.g., United States, France, Japan"
+          />
+        )}
+      </Box>
+
+      {/* Add Custom City Button */}
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={() => setCustomCityDialog(true)}
         >
-          {stateNames.map((stateName) => (
-            <MenuItem key={stateName} value={stateName}>
-              {stateName}
-            </MenuItem>
-          ))}
-        </TextField>
+          Add Custom City
+        </Button>
       </Box>
 
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -252,7 +319,7 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
                       variant="body2"
                       sx={{ p: 2, color: "text.secondary", textAlign: "center" }}
                     >
-                      {locationLoading ? "Loading cities..." : "All locations added to itinerary or no cities available"}
+                      {locationLoading ? "Loading cities..." : "No cities available. Select a state/country or add custom cities."}
                     </Typography>
                   ) : (
                     locations.map((loc, index) => (
@@ -353,25 +420,23 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
                                   {loc.name}
                                 </Typography>
                               </Box>
-                              <Button
+                              <IconButton
                                 size="small"
                                 color="error"
                                 onClick={() => handleRemoveStayLocation(index)}
-                                sx={{ minWidth: 'auto', p: 0.5 }}
                               >
                                 ✕
-                              </Button>
+                              </IconButton>
                             </Box>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                               <TextField
-                                type="number"
+                                type="text"
                                 label="No. of Nights"
                                 size="small"
                                 value={loc.nights}
                                 onChange={(e) => handleNightsChange(index, e.target.value)}
                                 inputProps={{ 
-                                  min: 1, 
-                                  max: 30,
+                                  maxLength: 2,
                                   style: { textAlign: 'center' }
                                 }}
                                 sx={{ width: 120 }}
@@ -392,6 +457,28 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
           </Grid>
         </Grid>
       </DragDropContext>
+
+      {/* Custom City Dialog */}
+      <Dialog open={customCityDialog} onClose={() => setCustomCityDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add Custom City</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label="City Name"
+            value={customCityName}
+            onChange={(e) => setCustomCityName(e.target.value)}
+            sx={{ mt: 2 }}
+            placeholder="Enter city name..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCustomCityDialog(false)}>Cancel</Button>
+          <Button onClick={handleAddCustomCity} variant="contained">
+            Add City
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Action Buttons */}
       <Box textAlign="center" sx={{ mt: 3 }} display="flex" justifyContent="center" gap={2}>
