@@ -4,29 +4,22 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { v4 as uuidv4 } from "uuid";
-
+import { uploadOnCloudinary } from "../../utils/cloudinary.js";
 /* =====================================================
    STEP 1 - CREATE OR RESUME QUOTATION
 ===================================================== */
 export const createOrResumeStep1 = asyncHandler(async (req, res) => {
-  let {
-    clientDetails,
-    accommodation,
-    pickupDrop,
-    quotationValidity,
-    quotation,
-  } = req.body;
+  let { clientDetails, accommodation, pickupDrop, quotationValidity, quotation } = req.body;
 
   // Parse JSON strings sent from frontend
-  clientDetails = JSON.parse(clientDetails || "{}");
-  accommodation = JSON.parse(accommodation || "{}");
-  pickupDrop = JSON.parse(pickupDrop || "{}");
-  quotationValidity = JSON.parse(quotationValidity || "{}");
-  quotation = JSON.parse(quotation || "{}");
-
-  // If banner file uploaded
-  if (req.file) {
-    quotation.bannerImage = req.file.path; // or store filename/cloudinary URL
+  try {
+    clientDetails = JSON.parse(clientDetails || "{}");
+    accommodation = JSON.parse(accommodation || "{}");
+    pickupDrop = JSON.parse(pickupDrop || "{}");
+    quotationValidity = JSON.parse(quotationValidity || "{}");
+    quotation = JSON.parse(quotation || "{}");
+  } catch (err) {
+    throw new ApiError(400, "Invalid JSON format in request body");
   }
 
   // Resume existing quotation if quotationId provided
@@ -39,6 +32,15 @@ export const createOrResumeStep1 = asyncHandler(async (req, res) => {
     }
   }
 
+  // Upload banner image (if provided)
+  if (req.file) {
+    const cloudResult = await uploadOnCloudinary(req.file.path);
+    if (cloudResult && cloudResult.secure_url) {
+      quotation.bannerImage = cloudResult.secure_url;
+    }
+  }
+
+  // Validate required fields
   if (!clientDetails.clientName || !quotation.quotationTitle) {
     throw new ApiError(400, "Missing required client or quotation details");
   }

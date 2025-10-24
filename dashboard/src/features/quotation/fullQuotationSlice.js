@@ -6,11 +6,13 @@ import axios from "../../utils/axios";
 
 // Step 1: Create or resume quotation
 export const step1CreateOrResume = createAsyncThunk(
-  "fullQuotation/step1CreateOrResume",
-  async (data, { rejectWithValue }) => {
+  "quotation/step1CreateOrResume",
+  async (formData, { rejectWithValue }) => {
     try {
-      const res = await axios.post("/fullQT/step1", data);
-      return res.data.data;
+      const response = await axios.post("/fullQT/step1", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }

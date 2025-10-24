@@ -166,74 +166,82 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
       banner: null,
     },
     validationSchema,
-    onSubmit: async (values, { setSubmitting }) => {
-      try {
-        const formData = new FormData();
+   onSubmit: async (values, { setSubmitting }) => {
+  try {
+    const formData = new FormData();
 
-        formData.append("clientDetails", JSON.stringify({
-          clientName: values.clientName,
-          tourType: values.tourType,
-          sector: values.sector,
-          showCostPerAdult: values.showCostPerAdult,
-          servicesRequired: values.services,
-          members: {
-            adults: values.adults,
-            children: values.children,
-            kidsWithoutMattress: values.kids,
-            infants: values.infants,
-          },
-        }));
+    // ---------------- CLIENT DETAILS ----------------
+    formData.append("clientDetails", JSON.stringify({
+      clientName: values.clientName,
+      tourType: values.tourType,
+      sector: values.sector,
+      showCostPerAdult: values.showCostPerAdult,
+      servicesRequired: values.services,
+      members: {
+        adults: values.adults,
+        children: values.children,
+        kidsWithoutMattress: values.kids,
+        infants: values.infants,
+      },
+    }));
 
-        formData.append("accommodation", JSON.stringify({
-          hotelType: [values.hotelType],
-          mealPlan: values.mealPlan,
-          transport: values.transport === "Yes",
-          sharingType: values.sharingType,
-          noOfRooms: values.noOfRooms,
-          noOfMattress: values.noOfMattress,
-          noOfNights: values.nights,
-        }));
+    // ---------------- ACCOMMODATION ----------------
+    formData.append("accommodation", JSON.stringify({
+      hotelType: [values.hotelType],
+      mealPlan: values.mealPlan,
+      transport: values.transport === "Yes",
+      sharingType: values.sharingType,
+      noOfRooms: values.noOfRooms,
+      noOfMattress: values.noOfMattress,
+      noOfNights: values.nights,
+    }));
 
-        formData.append("pickupDrop", JSON.stringify({
-          arrivalDate: values.arrivalDate,
-          arrivalCity: values.arrivalCity,
-          arrivalLocation: values.arrivalLocation,
-          departureDate: values.departureDate,
-          departureCity: values.departureCity,
-          departureLocation: values.departureLocation,
-        }));
+    // ---------------- PICKUP / DROP ----------------
+    formData.append("pickupDrop", JSON.stringify({
+      arrivalDate: values.arrivalDate,
+      arrivalCity: values.arrivalCity,
+      arrivalLocation: values.arrivalLocation,
+      departureDate: values.departureDate,
+      departureCity: values.departureCity,
+      departureLocation: values.departureLocation,
+    }));
 
-        formData.append("quotationValidity", JSON.stringify({
-          validFrom: values.validFrom,
-          validTill: values.validTill,
-        }));
+    // ---------------- QUOTATION VALIDITY ----------------
+    formData.append("quotationValidity", JSON.stringify({
+      validFrom: values.validFrom,
+      validTill: values.validTill,
+    }));
 
-        formData.append("quotation", JSON.stringify({
-          createBy: values.createBy,
-          quotationTitle: values.quotationTitle,
-          initalNotes: values.initialNotes,
-        }));
+    // ---------------- QUOTATION INFO ----------------
+    formData.append("quotation", JSON.stringify({
+      createBy: values.createBy,
+      quotationTitle: values.quotationTitle,
+      initalNotes: values.initialNotes,
+    }));
 
-        if (values.banner) {
-          formData.append("banner", values.banner);
-        }
-
-        const resultAction = await dispatch(step1CreateOrResume(formData));
-
-        if (step1CreateOrResume.fulfilled.match(resultAction)) {
-          const quotationId = resultAction.payload?.quotationId;
-          if (quotationId && typeof onNextStep === "function") {
-            onNextStep(quotationId);
-          }
-        } else {
-          console.error("❌ Error saving Step 1:", resultAction.payload);
-        }
-      } catch (error) {
-        console.error("Submission error:", error);
-      } finally {
-        setSubmitting(false);
-      }
+    // ---------------- BANNER IMAGE ----------------
+    if (values.banner) {
+      formData.append("bannerImage", values.banner); // <-- matches backend multer field name
     }
+
+    // ---------------- DISPATCH API ----------------
+    const resultAction = await dispatch(step1CreateOrResume(formData));
+
+    if (step1CreateOrResume.fulfilled.match(resultAction)) {
+      const quotationId = resultAction.payload?.quotationId;
+      if (quotationId && typeof onNextStep === "function") {
+        onNextStep(quotationId); // move to Step 2
+      }
+    } else {
+      console.error("❌ Error saving Step 1:", resultAction.payload);
+    }
+  } catch (error) {
+    console.error("Submission error:", error);
+  } finally {
+    setSubmitting(false);
+  }
+}
+
   });
 
   // ------------------- LOCATION LOGIC -------------------
@@ -567,9 +575,19 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
           <Grid item xs={12}>
             <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>Select Banner Image (860px X 400px)</Typography>
             <Button variant="outlined" component="label" sx={{ mt: 1 }}>
-              Upload
-              <input hidden accept="image/*" type="file" onChange={(e) => formik.setFieldValue("banner", e.currentTarget.files[0])} />
-            </Button>
+  Upload
+  <input
+    hidden
+    accept="image/*"
+    type="file"
+    onChange={(e) => {
+      if (e.currentTarget.files && e.currentTarget.files[0]) {
+        formik.setFieldValue("banner", e.currentTarget.files[0]);
+      }
+    }}
+  />
+</Button>
+
           </Grid>
         </Section>
 

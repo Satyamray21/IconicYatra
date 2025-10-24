@@ -11,14 +11,9 @@ import {
   getQuotationById,
   getAllQuotations,
 } from "../../controllers/quotation/fullQuotation.controller.js";
-
+import {upload} from "../../middlewares/imageMulter.middleware.js";
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
-router.post(
-  "/step1",
-  upload.single("banner"), // handle banner file
-  createOrResumeStep1
-);
+router.post("/step1", upload.single("bannerImage"), createOrResumeStep1);
 router.put("/step2/:quotationId", updateStep2);
 router.put("/step3/:quotationId", updateStep3);
 router.put("/step4/:quotationId", updateStep4);
