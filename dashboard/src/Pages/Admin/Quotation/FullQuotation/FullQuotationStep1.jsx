@@ -454,42 +454,66 @@ const FullQuotationStep1 = ({ quotationId, onNextStep }) => {
         </Section>
 
         {/* Pickup / Drop */}
-        <Section title="Pickup / Drop">
-          {pickupDropFields.map((f) => (
-            <Grid item xs={4} key={f.name}>
-              {f.type === "date" ? (
-                <DatePicker
-                  label={f.label}
-                  value={formik.values[f.name]}
-                  onChange={(v) => formik.setFieldValue(f.name, v)}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-              ) : f.name === "arrivalCity" || f.name === "departureCity" ? (
-                <Autocomplete
-                  options={cities}
-                  value={formik.values[f.name]}
-                  onChange={(_, val) => formik.setFieldValue(f.name, val || "")}
-                  renderInput={(params) => <TextField {...params} label={f.label} fullWidth />}
-                />
-              ) : (
-                <TextField
-                  select
-                  fullWidth
-                  name={f.name}
-                  value={formik.values[f.name]}
-                  onChange={formik.handleChange}
-                >
-                  {(f.name === "arrivalLocation" ? arrivalLocationList : departureLocationList).map((o) => (
-                    <MenuItem key={o} value={o}>{o}</MenuItem>
-                  ))}
-                </TextField>
-              )}
-            </Grid>
-          ))}
-          <Grid item xs={4}>
-            <TextField fullWidth name="nights" label="Nights" type="number" value={formik.values.nights} onChange={formik.handleChange} />
-          </Grid>
-        </Section>
+        {/* Pickup / Drop */}
+<Section title="Pickup / Drop">
+  {pickupDropFields.map((f) => (
+    <Grid item xs={4} key={f.name}>
+      {f.type === "date" ? (
+        <DatePicker
+          label={f.label}
+          value={formik.values[f.name]}
+          onChange={(v) => formik.setFieldValue(f.name, v)}
+          slotProps={{ textField: { fullWidth: true } }}
+        />
+      ) : f.name === "arrivalCity" || f.name === "departureCity" ? (
+        <Autocomplete
+          options={cities}
+          value={formik.values[f.name]}
+          onChange={(_, val) => formik.setFieldValue(f.name, val || "")}
+          renderInput={(params) => <TextField {...params} label={f.label} fullWidth />}
+        />
+      ) : (
+        <Box>
+          <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+            <Typography variant="body2" fontWeight={500}>{f.label}</Typography>
+            <IconButton
+              color="primary"
+              onClick={() => {
+                setManageField(f.name);
+                setOpenOptionDialog(true);
+              }}
+              size="small"
+            >
+              <SettingsIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          <TextField
+            select
+            fullWidth
+            name={f.name}
+            value={formik.values[f.name]}
+            onChange={formik.handleChange}
+          >
+            {(f.name === "arrivalLocation" ? arrivalLocationList : departureLocationList).map((o) => (
+              <MenuItem key={o} value={o}>{o}</MenuItem>
+            ))}
+          </TextField>
+        </Box>
+      )}
+    </Grid>
+  ))}
+  <Grid item xs={4}>
+    <TextField
+      fullWidth
+      name="nights"
+      label="Nights"
+      type="number"
+      value={formik.values.nights}
+      onChange={formik.handleChange}
+    />
+  </Grid>
+</Section>
+
 
         {/* Quotation Validity */}
         <Section title="Quotation Validity">
