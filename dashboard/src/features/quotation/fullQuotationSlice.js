@@ -33,17 +33,45 @@ export const step2Update = createAsyncThunk(
 );
 
 // Step 3
+// Step 3
 export const step3Update = createAsyncThunk(
   "fullQuotation/step3Update",
-  async ({ quotationId, itinerary }, { rejectWithValue }) => {
+  async ({ quotationId, days }, { rejectWithValue }) => {
     try {
-      const res = await axios.put(`/fullQT/step3/${quotationId}`, { itinerary });
+      const formData = new FormData();
+
+      // Append itinerary as JSON string
+      const itineraryPayload = days.map((day) => ({
+        arrivalAt: day.arrivalAt || "", // Only for day 1
+        driveTo: day.driveTo || "", // Only for day 1
+        distance: day.distance || "", // Only for day 1
+        duration: day.duration || "", // Only for day 1
+        dayTitle: day.title,
+        dayNote: day.itineraryDetails,
+        aboutCity: day.aboutCity,
+        image: typeof day.dayImage === 'string' ? day.dayImage : null, // keep existing URL
+      }));
+
+      formData.append("itinerary", JSON.stringify(itineraryPayload));
+
+      // Append image files
+      days.forEach((day, index) => {
+        if (day.dayImage instanceof File) {
+          formData.append("images", day.dayImage);
+        }
+      });
+
+      const res = await axios.put(`/fullQT/step3/${quotationId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       return res.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);
     }
   }
 );
+
 
 // Step 4
 export const step4Update = createAsyncThunk(

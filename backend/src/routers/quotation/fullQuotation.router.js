@@ -15,7 +15,7 @@ import {upload} from "../../middlewares/imageMulter.middleware.js";
 const router = express.Router();
 router.post("/step1", upload.single("bannerImage"), createOrResumeStep1);
 router.put("/step2/:quotationId", updateStep2);
-router.put("/step3/:quotationId", updateStep3);
+router.put("/step3/:quotationId",upload.array("images") ,updateStep3);
 router.put("/step4/:quotationId", updateStep4);
 router.put("/step5/:quotationId", updateStep5);
 router.put("/step6/:quotationId", updateStep6);

@@ -99,11 +99,77 @@ export const updateStep2 = asyncHandler(async (req, res) => {
 export const updateStep3 = asyncHandler(async (req, res) => {
   const { quotationId } = req.params;
   const { itinerary } = req.body;
+  const files = req.files;
 
   const quotation = await fullQuotation.findOne({ quotationId });
   if (!quotation) throw new ApiError(404, "Quotation not found");
 
-  quotation.itinerary = itinerary;
+  // Parse itinerary
+  let itineraryArray;
+  try {
+    itineraryArray = typeof itinerary === 'string' ? JSON.parse(itinerary) : itinerary;
+  } catch (error) {
+    throw new ApiError(400, "Invalid itinerary format");
+  }
+
+  if (!Array.isArray(itineraryArray)) {
+    throw new ApiError(400, "Itinerary must be an array");
+  }
+
+  // Get files array - handle different multer configurations
+  let filesArray = [];
+  if (files) {
+    if (Array.isArray(files)) {
+      filesArray = files;
+    } else if (files.images && Array.isArray(files.images)) {
+      filesArray = files.images;
+    } else if (files.images && !Array.isArray(files.images)) {
+      filesArray = [files.images];
+    }
+  }
+
+  console.log('Files received:', filesArray.length);
+  console.log('Itinerary items:', itineraryArray.length);
+
+  const updatedItinerary = await Promise.all(
+    itineraryArray.map(async (item, index) => {
+      let imageUrl = item.image || null;
+
+      // Check if there's a corresponding file
+      if (filesArray[index]) {
+        const file = filesArray[index];
+        console.log(`Processing file for day ${index + 1}:`, file.originalname);
+        
+        try {
+          const uploaded = await uploadOnCloudinary(file.path, "itinerary");
+          
+          if (!uploaded) {
+            console.warn(`Cloudinary returned null for file: ${file.originalname}`);
+            return { ...item, image: imageUrl }; // Return without updating image
+          }
+          
+          if (!uploaded.secure_url) {
+            console.warn(`Cloudinary upload successful but no secure_url for: ${file.originalname}`);
+            return { ...item, image: imageUrl }; // Return without updating image
+          }
+          
+          imageUrl = uploaded.secure_url;
+          console.log(`Image uploaded successfully for day ${index + 1}:`, imageUrl);
+          
+        } catch (uploadError) {
+          console.error(`Error uploading image for day ${index + 1}:`, uploadError.message);
+          // Continue with existing imageUrl
+        }
+      }
+
+      return {
+        ...item,
+        image: imageUrl,
+      };
+    })
+  );
+
+  quotation.itinerary = updatedItinerary;
   quotation.currentStep = Math.max(quotation.currentStep, 3);
   await quotation.save();
 
@@ -111,6 +177,7 @@ export const updateStep3 = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, quotation, "Step 3: Itinerary saved"));
 });
+
 // controllers/fullQuotation/fullQuotation.controller.js
 
 /* =====================================================

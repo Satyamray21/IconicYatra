@@ -69,7 +69,13 @@ const FullQuotation = () => {
       case 2:
         return <FullQuotationStep2 {...commonProps} />;
       case 3:
-        return <FullQuotationStep3 {...commonProps} />;
+        return (
+          <FullQuotationStep3 
+            {...commonProps} 
+            stayLocation={quotation?.stayLocation || []} 
+            quotation={quotation}
+          />
+        );
       case 4:
         return <FullQuotationStep4 {...commonProps} />;
       case 5:
