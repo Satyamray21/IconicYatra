@@ -25,19 +25,21 @@ const FullQuotation = () => {
 
   // Fetch quotation only once per ID
   useEffect(() => {
-    if (
-      quotationId &&
-      quotationId !== "new" &&
-      (!quotation || quotation.quotationId !== quotationId)
-    ) {
-      dispatch(getQuotationById({ quotationId }));
+    if (quotationId && quotationId !== "new") {
+      // Only fetch if we don't have the data or it's a different quotation
+      if (!quotation || quotation.quotationId !== quotationId) {
+        dispatch(getQuotationById({ quotationId }));
+      }
       setActiveQuotationId(quotationId);
+    } else {
+      setActiveQuotationId("new");
     }
-  }, [quotationId, quotation, dispatch]);
+  }, [quotationId, dispatch]); // Removed quotation from dependencies
 
   // Step control from URL
   useEffect(() => {
-    setCurrentStep(stepNumber ? parseInt(stepNumber) : 1);
+    const step = stepNumber ? parseInt(stepNumber) : 1;
+    setCurrentStep(step);
   }, [stepNumber]);
 
   const handleStep1Complete = (newQuotationId) => {
@@ -46,19 +48,21 @@ const FullQuotation = () => {
   };
 
   const handleNextStep = () => {
-    navigate(`/fullquotation/${activeQuotationId}/step/${currentStep + 1}`);
+    const nextStep = Math.min(currentStep + 1, 6);
+    navigate(`/fullquotation/${activeQuotationId}/step/${nextStep}`);
   };
 
   const handlePrevStep = () => {
     if (currentStep > 1) {
-      navigate(`/fullquotation/${activeQuotationId}/step/${currentStep - 1}`);
+      const prevStep = Math.max(currentStep - 1, 1);
+      navigate(`/fullquotation/${activeQuotationId}/step/${prevStep}`);
     }
   };
 
   const renderStep = () => {
     const commonProps = {
       quotationId: activeQuotationId,
-      quotation, // pass quotation as prop
+      quotation,
       onNextStep: handleNextStep,
       onPrevStep: handlePrevStep,
     };
@@ -73,7 +77,6 @@ const FullQuotation = () => {
           <FullQuotationStep3 
             {...commonProps} 
             stayLocation={quotation?.stayLocation || []} 
-            quotation={quotation}
           />
         );
       case 4:
@@ -92,10 +95,12 @@ const FullQuotation = () => {
     }
   };
 
+  // Show loading only when actually fetching
   if (fetchLoading && quotationId && quotationId !== "new") {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px" flexDirection="column">
         <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Loading quotation data...</Typography>
       </Box>
     );
   }

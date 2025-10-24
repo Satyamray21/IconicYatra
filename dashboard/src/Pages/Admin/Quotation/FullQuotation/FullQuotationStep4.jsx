@@ -14,7 +14,6 @@ import {
   Divider,
   Checkbox,
   FormControlLabel,
-  FormGroup,
   CircularProgress,
 } from "@mui/material";
 import { useFormik } from "formik";
@@ -42,25 +41,25 @@ const emptyAccommodationPlan = {
   hotelName: "",
   roomType: "",
   mealPlan: "",
-  noNights: 1,
-  noOfRooms: 1,
+  noNights: "1",
+  noOfRooms: "1",
   mattressForAdult: false,
   adultExBed: false,
   mattressForChildren: false,
-  adultExMattress: 0,
-  adultExCost: 0,
-  childrenExMattress: 0,
-  childrenExCost: 0,
+  adultExMattress: "",
+  adultExCost: "",
+  childrenExMattress: "",
+  childrenExCost: "",
   withoutMattress: false,
-  withoutBedCost: 0,
-  costNight: 0,
-  totalCost: 0,
+  withoutBedCost: "",
+  costNight: "",
+  totalCost: "",
 };
 
-const FullQuotationStep4 = ({ quotationId }) => {
+const FullQuotationStep4 = ({ quotationId, quotation, onNextStep, onPrevStep }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { quotation, fetchLoading, loading } = useSelector(
+  const { fetchLoading, loading } = useSelector(
     (state) => state.fullQuotation
   );
 
@@ -68,45 +67,104 @@ const FullQuotationStep4 = ({ quotationId }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [newHotelName, setNewHotelName] = useState("");
   const [initialized, setInitialized] = useState(false);
-  const [dataFetched, setDataFetched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch quotation once
-  useEffect(() => {
-    if (
-      quotationId &&
-      quotationId !== "new" &&
-      !dataFetched &&
-      (!quotation || quotation.quotationId !== quotationId)
-    ) {
-      dispatch(getQuotationById({ quotationId }));
-      setDataFetched(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotationId]);
+  // Get accommodation and client details from quotation
+  const accommodationData = quotation?.accommodation;
+  const clientDetails = quotation?.clientDetails;
+  const members = clientDetails?.members || {
+    adults: 0,
+    children: 0,
+    kidsWithoutMattress: 0,
+    infants: 0
+  };
 
-  // Initialize form when quotation data is loaded
+  // Calculate room requirements based on members and accommodation data
+  const calculateRecommendedRooms = () => {
+    // Use accommodation.noOfRooms if available, otherwise calculate from members
+    if (accommodationData?.noOfRooms) {
+      return {
+        recommendedRooms: accommodationData.noOfRooms.toString(),
+        totalPeople: members.adults + members.children,
+        adults: members.adults,
+        children: members.children,
+        hotelType: accommodationData.hotelType?.[0] || "",
+        mealPlan: accommodationData.mealPlan || "",
+        sharingType: accommodationData.sharingType || "Double Sharing"
+      };
+    }
+    
+    const { adults, children } = members;
+    const totalPeople = adults + children;
+    const recommendedRooms = Math.ceil(totalPeople / 2);
+    
+    return {
+      recommendedRooms: recommendedRooms.toString(),
+      totalPeople,
+      adults,
+      children,
+      hotelType: accommodationData?.hotelType?.[0] || "",
+      mealPlan: accommodationData?.mealPlan || "",
+      sharingType: accommodationData?.sharingType || "Double Sharing"
+    };
+  };
+
+  const roomInfo = calculateRecommendedRooms();
+
+  // Initialize form when quotation data is available
   useEffect(() => {
-    if (
-      quotation?.stayLocation?.length > 0 &&
-      !initialized &&
-      !fetchLoading
-    ) {
-      formik.setValues({
-        stayLocation: quotation.stayLocation.map((loc, i) => ({
+    if (quotation?.stayLocation?.length > 0 && !initialized && !fetchLoading) {
+      console.log("Initializing form with accommodation data:", roomInfo);
+      
+      const initializedStayLocation = quotation.stayLocation.map((loc, i) => {
+        // Get existing accommodation data for this location if available
+        const existingStandard = loc.standard || {};
+        const existingDeluxe = loc.deluxe || {};
+        const existingSuperior = loc.superior || {};
+
+        return {
           city: loc.city || `City ${i + 1}`,
           order: loc.order || i + 1,
           nights: loc.nights || 1,
-          standard: loc.standard || { ...emptyAccommodationPlan },
-          deluxe: loc.deluxe || { ...emptyAccommodationPlan },
-          superior: loc.superior || { ...emptyAccommodationPlan },
-        })),
+          standard: {
+            ...emptyAccommodationPlan,
+            noNights: (loc.nights || 1).toString(),
+            noOfRooms: existingStandard.noOfRooms || roomInfo.recommendedRooms,
+            hotelType: existingStandard.hotelType || roomInfo.hotelType,
+            mealPlan: existingStandard.mealPlan || roomInfo.mealPlan,
+            roomType: existingStandard.roomType || roomInfo.sharingType,
+            ...existingStandard
+          },
+          deluxe: {
+            ...emptyAccommodationPlan,
+            noNights: (loc.nights || 1).toString(),
+            noOfRooms: existingDeluxe.noOfRooms || roomInfo.recommendedRooms,
+            hotelType: existingDeluxe.hotelType || roomInfo.hotelType,
+            mealPlan: existingDeluxe.mealPlan || roomInfo.mealPlan,
+            roomType: existingDeluxe.roomType || roomInfo.sharingType,
+            ...existingDeluxe
+          },
+          superior: {
+            ...emptyAccommodationPlan,
+            noNights: (loc.nights || 1).toString(),
+            noOfRooms: existingSuperior.noOfRooms || roomInfo.recommendedRooms,
+            hotelType: existingSuperior.hotelType || roomInfo.hotelType,
+            mealPlan: existingSuperior.mealPlan || roomInfo.mealPlan,
+            roomType: existingSuperior.roomType || roomInfo.sharingType,
+            ...existingSuperior
+          },
+        };
+      });
+
+      formik.setValues({
+        stayLocation: initializedStayLocation,
       });
       setInitialized(true);
+      toast.success("Accommodation form initialized with existing data");
     }
-  }, [quotation, fetchLoading, initialized]);
+  }, [quotation, fetchLoading]);
 
-  // ---------- Formik ----------
+  // Formik configuration
   const formik = useFormik({
     initialValues: { stayLocation: [] },
     enableReinitialize: false,
@@ -128,7 +186,7 @@ const FullQuotationStep4 = ({ quotationId }) => {
         );
         if (step4Update.fulfilled.match(res)) {
           toast.success("Accommodation details saved successfully!");
-          navigate(`/fullquotation/${quotationId}/step/5`);
+          onNextStep();
         } else {
           toast.error(
             res.payload?.message || "Failed to save accommodation details"
@@ -143,23 +201,44 @@ const FullQuotationStep4 = ({ quotationId }) => {
     },
   });
 
-  // ---------- Helpers ----------
+  // Calculate total cost
   const calculateTotalCost = (cityIndex, category) => {
     const loc = formik.values.stayLocation[cityIndex];
     if (!loc) return;
     const plan = loc[category];
 
+    // Convert empty strings to 0 for calculation
+    const costNight = parseFloat(plan.costNight) || 0;
+    const noOfRooms = parseFloat(plan.noOfRooms) || 0;
+    const nights = parseFloat(loc.nights) || 1;
+    const adultExCost = parseFloat(plan.adultExCost) || 0;
+    const adultExMattress = parseFloat(plan.adultExMattress) || 0;
+    const childrenExCost = parseFloat(plan.childrenExCost) || 0;
+    const childrenExMattress = parseFloat(plan.childrenExMattress) || 0;
+    const withoutBedCost = parseFloat(plan.withoutBedCost) || 0;
+
     const total =
-      (plan.costNight || 0) * (plan.noOfRooms || 1) * (loc.nights || 1) +
-      (plan.adultExCost || 0) * (plan.adultExMattress || 0) +
-      (plan.childrenExCost || 0) * (plan.childrenExMattress || 0) +
-      (plan.withoutBedCost || 0);
+      costNight * noOfRooms * nights +
+      adultExCost * adultExMattress +
+      childrenExCost * childrenExMattress +
+      withoutBedCost;
 
     formik.setFieldValue(
       `stayLocation[${cityIndex}].${category}.totalCost`,
-      total
+      total > 0 ? total.toString() : ""
     );
   };
+
+  // Auto-calculate when dependencies change
+  useEffect(() => {
+    if (initialized && formik.values.stayLocation.length > 0) {
+      formik.values.stayLocation.forEach((_, cityIndex) => {
+        ['standard', 'deluxe', 'superior'].forEach(category => {
+          calculateTotalCost(cityIndex, category);
+        });
+      });
+    }
+  }, [formik.values]);
 
   const handleAddHotel = () => {
     if (newHotelName.trim()) {
@@ -170,7 +249,80 @@ const FullQuotationStep4 = ({ quotationId }) => {
     }
   };
 
-  // ---------- Render Accommodation Plan ----------
+  // Auto-fill all fields based on accommodation data
+  const handleAutoFillAll = () => {
+  if (!formik.values.stayLocation.length) {
+    toast.error("No stay locations available to auto-fill");
+    return;
+  }
+
+  // Normalize hotel type casing and ensure valid options
+  let normalizedHotelType = "";
+  if (roomInfo.hotelType) {
+    normalizedHotelType =
+      hotelTypes.find(
+        (type) => type.toLowerCase() === roomInfo.hotelType.toLowerCase()
+      ) || hotelTypes[0];
+  }
+
+  // Normalize meal plan similarly
+  let normalizedMealPlan = "";
+  if (roomInfo.mealPlan) {
+    normalizedMealPlan =
+      mealPlans.find(
+        (plan) => plan.toLowerCase() === roomInfo.mealPlan.toLowerCase()
+      ) || mealPlans[0];
+  }
+
+  const updatedStayLocation = formik.values.stayLocation.map((loc) => ({
+    ...loc,
+    standard: {
+      ...loc.standard,
+      noOfRooms: roomInfo.recommendedRooms,
+      noNights: loc.nights?.toString() || "1", // ✅ update based on city
+      hotelType: normalizedHotelType,
+      mealPlan: normalizedMealPlan,
+      roomType: roomInfo.sharingType,
+    },
+    deluxe: {
+      ...loc.deluxe,
+      noOfRooms: roomInfo.recommendedRooms,
+      noNights: loc.nights?.toString() || "1",
+      hotelType: normalizedHotelType,
+      mealPlan: normalizedMealPlan,
+      roomType: roomInfo.sharingType,
+    },
+    superior: {
+      ...loc.superior,
+      noOfRooms: roomInfo.recommendedRooms,
+      noNights: loc.nights?.toString() || "1",
+      hotelType: normalizedHotelType,
+      mealPlan: normalizedMealPlan,
+      roomType: roomInfo.sharingType,
+    },
+  }));
+
+  formik.setValues({ stayLocation: updatedStayLocation });
+  toast.success("Auto-filled accommodation details for all cities!");
+};
+
+
+  // Handle numeric input - allow empty, 0, and positive numbers
+  const handleNumericInput = (e, cityIndex, category) => {
+    const { name, value } = e.target;
+    
+    // Allow empty string, 0, or positive numbers
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      formik.setFieldValue(name, value);
+      
+      // Only calculate total if it's a cost-related field
+      if (name.includes('costNight') || name.includes('ExCost') || name.includes('withoutBedCost') || name.includes('noOfRooms')) {
+        setTimeout(() => calculateTotalCost(cityIndex, category), 100);
+      }
+    }
+  };
+
+  // Render accommodation plan
   const renderAccommodationPlan = (label, category, cityIndex) => {
     const loc = formik.values.stayLocation[cityIndex];
     const plan = loc[category] || {};
@@ -182,7 +334,7 @@ const FullQuotationStep4 = ({ quotationId }) => {
         </Typography>
         <Grid container spacing={1.5}>
           {/* Hotel Type */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField
               select
               fullWidth
@@ -201,7 +353,7 @@ const FullQuotationStep4 = ({ quotationId }) => {
           </Grid>
 
           {/* Hotel Name */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField
               select
               fullWidth
@@ -226,7 +378,7 @@ const FullQuotationStep4 = ({ quotationId }) => {
           </Grid>
 
           {/* Room Type */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField
               select
               fullWidth
@@ -245,7 +397,7 @@ const FullQuotationStep4 = ({ quotationId }) => {
           </Grid>
 
           {/* Meal Plan */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField
               select
               fullWidth
@@ -264,49 +416,43 @@ const FullQuotationStep4 = ({ quotationId }) => {
           </Grid>
 
           {/* Nights & Rooms */}
-          <Grid item xs={6}>
+          <Grid size={6}>
             <TextField
               fullWidth
               size="small"
-              type="number"
               label="No of Nights"
               name={`stayLocation[${cityIndex}].${category}.noNights`}
-              value={plan.noNights || 1}
-              onChange={formik.handleChange}
+              value={plan.noNights || ""}
+              onChange={(e) => handleNumericInput(e, cityIndex, category)}
+              placeholder="Enter nights"
             />
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <TextField
               fullWidth
               size="small"
-              type="number"
               label="No of Rooms"
               name={`stayLocation[${cityIndex}].${category}.noOfRooms`}
-              value={plan.noOfRooms || 1}
-              onChange={(e) => {
-                formik.handleChange(e);
-                calculateTotalCost(cityIndex, category);
-              }}
+              value={plan.noOfRooms || ""}
+              onChange={(e) => handleNumericInput(e, cityIndex, category)}
+              placeholder="Enter rooms"
             />
           </Grid>
 
           {/* Cost/Night */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField
               fullWidth
               size="small"
-              type="number"
               label="Cost per Night (₹)"
               name={`stayLocation[${cityIndex}].${category}.costNight`}
-              value={plan.costNight || 0}
-              onChange={(e) => {
-                formik.handleChange(e);
-                calculateTotalCost(cityIndex, category);
-              }}
+              value={plan.costNight || ""}
+              onChange={(e) => handleNumericInput(e, cityIndex, category)}
+              placeholder="Enter cost per night"
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Divider sx={{ my: 1 }} />
             <Typography variant="subtitle2">Extra Bed / Mattress Options</Typography>
           </Grid>
@@ -318,7 +464,7 @@ const FullQuotationStep4 = ({ quotationId }) => {
             ["mattressForChildren", "Mattress For Children"],
             ["withoutMattress", "Without Mattress"],
           ].map(([key, label]) => (
-            <Grid item xs={12} key={key}>
+            <Grid size={12} key={key}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -340,33 +486,30 @@ const FullQuotationStep4 = ({ quotationId }) => {
             ["childrenExCost", "Child Ex Cost (₹)"],
             ["withoutBedCost", "Without Bed Cost (₹)"],
           ].map(([key, label]) => (
-            <Grid item xs={12} key={key}>
+            <Grid size={12} key={key}>
               <TextField
                 fullWidth
                 size="small"
-                type="number"
                 label={label}
                 name={`stayLocation[${cityIndex}].${category}.${key}`}
-                value={plan[key] || 0}
-                onChange={(e) => {
-                  formik.handleChange(e);
-                  calculateTotalCost(cityIndex, category);
-                }}
+                value={plan[key] || ""}
+                onChange={(e) => handleNumericInput(e, cityIndex, category)}
+                placeholder="Enter amount"
               />
             </Grid>
           ))}
 
           {/* Total */}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <TextField
               fullWidth
               size="small"
-              type="number"
               label="Total Cost (₹)"
               name={`stayLocation[${cityIndex}].${category}.totalCost`}
-              value={plan.totalCost || 0}
+              value={plan.totalCost || ""}
               InputProps={{ readOnly: true }}
               sx={{ "& input": { fontWeight: "bold", color: "primary.main" } }}
+              placeholder="Will calculate automatically"
             />
           </Grid>
         </Grid>
@@ -374,27 +517,27 @@ const FullQuotationStep4 = ({ quotationId }) => {
     );
   };
 
-  // ---------- Render City ----------
+  // Render city accommodation
   const renderCityAccommodation = (city, i) => (
     <Paper sx={{ p: 3, mb: 3 }} variant="outlined" key={i}>
       <Typography variant="h6" gutterBottom>
         {city.city} – {city.nights} Night(s)
       </Typography>
       <Grid container spacing={2}>
-        <Grid item xs={12} md={4}>
+        <Grid size={12} md={4}>
           {renderAccommodationPlan("Standard", "standard", i)}
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={12} md={4}>
           {renderAccommodationPlan("Deluxe", "deluxe", i)}
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={12} md={4}>
           {renderAccommodationPlan("Superior", "superior", i)}
         </Grid>
       </Grid>
     </Paper>
   );
 
-  // ---------- Loading ----------
+  // Loading state
   if (fetchLoading && !initialized) {
     return (
       <Box
@@ -410,12 +553,47 @@ const FullQuotationStep4 = ({ quotationId }) => {
     );
   }
 
-  // ---------- Main UI ----------
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom fontWeight="bold">
         Step 4: Accommodation Details
       </Typography>
+
+      {/* Client Members Summary */}
+      {clientDetails && (
+        <Paper sx={{ p: 2, mb: 3, bgcolor: 'primary.light', color: 'white' }}>
+          <Typography variant="h6" gutterBottom>
+            Client: {clientDetails.clientName} | Tour: {clientDetails.tourType} - {clientDetails.sector}
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid size="auto">
+              <Typography><strong>Adults:</strong> {members.adults}</Typography>
+            </Grid>
+            <Grid size="auto">
+              <Typography><strong>Children:</strong> {members.children}</Typography>
+            </Grid>
+            <Grid size="auto">
+              <Typography><strong>Kids without Mattress:</strong> {members.kidsWithoutMattress}</Typography>
+            </Grid>
+            <Grid size="auto">
+              <Typography><strong>Infants:</strong> {members.infants}</Typography>
+            </Grid>
+            <Grid size="auto">
+              <Typography><strong>Recommended Rooms:</strong> {roomInfo.recommendedRooms} ({roomInfo.sharingType})</Typography>
+            </Grid>
+            {roomInfo.hotelType && (
+              <Grid size="auto">
+                <Typography><strong>Hotel Type:</strong> {roomInfo.hotelType}</Typography>
+              </Grid>
+            )}
+            {roomInfo.mealPlan && (
+              <Grid size="auto">
+                <Typography><strong>Meal Plan:</strong> {roomInfo.mealPlan}</Typography>
+              </Grid>
+            )}
+          </Grid>
+        </Paper>
+      )}
 
       {!initialized ? (
         <Paper sx={{ p: 4, textAlign: "center" }}>
@@ -432,9 +610,19 @@ const FullQuotationStep4 = ({ quotationId }) => {
         </Paper>
       ) : (
         <form onSubmit={formik.handleSubmit}>
-          <Typography color="textSecondary" sx={{ mb: 2 }}>
-            Configure accommodation details for each city in your quotation.
-          </Typography>
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography color="textSecondary">
+              Configure accommodation details for each city in your quotation.
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleAutoFillAll}
+              disabled={submitting}
+            >
+              Auto-fill All Details
+            </Button>
+          </Box>
 
           {formik.values.stayLocation.map((city, i) =>
             renderCityAccommodation(city, i)
@@ -450,9 +638,7 @@ const FullQuotationStep4 = ({ quotationId }) => {
             <Button
               variant="outlined"
               size="large"
-              onClick={() =>
-                navigate(`/fullquotation/${quotationId}/step/3`)
-              }
+              onClick={onPrevStep}
               disabled={submitting}
             >
               Back
