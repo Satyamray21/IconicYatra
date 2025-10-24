@@ -10,36 +10,74 @@ import {
 } from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { step2Update } from "../../../../features/quotation/fullQuotationSlice";
+import { fetchStatesByCountry, fetchCitiesByState } from "../../../../features/location/locationSlice";
 
-const initialLocations = [
-  "Aritar",
-  "Baba Mandir",
-  "Barsey",
-  "Borong",
-  "Chungthang",
-  "Damthang",
-  "Dentam",
-  "Dzongu",
-];
-
-const FullQuotationStep2 = ({ quotationId }) => {
-  const [selectedState, setSelectedState] = useState("Sikkim");
-  const [locations, setLocations] = useState(initialLocations);
-  const [stayLocations, setStayLocations] = useState([]);
-  const [loading, setLoading] = useState(false);
-
+const FullQuotationStep2 = ({ quotationId, quotation }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Debug effect
+  const { states, cities, loading: locationLoading } = useSelector(
+    (state) => state.location
+  );
+
+  const country = "India"; // default
+  const sector = quotation?.clientDetails?.sector || "Kerala";
+
+  const [locations, setLocations] = useState([]); // dynamic
+  const [stayLocations, setStayLocations] = useState([]);
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Fetch states when sector/country changes
   useEffect(() => {
-    console.log("Step 2 - Current quotationId:", quotationId);
-    console.log("Step 2 - Current stay locations:", stayLocations);
-  }, [quotationId, stayLocations]);
+    if (country) {
+      dispatch(fetchStatesByCountry(country));
+    }
+  }, [country, dispatch]);
+
+  // Set state based on sector if matches - FIXED
+  useEffect(() => {
+    if (states.length > 0) {
+      // Extract state names from state objects
+      const stateNames = states.map(state => state.name);
+      
+      // If sector exists as a state name, preselect
+      if (stateNames.includes(sector)) {
+        setSelectedState(sector);
+      } else {
+        setSelectedState(stateNames[0]);
+      }
+    }
+  }, [states, sector]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (selectedState) {
+      dispatch(fetchCitiesByState({ countryName: country, stateName: selectedState }));
+    }
+  }, [selectedState, country, dispatch]);
+
+  // Update available locations when cities are fetched - FIXED
+  useEffect(() => {
+    if (cities && cities.length > 0) {
+      // Extract just the city names from the city objects
+      const cityNames = cities.map(city => city.name);
+      setLocations(cityNames);
+    } else {
+      setLocations([]);
+    }
+  }, [cities]);
+
+  // Clear locations when state changes
+  useEffect(() => {
+    setLocations([]);
+    setStayLocations([]);
+  }, [selectedState]);
 
   // ---------- DRAG & DROP ----------
   const handleDragEnd = (result) => {
@@ -69,7 +107,10 @@ const FullQuotationStep2 = ({ quotationId }) => {
       const [movedItem] = updatedLocations.splice(source.index, 1);
 
       const updatedStay = Array.from(stayLocations);
-      updatedStay.splice(destination.index, 0, { name: movedItem, nights: 1 }); // Default to 1 night
+      updatedStay.splice(destination.index, 0, { 
+        name: movedItem, 
+        nights: 1 
+      });
 
       setLocations(updatedLocations);
       setStayLocations(updatedStay);
@@ -90,9 +131,7 @@ const FullQuotationStep2 = ({ quotationId }) => {
 
   // ---------- Handle Nights ----------
   const handleNightsChange = (index, value) => {
-    // Ensure value is positive number between 1-30
     const numericValue = Math.max(1, Math.min(30, parseInt(value) || 1));
-    
     const updated = [...stayLocations];
     updated[index].nights = numericValue;
     setStayLocations(updated);
@@ -102,8 +141,6 @@ const FullQuotationStep2 = ({ quotationId }) => {
   const handleRemoveStayLocation = (index) => {
     const updatedStay = [...stayLocations];
     const removedLocation = updatedStay.splice(index, 1)[0];
-    
-    // Add back to available locations
     setLocations(prev => [...prev, removedLocation.name]);
     setStayLocations(updatedStay);
   };
@@ -115,14 +152,12 @@ const FullQuotationStep2 = ({ quotationId }) => {
       return;
     }
 
-    // Validation for empty stay locations
     if (stayLocations.length === 0) {
       toast.error("Please add at least one stay location by dragging from the left panel");
       return;
     }
 
-    // Validate that all nights are filled and valid
-    const incompleteNights = stayLocations.some(loc => !loc.nights || loc.nights === "" || loc.nights < 1);
+    const incompleteNights = stayLocations.some(loc => !loc.nights || loc.nights < 1);
     if (incompleteNights) {
       toast.error("Please enter a valid number of nights (1-30) for all stay locations");
       return;
@@ -130,10 +165,9 @@ const FullQuotationStep2 = ({ quotationId }) => {
 
     setLoading(true);
 
-    // Transform data to match backend expectations
-    const transformedStayLocations = stayLocations.map((loc, index) => ({
+    const transformedStayLocations = stayLocations.map(loc => ({
       name: loc.name,
-      nights: parseInt(loc.nights) || 1
+      nights: loc.nights,
     }));
 
     try {
@@ -145,9 +179,7 @@ const FullQuotationStep2 = ({ quotationId }) => {
         toast.success("Step 2 saved successfully!");
         navigate(`/fullquotation/${quotationId}/step/3`);
       } else {
-        const errorMessage = resultAction.payload?.message || "Failed to save Step 2";
-        toast.error(errorMessage);
-        console.error("Error:", resultAction.payload);
+        toast.error(resultAction.payload?.message || "Failed to save Step 2");
       }
     } catch (error) {
       console.error("Submission error:", error);
@@ -157,18 +189,19 @@ const FullQuotationStep2 = ({ quotationId }) => {
     }
   };
 
-  // Calculate total nights
-  const totalNights = stayLocations.reduce((total, loc) => total + (parseInt(loc.nights) || 0), 0);
-  const totalDays = totalNights + 1; // Nights + 1 = Days
+  // ---------- Calculate total nights ----------
+  const totalNights = stayLocations.reduce((total, loc) => total + loc.nights, 0);
+  const totalDays = totalNights + 1;
 
-  // ---------- UI ----------
+  // Get state names for dropdown - FIXED
+  const stateNames = states.map(state => state.name);
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
         Quotation Itinerary {totalNights}N/{totalDays}D
       </Typography>
 
-      {/* Quotation ID Display */}
       {quotationId && quotationId !== "new" && (
         <Typography variant="body2" color="primary" sx={{ mb: 2 }}>
           Quotation ID: <strong>{quotationId}</strong>
@@ -180,15 +213,15 @@ const FullQuotationStep2 = ({ quotationId }) => {
         <TextField
           select
           fullWidth
-          label="Select Sector"
+          label="Select State"
           value={selectedState}
           onChange={(e) => setSelectedState(e.target.value)}
         >
-          <MenuItem value="Sikkim">Sikkim</MenuItem>
-          <MenuItem value="Darjeeling">Darjeeling</MenuItem>
-          <MenuItem value="Bhutan">Bhutan</MenuItem>
-          <MenuItem value="Nepal">Nepal</MenuItem>
-          <MenuItem value="Assam">Assam</MenuItem>
+          {stateNames.map((stateName) => (
+            <MenuItem key={stateName} value={stateName}>
+              {stateName}
+            </MenuItem>
+          ))}
         </TextField>
       </Box>
 
@@ -199,10 +232,6 @@ const FullQuotationStep2 = ({ quotationId }) => {
             <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
               Available Locations ({locations.length})
             </Typography>
-            <Typography variant="caption" color="error">
-              Drag & drop to add to itinerary
-            </Typography>
-
             <Droppable droppableId="locations">
               {(provided, snapshot) => (
                 <Paper
@@ -223,7 +252,7 @@ const FullQuotationStep2 = ({ quotationId }) => {
                       variant="body2"
                       sx={{ p: 2, color: "text.secondary", textAlign: "center" }}
                     >
-                      All locations added to itinerary
+                      {locationLoading ? "Loading cities..." : "All locations added to itinerary or no cities available"}
                     </Typography>
                   ) : (
                     locations.map((loc, index) => (
@@ -272,9 +301,6 @@ const FullQuotationStep2 = ({ quotationId }) => {
                 </Typography>
               )}
             </Box>
-            <Typography variant="caption" color="error">
-              Arrange cities in itinerary order
-            </Typography>
 
             <Droppable droppableId="stayLocations">
               {(provided, snapshot) => (
@@ -382,25 +408,10 @@ const FullQuotationStep2 = ({ quotationId }) => {
           sx={{ px: 4, py: 1.5, borderRadius: 2 }}
           onClick={handleSave}
           disabled={loading || stayLocations.length === 0}
-          startIcon={loading ? <></> : null}
         >
           {loading ? "Saving..." : "Save & Continue"}
         </Button>
       </Box>
-
-      {/* Validation Summary */}
-      {stayLocations.length > 0 && (
-        <Box sx={{ mt: 2, p: 2, bgcolor: '#f8f9fa', borderRadius: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            <strong>Itinerary Summary:</strong> {stayLocations.map((loc, index) => (
-              <span key={index}>
-                {loc.name} ({loc.nights} {loc.nights === 1 ? 'night' : 'nights'})
-                {index < stayLocations.length - 1 ? ' → ' : ''}
-              </span>
-            ))}
-          </Typography>
-        </Box>
-      )}
     </Box>
   );
 };
