@@ -26,7 +26,7 @@ import {
 } from "../../../../features/quotation/fullQuotationSlice";
 
 const hotelTypes = ["5 Star", "4 Star", "3 Star", "Budget", "Guest House"];
-const roomTypes = ["Single", "Double", "Triple"];
+const roomTypes = ["Single Sharing", "Double Sharing", "Triple Sharing"];
 const mealPlans = ["Breakfast Only", "Half Board", "Full Board"];
 
 const initialHotelNames = [
