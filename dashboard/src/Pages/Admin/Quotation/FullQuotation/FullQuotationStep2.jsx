@@ -13,6 +13,7 @@ import {
   DialogActions,
   IconButton,
   Chip,
+  Alert,
 } from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
 import AddIcon from "@mui/icons-material/Add";
@@ -37,7 +38,8 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
 
   const country = "India"; // default
   const sector = quotation?.clientDetails?.sector || "Kerala";
-  const tourType = quotation?.tourType || "domestic"; // domestic or international
+  const tourType = quotation?.clientDetails?.tourType?.toLowerCase() || "domestic";
+  const totalAllowedNights = quotation?.accommodation?.noOfNights || 0;
 
   const [locations, setLocations] = useState([]);
   const [stayLocations, setStayLocations] = useState([]);
@@ -146,7 +148,7 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
       const updatedStay = Array.from(stayLocations);
       updatedStay.splice(destination.index, 0, { 
         name: movedItem, 
-        nights: 1 
+        nights: "" // Empty initially for manual input
       });
 
       setLocations(updatedLocations);
@@ -168,12 +170,29 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
 
   // ---------- Handle Nights ----------
   const handleNightsChange = (index, value) => {
-    // Remove any non-numeric characters and limit to 2 digits
-    const numericValue = value.replace(/[^0-9]/g, '').slice(0, 2);
-    const finalValue = numericValue === '' ? 1 : Math.max(1, Math.min(30, parseInt(numericValue) || 1));
+    // Allow only numbers and empty string
+    const numericValue = value === "" ? "" : value.replace(/[^0-9]/g, '');
+    
+    // Limit to 2 digits if not empty
+    const limitedValue = numericValue === "" ? "" : numericValue.slice(0, 2);
     
     const updated = [...stayLocations];
-    updated[index].nights = finalValue;
+    updated[index].nights = limitedValue;
+    setStayLocations(updated);
+  };
+
+  // Validate nights when field loses focus
+  const handleNightsBlur = (index) => {
+    const updated = [...stayLocations];
+    const currentNights = updated[index].nights;
+    
+    if (currentNights === "") {
+      updated[index].nights = 1; // Default to 1 if empty
+    } else {
+      const numericValue = parseInt(currentNights) || 1;
+      updated[index].nights = Math.max(1, Math.min(30, numericValue));
+    }
+    
     setStayLocations(updated);
   };
 
@@ -184,6 +203,31 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
     setLocations(prev => [...prev, removedLocation.name]);
     setStayLocations(updatedStay);
   };
+
+  // ---------- Calculate total nights ----------
+  const totalNights = stayLocations.reduce((total, loc) => {
+    const nights = parseInt(loc.nights) || 0;
+    return total + nights;
+  }, 0);
+
+  const totalDays = totalNights + 1;
+
+  // Check if nights match the accommodation requirement
+  const nightsValidation = {
+    isValid: totalNights === totalAllowedNights,
+    isLess: totalNights < totalAllowedNights,
+    isMore: totalNights > totalAllowedNights,
+    message: totalNights === totalAllowedNights 
+      ? `Perfect! Total nights (${totalNights}) match accommodation requirement.`
+      : totalNights < totalAllowedNights
+      ? `Total nights (${totalNights}) are less than accommodation nights (${totalAllowedNights}). Add ${totalAllowedNights - totalNights} more night(s).`
+      : `Total nights (${totalNights}) exceed accommodation nights (${totalAllowedNights}). Remove ${totalNights - totalAllowedNights} night(s).`
+  };
+
+  // Check if all locations have valid night values
+  const hasInvalidNights = stayLocations.some(loc => 
+    !loc.nights || loc.nights === "" || parseInt(loc.nights) < 1
+  );
 
   // ---------- Save & Continue ----------
   const handleSave = async () => {
@@ -197,9 +241,13 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
       return;
     }
 
-    const incompleteNights = stayLocations.some(loc => !loc.nights || loc.nights < 1);
-    if (incompleteNights) {
-      toast.error("Please enter a valid number of nights (1-30) for all stay locations");
+    if (hasInvalidNights) {
+      toast.error("Please enter valid number of nights for all stay locations");
+      return;
+    }
+
+    if (!nightsValidation.isValid) {
+      toast.error(`Total nights (${totalNights}) must match accommodation nights (${totalAllowedNights})`);
       return;
     }
 
@@ -207,7 +255,7 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
 
     const transformedStayLocations = stayLocations.map(loc => ({
       name: loc.name,
-      nights: loc.nights,
+      nights: parseInt(loc.nights) || 1,
     }));
 
     try {
@@ -229,10 +277,6 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
     }
   };
 
-  // ---------- Calculate total nights ----------
-  const totalNights = stayLocations.reduce((total, loc) => total + loc.nights, 0);
-  const totalDays = totalNights + 1;
-
   // Get state names for dropdown
   const stateNames = states.map(state => state.name);
 
@@ -252,6 +296,21 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
         <Typography variant="body2" color="primary" sx={{ mb: 2 }}>
           Quotation ID: <strong>{quotationId}</strong>
         </Typography>
+      )}
+
+      {/* Nights Validation Alert */}
+      {totalAllowedNights > 0 && (
+        <Alert 
+          severity={
+            nightsValidation.isValid ? "success" : 
+            nightsValidation.isLess ? "warning" : "error"
+          }
+          sx={{ mb: 2 }}
+        >
+          <Typography variant="body2">
+            <strong>Accommodation Nights: {totalAllowedNights}</strong> | {nightsValidation.message}
+          </Typography>
+        </Alert>
       )}
 
       {/* Selection based on tour type */}
@@ -435,14 +494,18 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
                                 size="small"
                                 value={loc.nights}
                                 onChange={(e) => handleNightsChange(index, e.target.value)}
+                                onBlur={() => handleNightsBlur(index)}
                                 inputProps={{ 
                                   maxLength: 2,
                                   style: { textAlign: 'center' }
                                 }}
-                                sx={{ width: 120 }}
+                                placeholder="Enter nights"
+                                sx={{ width: 140 }}
+                                error={!loc.nights || parseInt(loc.nights) < 1}
+                                helperText={!loc.nights || parseInt(loc.nights) < 1 ? "Min 1 night" : ""}
                               />
                               <Typography variant="caption" color="text.secondary">
-                                {loc.nights === 1 ? 'night' : 'nights'}
+                                {parseInt(loc.nights) === 1 ? 'night' : 'nights'}
                               </Typography>
                             </Box>
                           </Box>
@@ -494,7 +557,12 @@ const FullQuotationStep2 = ({ quotationId, quotation }) => {
           variant="contained"
           sx={{ px: 4, py: 1.5, borderRadius: 2 }}
           onClick={handleSave}
-          disabled={loading || stayLocations.length === 0}
+          disabled={
+            loading || 
+            stayLocations.length === 0 || 
+            hasInvalidNights || 
+            !nightsValidation.isValid
+          }
         >
           {loading ? "Saving..." : "Save & Continue"}
         </Button>
