@@ -56,17 +56,47 @@ export const updateCustomQuotation = createAsyncThunk(
 );
 
 // -------------------- New Step-wise Update --------------------
+// customQuotationSlice.js - Update the updateQuotationStep thunk
+// -------------------- New Step-wise Update --------------------
 export const updateQuotationStep = createAsyncThunk(
   "customQuotation/updateStep",
   async ({ quotationId, stepNumber, stepData }, { rejectWithValue }) => {
     try {
-      const res = await axios.post("/customQT/update-step", {
-        quotationId,
-        stepNumber,
-        stepData,
+      console.log("🔄 Redux: Sending update request", { 
+        quotationId, 
+        stepNumber, 
+        stepDataType: typeof stepData,
+        isFormData: stepData instanceof FormData
       });
+
+      let requestData;
+      let config = {};
+
+      if (stepData instanceof FormData) {
+        // For file uploads - append to existing FormData
+        stepData.append('quotationId', quotationId);
+        stepData.append('stepNumber', stepNumber.toString());
+        requestData = stepData;
+        config.headers = {
+          'Content-Type': 'multipart/form-data',
+        };
+      } else {
+        // For regular data - create new object
+        requestData = {
+          quotationId,
+          stepNumber,
+          stepData
+        };
+      }
+
+      console.log("📦 Redux: Final request data:", requestData);
+      
+      const res = await axios.post("/customQT/update-step", requestData, config);
+      console.log("✅ Redux: Update successful");
       return res.data.data;
     } catch (err) {
+      console.error("❌ Redux: Step update failed:", err);
+      console.error("❌ Error response:", err.response?.data);
       return rejectWithValue(err.response?.data?.message || "Step update failed");
     }
   }

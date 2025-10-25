@@ -1,3 +1,4 @@
+// customquotationStep4.jsx
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -7,6 +8,7 @@ import {
   Paper,
   TextField,
   Typography,
+  CircularProgress,
 } from "@mui/material";
 import { useFormik, FormikProvider } from "formik";
 import * as Yup from "yup";
@@ -22,26 +24,22 @@ const validationSchema = Yup.object({
   ),
 });
 
-const CustomQuotationForm = ({
+const CustomQuotationStep4 = ({
   clientName,
   sector,
-  arrivalCity,
-  departureCity,
-  arrivalDate,
-  departureDate,
-  transport,
   cities,
   onNext
 }) => {
   const [totalNights, setTotalNights] = useState(0);
   const [totalDays, setTotalDays] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
   // Calculate total nights and days from cities data
   useEffect(() => {
     if (cities && cities.length > 0) {
       const nights = cities.reduce((sum, city) => sum + (parseInt(city.nights) || 0), 0);
       setTotalNights(nights);
-      setTotalDays(nights + 1); // Total days = nights + 1 (including arrival day)
+      setTotalDays(nights + 1);
     }
   }, [cities]);
 
@@ -54,31 +52,52 @@ const CustomQuotationForm = ({
         dayNote: "",
         aboutCity: "",
         image: null,
+        imageFile: null, // For file object
       });
     }
     return days;
   };
 
-  const formik = useFormik({
-    initialValues: {
-      days: generateDaysArray(totalDays || 1), // Default to 1 day if no cities
-    },
-    validationSchema,
-   onSubmit: (values) => {
-  // Prepare only itinerary from Step 4
-  const itineraryData = values.days.map((day) => ({
-    dayTitle: day.dayTitle,
-    dayNote: day.dayNote,
-    aboutCity: day.aboutCity,
-    image: day.image || null,
-  }));
+  // customquotationStep4.jsx - Updated onSubmit function
+const formik = useFormik({
+  initialValues: {
+    days: generateDaysArray(totalDays || 1),
+  },
+  validationSchema,
+  onSubmit: async (values) => {
+    setUploading(true);
+    
+    try {
+      const formData = new FormData();
+      
+      // Append basic data
+      formData.append('quotationId', localStorage.getItem('currentQuotationId'));
+      formData.append('stepNumber', '4');
+      formData.append('stepData', JSON.stringify({ 
+        itinerary: values.days.map(day => ({
+          dayTitle: day.dayTitle,
+          dayNote: day.dayNote,
+          aboutCity: day.aboutCity,
+          image: day.image // Existing image URL if any
+        }))
+      }));
 
-  // Call onNext with only itinerary
-  onNext({ itinerary: itineraryData });
-},
+      // Append all image files with the same field name
+      values.days.forEach((day, index) => {
+        if (day.imageFile) {
+          formData.append('itineraryImages', day.imageFile);
+        }
+      });
 
-    enableReinitialize: true,
-  });
+      await onNext(formData);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploading(false);
+    }
+  },
+  enableReinitialize: true,
+});
 
   // Update days when totalDays changes
   useEffect(() => {
@@ -87,6 +106,24 @@ const CustomQuotationForm = ({
       formik.setValues({ days: newDays });
     }
   }, [totalDays]);
+
+  const handleImageChange = (event, index) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Create preview URL
+      const imageUrl = URL.createObjectURL(file);
+      
+      // Update formik values
+      const newDays = [...formik.values.days];
+      newDays[index] = {
+        ...newDays[index],
+        image: imageUrl, // For preview
+        imageFile: file  // For upload
+      };
+      
+      formik.setValues({ days: newDays });
+    }
+  };
 
   return (
     <FormikProvider value={formik}>
@@ -107,20 +144,14 @@ const CustomQuotationForm = ({
 
         <form onSubmit={formik.handleSubmit}>
           {formik.values.days.map((day, index) => (
-            <Paper
-              key={index}
-              sx={{ p: 2, mb: 2, border: "1px solid #ddd" }}
-            >
+            <Paper key={index} sx={{ p: 2, mb: 2, border: "1px solid #ddd" }}>
               <Grid container spacing={2} alignItems="center">
-                <Grid size={{ xs: 11 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ mb: 1, fontWeight: "bold" }}
-                  >
+                <Grid item xs={11}>
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: "bold" }}>
                     Day {index + 1}
                   </Typography>
                 </Grid>
-                <Grid size={{ xs: 1 }}>
+                <Grid item xs={1}>
                   {formik.values.days.length > 1 && (
                     <IconButton
                       color="error"
@@ -136,7 +167,7 @@ const CustomQuotationForm = ({
                 </Grid>
 
                 {/* Day Title */}
-                <Grid size={{ xs: 12 }}>
+                <Grid item xs={12}>
                   <TextField
                     fullWidth
                     required
@@ -157,7 +188,7 @@ const CustomQuotationForm = ({
                 </Grid>
 
                 {/* Day Note */}
-                <Grid size={{ xs: 12 }}>
+                <Grid item xs={12}>
                   <TextField
                     fullWidth
                     multiline
@@ -174,7 +205,7 @@ const CustomQuotationForm = ({
                 </Grid>
 
                 {/* About City */}
-                <Grid size={{ xs: 12 }}>
+                <Grid item xs={12}>
                   <TextField
                     fullWidth
                     multiline
@@ -191,32 +222,43 @@ const CustomQuotationForm = ({
                 </Grid>
 
                 {/* Image Upload */}
-                <Grid size={{ xs: 12 }}>
+                <Grid item xs={12}>
                   <Typography variant="body2" sx={{ mb: 1 }}>
                     Add Image (For best view Image size - 430px X 185px)
                   </Typography>
+
+                  {day.image && (
+                    <Box sx={{ mb: 2 }}>
+                      <img 
+                        src={day.image} 
+                        alt={`Day ${index + 1}`} 
+                        style={{ 
+                          maxWidth: '200px', 
+                          maxHeight: '100px', 
+                          objectFit: 'cover',
+                          borderRadius: '4px'
+                        }} 
+                      />
+                    </Box>
+                  )}
 
                   <Button
                     variant="outlined"
                     component="label"
                     sx={{ width: 250, height: 50 }}
+                    disabled={uploading}
                   >
-                    Choose File
+                    {uploading ? <CircularProgress size={20} /> : "Choose File"}
                     <input
                       type="file"
                       accept="image/*"
                       hidden
-                      onChange={(event) =>
-                        formik.setFieldValue(
-                          `days[${index}].image`,
-                          event.currentTarget.files[0]
-                        )
-                      }
+                      onChange={(event) => handleImageChange(event, index)}
                     />
                   </Button>
-                  {day.image && (
+                  {day.imageFile && (
                     <Typography variant="caption" sx={{ ml: 2 }}>
-                      {day.image.name}
+                      {day.imageFile.name}
                     </Typography>
                   )}
                 </Grid>
@@ -226,9 +268,15 @@ const CustomQuotationForm = ({
 
           {/* Submit Button */}
           <Grid container>
-            <Grid size={{ xs: 12 }} textAlign="center">
-              <Button type="submit" variant="contained" color="primary" size="large">
-                Save & Continue
+            <Grid item xs={12} textAlign="center">
+              <Button 
+                type="submit" 
+                variant="contained" 
+                color="primary" 
+                size="large"
+                disabled={uploading}
+              >
+                {uploading ? <CircularProgress size={24} /> : "Save & Continue"}
               </Button>
             </Grid>
           </Grid>
@@ -238,4 +286,4 @@ const CustomQuotationForm = ({
   );
 };
 
-export default CustomQuotationForm;
+export default CustomQuotationStep4;
