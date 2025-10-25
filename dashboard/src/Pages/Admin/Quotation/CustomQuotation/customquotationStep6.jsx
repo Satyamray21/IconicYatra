@@ -54,9 +54,20 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
   const leadMembers = leadTourDetails?.members;
   const leadAccommodation = leadTourDetails?.accommodation;
 
+  console.log("🔍 Lead Data:", leadData);
+  console.log("🔍 Lead Members:", leadMembers);
+  console.log("🔍 Lead Accommodation:", leadAccommodation);
+
   const initializeCityPrices = (cities) => {
     return cities.reduce((acc, city, index) => {
-      acc[index] = { hotelName: '', standardPrice: '', deluxePrice: '', superiorPrice: '' };
+      acc[index] = { 
+        standardHotelName: '', 
+        standardPrice: '', 
+        deluxeHotelName: '', 
+        deluxePrice: '', 
+        superiorHotelName: '', 
+        superiorPrice: '' 
+      };
       return acc;
     }, {});
   };
@@ -66,7 +77,7 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
       adult: leadMembers?.adults || 0,
       child: leadMembers?.children || 0,
       kid: leadMembers?.kidsWithoutMattress || 0,
-      infants: 0,
+      infants: leadMembers?.infants || 0, // ✅ Fixed: infants was hardcoded to 0
       mediPlan: leadAccommodation?.mealPlan || '',
       noOfRooms: leadAccommodation?.noOfRooms || 1,
       roomType: leadAccommodation?.hotelType?.[0] || '',
@@ -82,61 +93,75 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
     },
     validationSchema,
     onSubmit: async (values) => {
-      try {
-        const finalData = {
-          ...formData,
-          tourDetails: {
-            ...formData.tourDetails,
-            quotationDetails: {
-              adults: values.adult,
-              children: values.child,
-              kids: values.kid,
-              infants: values.infants,
-              mealPlan: values.mediPlan,
-              destinations: cities.map((city, index) => ({
-                cityName: city.cityName,
-                nights: city.nights,
-                hotelName: values.cityPrices[index]?.hotelName || '',
-                prices: {
-                  standard: values.cityPrices[index]?.standardPrice || 0,
-                  deluxe: values.cityPrices[index]?.deluxePrice || 0,
-                  superior: values.cityPrices[index]?.superiorPrice || 0,
-                },
-              })),
-              rooms: {
-                numberOfRooms: values.noOfRooms,
-                roomType: values.roomType,
-                sharingType: values.sharingType,
-                showCostPerAdult: values.showCostPerAdult,
-              },
-              companyMargin: {
-                marginPercent: values.marginPercent || 0,
-                marginAmount: values.marginAmount || 0,
-              },
-              discount: values.discount || 0,
-              taxes: {
-                gstOn: values.gstOn || "None",
-                applyGST: values.applyGST || false,
-                taxPercent: values.taxPercent || 0,
-              },
-              signatureDetails: {
-                regardsText: "Best Regards",
-                signedBy: "",
-              },
+  try {
+    const finalData = {
+      ...formData,
+      tourDetails: {
+        ...formData.tourDetails,
+        quotationDetails: {
+          adults: values.adult,
+          children: values.child,
+          kids: values.kid,
+          infants: values.infants,
+          mealPlan: values.mediPlan,
+          destinations: cities.map((city, index) => ({
+            cityName: city.cityName,
+            nights: city.nights,
+
+            // ✅ MATCHES BACKEND SCHEMA NOW
+            standardHotels: [values.cityPrices[index]?.standardHotelName || ""],
+            deluxeHotels: [values.cityPrices[index]?.deluxeHotelName || ""],
+            superiorHotels: [values.cityPrices[index]?.superiorHotelName || ""],
+            prices: {
+              standard: Number(values.cityPrices[index]?.standardPrice) || 0,
+              deluxe: Number(values.cityPrices[index]?.deluxePrice) || 0,
+              superior: Number(values.cityPrices[index]?.superiorPrice) || 0,
             },
+            totalCost:
+              (Number(values.cityPrices[index]?.standardPrice) ||
+                Number(values.cityPrices[index]?.deluxePrice) ||
+                Number(values.cityPrices[index]?.superiorPrice)) *
+              (city.nights || 1),
+          })),
+
+          rooms: {
+            numberOfRooms: values.noOfRooms,
+            roomType: values.roomType,
+            sharingType: values.sharingType,
+            showCostPerAdult: values.showCostPerAdult,
           },
-        };
-        if (onSubmit) {
-          await onSubmit(finalData);
-        } else {
-          await dispatch(createCustomQuotation(finalData)).unwrap();
-          toast.success("Quotation created successfully!");
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to create quotation");
-      }
-    },
+          companyMargin: {
+            marginPercent: values.marginPercent || 0,
+            marginAmount: values.marginAmount || 0,
+          },
+          discount: values.discount || 0,
+          taxes: {
+            gstOn: values.gstOn || "None",
+            applyGST: values.applyGST || false,
+            taxPercent: values.taxPercent || 0,
+          },
+          signatureDetails: {
+            regardsText: "Best Regards",
+            signedBy: "",
+          },
+        },
+      },
+    };
+
+    console.log("📦 Final Data to Submit:", finalData);
+
+    if (onSubmit) {
+      await onSubmit(finalData);
+    } else {
+      await dispatch(createCustomQuotation(finalData)).unwrap();
+      toast.success("Quotation created successfully!");
+    }
+  } catch (error) {
+    console.error("❌ Submission error:", error);
+    toast.error("Failed to create quotation");
+  }
+},
+
   });
 
   useEffect(() => {
@@ -145,18 +170,49 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
     }
   }, [cities.length]);
 
+  // Update form when lead data changes
+  useEffect(() => {
+    if (leadMembers) {
+      formik.setValues(prev => ({
+        ...prev,
+        adult: leadMembers.adults || 0,
+        child: leadMembers.children || 0,
+        kid: leadMembers.kidsWithoutMattress || 0,
+        infants: leadMembers.infants || 0, // ✅ Fixed: infants from lead data
+      }));
+    }
+    
+    if (leadAccommodation) {
+      formik.setValues(prev => ({
+        ...prev,
+        mediPlan: leadAccommodation.mealPlan || '',
+        noOfRooms: leadAccommodation.noOfRooms || 1,
+        roomType: leadAccommodation.hotelType?.[0] || '',
+        sharingType: leadAccommodation.sharingType || '',
+      }));
+    }
+  }, [leadData]);
+
   const calculateTotals = () => {
-    const totals = { totalNights: 0, totalStandard: 0, totalDeluxe: 0, totalSuperior: 0 };
+    const totals = { 
+      totalNights: 0, 
+      totalStandard: 0, 
+      totalDeluxe: 0, 
+      totalSuperior: 0 
+    };
+    
     cities.forEach((city, index) => {
       const nights = parseInt(city.nights) || 0;
       const standardPrice = parseFloat(formik.values.cityPrices?.[index]?.standardPrice) || 0;
       const deluxePrice = parseFloat(formik.values.cityPrices?.[index]?.deluxePrice) || 0;
       const superiorPrice = parseFloat(formik.values.cityPrices?.[index]?.superiorPrice) || 0;
+      
       totals.totalNights += nights;
       totals.totalStandard += standardPrice * nights;
       totals.totalDeluxe += deluxePrice * nights;
       totals.totalSuperior += superiorPrice * nights;
     });
+    
     return totals;
   };
 
@@ -169,45 +225,140 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
 
         {/* Client Summary */}
         <Paper sx={{ p: 2, mb: 3, backgroundColor: '#f5f5f5' }}>
-          <Typography variant="h6" gutterBottom>Client Summary {leadData && "✓ Auto-filled from Lead Data"}</Typography>
+          <Typography variant="h6" gutterBottom>
+            Client Summary {leadData && "✓ Auto-filled from Lead Data"}
+          </Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}><Typography><strong>Client:</strong> {clientDetails?.clientName || "N/A"}</Typography></Grid>
-            <Grid item xs={12} sm={6} md={3}><Typography><strong>Sector:</strong> {clientDetails?.sector || "N/A"}</Typography></Grid>
-            <Grid item xs={12} sm={6} md={3}><Typography><strong>Arrival:</strong> {tourDetails?.arrivalCity || "N/A"}</Typography></Grid>
-            <Grid item xs={12} sm={6} md={3}><Typography><strong>Departure:</strong> {tourDetails?.departureCity || "N/A"}</Typography></Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography><strong>Client:</strong> {clientDetails?.clientName || "N/A"}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography><strong>Sector:</strong> {clientDetails?.sector || "N/A"}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography><strong>Arrival:</strong> {tourDetails?.arrivalCity || "N/A"}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography><strong>Departure:</strong> {tourDetails?.departureCity || "N/A"}</Typography>
+            </Grid>
           </Grid>
+          
+          {/* Lead Data Info */}
+          {leadData && (
+            <Box sx={{ mt: 2, p: 1, backgroundColor: '#e8f5e8', borderRadius: 1 }}>
+              <Typography variant="body2" color="green">
+                <strong>Auto-filled from Lead:</strong> Adults: {leadMembers?.adults || 0}, 
+                Children: {leadMembers?.children || 0}, 
+                Kids: {leadMembers?.kidsWithoutMattress || 0}, 
+                Infants: {leadMembers?.infants || 0}, 
+                Rooms: {leadAccommodation?.noOfRooms || 0}, 
+                Sharing: {leadAccommodation?.sharingType || 'N/A'}
+              </Typography>
+            </Box>
+          )}
         </Paper>
 
         {/* Quotation Details */}
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>Quotation Details {leadData && "✓ Auto-filled from Lead Data"}</Typography>
+          <Typography variant="h6" gutterBottom>
+            Quotation Details {leadData && "✓ Auto-filled from Lead Data"}
+          </Typography>
           <Grid container spacing={3} sx={{ mb: 2 }}>
             <Grid item xs={12} sm={6} md={2.4}>
-              <TextField fullWidth id="adult" name="adult" label="Adult" type="number" value={formik.values.adult} onChange={formik.handleChange} error={formik.touched.adult && Boolean(formik.errors.adult)} helperText={formik.touched.adult && formik.errors.adult} required />
+              <TextField 
+                fullWidth 
+                id="adult" 
+                name="adult" 
+                label="Adult" 
+                type="number" 
+                value={formik.values.adult} 
+                onChange={formik.handleChange} 
+                error={formik.touched.adult && Boolean(formik.errors.adult)} 
+                helperText={formik.touched.adult && formik.errors.adult} 
+                required 
+              />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <TextField fullWidth id="child" name="child" label="Child(6-12yrs)" type="number" value={formik.values.child} onChange={formik.handleChange} error={formik.touched.child && Boolean(formik.errors.child)} helperText={formik.touched.child && formik.errors.child} />
+              <TextField 
+                fullWidth 
+                id="child" 
+                name="child" 
+                label="Child(6-12yrs)" 
+                type="number" 
+                value={formik.values.child} 
+                onChange={formik.handleChange} 
+                error={formik.touched.child && Boolean(formik.errors.child)} 
+                helperText={formik.touched.child && formik.errors.child} 
+              />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <TextField fullWidth id="kid" name="kid" label="Kid(2-5yrs)" type="number" value={formik.values.kid} onChange={formik.handleChange} error={formik.touched.kid && Boolean(formik.errors.kid)} helperText={formik.touched.kid && formik.errors.kid} />
+              <TextField 
+                fullWidth 
+                id="kid" 
+                name="kid" 
+                label="Kid(2-5yrs)" 
+                type="number" 
+                value={formik.values.kid} 
+                onChange={formik.handleChange} 
+                error={formik.touched.kid && Boolean(formik.errors.kid)} 
+                helperText={formik.touched.kid && formik.errors.kid} 
+              />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <TextField fullWidth id="infants" name="infants" label="Infants" type="number" value={formik.values.infants} onChange={formik.handleChange} error={formik.touched.infants && Boolean(formik.errors.infants)} helperText={formik.touched.infants && formik.errors.infants} />
+              <TextField 
+                fullWidth 
+                id="infants" 
+                name="infants" 
+                label="Infants" 
+                type="number" 
+                value={formik.values.infants} 
+                onChange={formik.handleChange} 
+                error={formik.touched.infants && Boolean(formik.errors.infants)} 
+                helperText={formik.touched.infants && formik.errors.infants} 
+              />
             </Grid>
             <Grid item xs={12} sm={6} md={2.4}>
-              <TextField fullWidth id="mediPlan" name="mediPlan" label="Meal Plan" value={formik.values.mediPlan} onChange={formik.handleChange} error={formik.touched.mediPlan && Boolean(formik.errors.mediPlan)} helperText={formik.touched.mediPlan && formik.errors.mediPlan} required />
+              <TextField 
+                fullWidth 
+                id="mediPlan" 
+                name="mediPlan" 
+                label="Meal Plan" 
+                value={formik.values.mediPlan} 
+                onChange={formik.handleChange} 
+                error={formik.touched.mediPlan && Boolean(formik.errors.mediPlan)} 
+                helperText={formik.touched.mediPlan && formik.errors.mediPlan} 
+                required 
+              />
             </Grid>
           </Grid>
 
           {/* Room Details */}
           <Grid container spacing={3} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={4}>
-              <TextField fullWidth id="noOfRooms" name="noOfRooms" type="number" label="No. of Rooms" value={formik.values.noOfRooms} onChange={formik.handleChange} error={formik.touched.noOfRooms && Boolean(formik.errors.noOfRooms)} helperText={formik.touched.noOfRooms && formik.errors.noOfRooms} required />
+              <TextField 
+                fullWidth 
+                id="noOfRooms" 
+                name="noOfRooms" 
+                type="number" 
+                label="No. of Rooms" 
+                value={formik.values.noOfRooms} 
+                onChange={formik.handleChange} 
+                error={formik.touched.noOfRooms && Boolean(formik.errors.noOfRooms)} 
+                helperText={formik.touched.noOfRooms && formik.errors.noOfRooms} 
+                required 
+              />
             </Grid>
             <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel id="room-type-label">Room Type *</InputLabel>
-                <Select labelId="room-type-label" id="roomType" name="roomType" value={formik.values.roomType} onChange={formik.handleChange} required>
+                <Select 
+                  labelId="room-type-label" 
+                  id="roomType" 
+                  name="roomType" 
+                  value={formik.values.roomType} 
+                  onChange={formik.handleChange} 
+                  required
+                >
                   <MenuItem value="standard">Standard</MenuItem>
                   <MenuItem value="deluxe">Deluxe</MenuItem>
                   <MenuItem value="superior">Superior</MenuItem>
@@ -220,11 +371,18 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
             <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel id="sharing-type-label">Sharing Type *</InputLabel>
-                <Select labelId="sharing-type-label" id="sharingType" name="sharingType" value={formik.values.sharingType} onChange={formik.handleChange} required>
-                  <MenuItem value="single">Single</MenuItem>
-                  <MenuItem value="double">Double</MenuItem>
-                  <MenuItem value="triple">Triple</MenuItem>
-                  <MenuItem value="quad">Quad</MenuItem>
+                <Select 
+                  labelId="sharing-type-label" 
+                  id="sharingType" 
+                  name="sharingType" 
+                  value={formik.values.sharingType} 
+                  onChange={formik.handleChange} 
+                  required
+                >
+                  {/* ✅ Fixed: Not dropdown, only show the value from lead data */}
+                  <MenuItem value={leadAccommodation?.sharingType || formik.values.sharingType}>
+                    {leadAccommodation?.sharingType || formik.values.sharingType || "Select Sharing Type"}
+                  </MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -232,7 +390,13 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
 
           {/* Show Cost Per Adult */}
           <FormControlLabel
-            control={<Radio checked={formik.values.showCostPerAdult} onChange={(e) => formik.setFieldValue('showCostPerAdult', e.target.checked)} name="showCostPerAdult" />}
+            control={
+              <Radio 
+                checked={formik.values.showCostPerAdult} 
+                onChange={(e) => formik.setFieldValue('showCostPerAdult', e.target.checked)} 
+                name="showCostPerAdult" 
+              />
+            }
             label="Show Cost Per Adult"
             sx={{ mt: 2 }}
           />
@@ -246,10 +410,18 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
               <TableHead>
                 <TableRow>
                   <TableCell>Destination</TableCell>
-                  <TableCell>Hotel Name</TableCell>
                   <TableCell>Nights</TableCell>
+                  
+                  {/* Standard Hotel & Price */}
+                  <TableCell>Standard Hotel Name</TableCell>
                   <TableCell>Standard Price</TableCell>
+                  
+                  {/* Deluxe Hotel & Price */}
+                  <TableCell>Deluxe Hotel Name</TableCell>
                   <TableCell>Deluxe Price</TableCell>
+                  
+                  {/* Superior Hotel & Price */}
+                  <TableCell>Superior Hotel Name</TableCell>
                   <TableCell>Superior Price</TableCell>
                 </TableRow>
               </TableHead>
@@ -257,18 +429,75 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
                 {cities.map((city, index) => (
                   <TableRow key={index}>
                     <TableCell>{city.cityName}</TableCell>
-                    <TableCell>
-                      <TextField fullWidth size="small" placeholder="Hotel Name" name={`cityPrices[${index}].hotelName`} value={formik.values.cityPrices?.[index]?.hotelName || ''} onChange={formik.handleChange} />
-                    </TableCell>
                     <TableCell>{city.nights}</TableCell>
+                    
+                    {/* Standard Hotel & Price */}
                     <TableCell>
-                      <TextField fullWidth size="small" type="number" name={`cityPrices[${index}].standardPrice`} value={formik.values.cityPrices?.[index]?.standardPrice || ''} onChange={formik.handleChange} />
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        placeholder="Standard Hotel Name" 
+                        name={`cityPrices[${index}].standardHotelName`} 
+                        value={formik.values.cityPrices?.[index]?.standardHotelName || ''} 
+                        onChange={formik.handleChange} 
+                      />
                     </TableCell>
                     <TableCell>
-                      <TextField fullWidth size="small" type="number" name={`cityPrices[${index}].deluxePrice`} value={formik.values.cityPrices?.[index]?.deluxePrice || ''} onChange={formik.handleChange} />
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        type="number" 
+                        placeholder="Price" 
+                        name={`cityPrices[${index}].standardPrice`} 
+                        value={formik.values.cityPrices?.[index]?.standardPrice || ''} 
+                        onChange={formik.handleChange} 
+                      />
+                    </TableCell>
+                    
+                    {/* Deluxe Hotel & Price */}
+                    <TableCell>
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        placeholder="Deluxe Hotel Name" 
+                        name={`cityPrices[${index}].deluxeHotelName`} 
+                        value={formik.values.cityPrices?.[index]?.deluxeHotelName || ''} 
+                        onChange={formik.handleChange} 
+                      />
                     </TableCell>
                     <TableCell>
-                      <TextField fullWidth size="small" type="number" name={`cityPrices[${index}].superiorPrice`} value={formik.values.cityPrices?.[index]?.superiorPrice || ''} onChange={formik.handleChange} />
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        type="number" 
+                        placeholder="Price" 
+                        name={`cityPrices[${index}].deluxePrice`} 
+                        value={formik.values.cityPrices?.[index]?.deluxePrice || ''} 
+                        onChange={formik.handleChange} 
+                      />
+                    </TableCell>
+                    
+                    {/* Superior Hotel & Price */}
+                    <TableCell>
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        placeholder="Superior Hotel Name" 
+                        name={`cityPrices[${index}].superiorHotelName`} 
+                        value={formik.values.cityPrices?.[index]?.superiorHotelName || ''} 
+                        onChange={formik.handleChange} 
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        type="number" 
+                        placeholder="Price" 
+                        name={`cityPrices[${index}].superiorPrice`} 
+                        value={formik.values.cityPrices?.[index]?.superiorPrice || ''} 
+                        onChange={formik.handleChange} 
+                      />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -276,11 +505,12 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
             </Table>
           </TableContainer>
 
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+            <Typography variant="h6">Totals</Typography>
             <Typography>Total Nights: {totals.totalNights}</Typography>
-            <Typography>Total Standard: {totals.totalStandard}</Typography>
-            <Typography>Total Deluxe: {totals.totalDeluxe}</Typography>
-            <Typography>Total Superior: {totals.totalSuperior}</Typography>
+            <Typography>Total Standard Cost: ₹{totals.totalStandard.toFixed(2)}</Typography>
+            <Typography>Total Deluxe Cost: ₹{totals.totalDeluxe.toFixed(2)}</Typography>
+            <Typography>Total Superior Cost: ₹{totals.totalSuperior.toFixed(2)}</Typography>
           </Box>
         </Paper>
 
@@ -289,10 +519,24 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
           <Typography variant="h6" gutterBottom>Company Margin</Typography>
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Margin %" type="number" name="marginPercent" value={formik.values.marginPercent} onChange={formik.handleChange} />
+              <TextField 
+                fullWidth 
+                label="Margin %" 
+                type="number" 
+                name="marginPercent" 
+                value={formik.values.marginPercent} 
+                onChange={formik.handleChange} 
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Margin Amount" type="number" name="marginAmount" value={formik.values.marginAmount} onChange={formik.handleChange} />
+              <TextField 
+                fullWidth 
+                label="Margin Amount" 
+                type="number" 
+                name="marginAmount" 
+                value={formik.values.marginAmount} 
+                onChange={formik.handleChange} 
+              />
             </Grid>
           </Grid>
 
@@ -301,12 +545,23 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
           <Typography variant="h6" gutterBottom>Discount & Taxes</Typography>
           <Grid container spacing={3}>
             <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Discount" type="number" name="discount" value={formik.values.discount} onChange={formik.handleChange} />
+              <TextField 
+                fullWidth 
+                label="Discount" 
+                type="number" 
+                name="discount" 
+                value={formik.values.discount} 
+                onChange={formik.handleChange} 
+              />
             </Grid>
             <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel>GST On</InputLabel>
-                <Select name="gstOn" value={formik.values.gstOn} onChange={formik.handleChange}>
+                <Select 
+                  name="gstOn" 
+                  value={formik.values.gstOn} 
+                  onChange={formik.handleChange}
+                >
                   <MenuItem value="Full">Full</MenuItem>
                   <MenuItem value="Net">Net</MenuItem>
                   <MenuItem value="None">None</MenuItem>
@@ -314,13 +569,26 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField fullWidth label="Tax %" type="number" name="taxPercent" value={formik.values.taxPercent} onChange={formik.handleChange} />
+              <TextField 
+                fullWidth 
+                label="Tax %" 
+                type="number" 
+                name="taxPercent" 
+                value={formik.values.taxPercent} 
+                onChange={formik.handleChange} 
+              />
             </Grid>
           </Grid>
         </Paper>
 
         <Box sx={{ textAlign: 'center', mt: 4 }}>
-          <Button type="submit" variant="contained" size="large" sx={{ px: 6, py: 1.5 }} disabled={loading}>
+          <Button 
+            type="submit" 
+            variant="contained" 
+            size="large" 
+            sx={{ px: 6, py: 1.5 }} 
+            disabled={loading}
+          >
             {loading ? 'Creating...' : 'Submit Quotation'}
           </Button>
         </Box>

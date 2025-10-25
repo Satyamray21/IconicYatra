@@ -275,9 +275,48 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
             },
           };
           break;
-        case 6:
-          Object.assign(quotation, stepData);
-          break;
+       case 6:
+  console.log("🧩 Processing Step 6 - Final quotation details");
+
+  // Merge client details
+  if (stepData.clientDetails) {
+    quotation.clientDetails = {
+      ...quotation.clientDetails,
+      ...stepData.clientDetails,
+    };
+  }
+
+  // Merge pickupDrop
+  if (stepData.pickupDrop && Array.isArray(stepData.pickupDrop)) {
+    quotation.pickupDrop = stepData.pickupDrop;
+  }
+
+  // Merge tour details and quotation details
+  if (stepData.tourDetails) {
+    quotation.tourDetails = {
+      ...quotation.tourDetails,
+      ...stepData.tourDetails,
+    };
+
+    // If tourDetails.quotationDetails is included, merge it separately
+    if (stepData.tourDetails.quotationDetails) {
+      quotation.tourDetails.quotationDetails = {
+        ...quotation.tourDetails.quotationDetails,
+        ...stepData.tourDetails.quotationDetails,
+      };
+    }
+  }
+
+  // Merge vehicle details (optional, if included in stepData)
+  if (stepData.vehicleDetails) {
+    quotation.tourDetails.vehicleDetails = {
+      ...quotation.tourDetails.vehicleDetails,
+      ...stepData.vehicleDetails,
+    };
+  }
+
+  break;
+
         default:
           console.error("❌ INVALID STEP NUMBER:", stepNumber);
           throw new ApiError(400, `Invalid step number: ${stepNumber}`);
