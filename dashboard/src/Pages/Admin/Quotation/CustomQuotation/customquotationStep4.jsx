@@ -59,6 +59,7 @@ const CustomQuotationStep4 = ({
   };
 
   // customquotationStep4.jsx - Updated onSubmit function
+// In your customquotationStep4.jsx - Fix the onSubmit function
 const formik = useFormik({
   initialValues: {
     days: generateDaysArray(totalDays || 1),
@@ -70,28 +71,39 @@ const formik = useFormik({
     try {
       const formData = new FormData();
       
-      // Append basic data
+      // Append basic data as strings
       formData.append('quotationId', localStorage.getItem('currentQuotationId'));
-      formData.append('stepNumber', '4');
+      formData.append('stepNumber', '4'); // Keep as string for FormData
+      
+      // Create itinerary data without image files (we'll handle files separately)
+      const itineraryData = values.days.map(day => ({
+        dayTitle: day.dayTitle,
+        dayNote: day.dayNote,
+        aboutCity: day.aboutCity,
+        image: day.image && day.image.startsWith('http') ? day.image : null // Only keep Cloudinary URLs
+      }));
+      
       formData.append('stepData', JSON.stringify({ 
-        itinerary: values.days.map(day => ({
-          dayTitle: day.dayTitle,
-          dayNote: day.dayNote,
-          aboutCity: day.aboutCity,
-          image: day.image // Existing image URL if any
-        }))
+        itinerary: itineraryData
       }));
 
-      // Append all image files with the same field name
+      // Append all image files
       values.days.forEach((day, index) => {
         if (day.imageFile) {
+          console.log(`📤 Adding image for day ${index + 1}:`, day.imageFile.name);
           formData.append('itineraryImages', day.imageFile);
         }
       });
 
+      console.log("🚀 Sending Step 4 data with", values.days.length, "days and", 
+        values.days.filter(day => day.imageFile).length, "images");
+
       await onNext(formData);
+      console.log("✅ Step 4 submitted successfully");
+      
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error('❌ Step 4 upload failed:', error);
+      toast.error('Failed to save itinerary. Please try again.');
     } finally {
       setUploading(false);
     }

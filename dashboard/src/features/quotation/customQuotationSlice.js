@@ -58,45 +58,51 @@ export const updateCustomQuotation = createAsyncThunk(
 // -------------------- New Step-wise Update --------------------
 // customQuotationSlice.js - Update the updateQuotationStep thunk
 // -------------------- New Step-wise Update --------------------
+// In your customQuotationSlice.js - Update the updateQuotationStep thunk
 export const updateQuotationStep = createAsyncThunk(
   "customQuotation/updateStep",
   async ({ quotationId, stepNumber, stepData }, { rejectWithValue }) => {
     try {
-      console.log("🔄 Redux: Sending update request", { 
+      console.log("🔄 Redux: Preparing step update", { 
         quotationId, 
-        stepNumber, 
-        stepDataType: typeof stepData,
-        isFormData: stepData instanceof FormData
+        stepNumber,
+        isFormData: stepData instanceof FormData 
       });
 
       let requestData;
       let config = {};
 
       if (stepData instanceof FormData) {
-        // For file uploads - append to existing FormData
+        // For FormData (Step 4) - append fields properly
         stepData.append('quotationId', quotationId);
         stepData.append('stepNumber', stepNumber.toString());
+        
+        // Log FormData contents for debugging
+        console.log("📦 FormData contents:");
+        for (let [key, value] of stepData.entries()) {
+          console.log(`   ${key}:`, key === 'itineraryImages' ? `File (${value.name})` : value);
+        }
+        
         requestData = stepData;
         config.headers = {
           'Content-Type': 'multipart/form-data',
         };
       } else {
-        // For regular data - create new object
+        // For regular JSON data
         requestData = {
           quotationId,
-          stepNumber,
+          stepNumber: Number(stepNumber),
           stepData
         };
+        console.log("📦 JSON data:", requestData);
       }
 
-      console.log("📦 Redux: Final request data:", requestData);
-      
       const res = await axios.post("/customQT/update-step", requestData, config);
-      console.log("✅ Redux: Update successful");
+      console.log("✅ Redux: Step update successful");
       return res.data.data;
     } catch (err) {
       console.error("❌ Redux: Step update failed:", err);
-      console.error("❌ Error response:", err.response?.data);
+      console.error("❌ Error details:", err.response?.data);
       return rejectWithValue(err.response?.data?.message || "Step update failed");
     }
   }

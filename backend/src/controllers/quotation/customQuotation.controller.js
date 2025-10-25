@@ -137,90 +137,165 @@ export const updateCustomQuotation = asyncHandler(async (req, res) => {
 });
 
 // Step-wise Update
+// In your customQuotation.controller.js - Update the updateQuotationStep function
 export const updateQuotationStep = asyncHandler(async (req, res) => {
-  const { quotationId, stepNumber, stepData } = req.body;
-  const files = req.files || []; // Now we get all files as an array
+  console.log("🔄 ========== UPDATE STEP REQUEST START ==========");
+  
+  let quotationId, stepNumber, stepData;
+  const files = req.files || [];
 
-  const quotation = await CustomQuotation.findOne({ quotationId });
-  if (!quotation) throw new ApiError(404, "Quotation not found");
+  // Debug the incoming request
+  console.log("📦 Request body keys:", Object.keys(req.body));
+  console.log("📦 Files received:", files.length);
 
-  // Handle step 4 with image uploads
-  if (stepNumber === 4) {
-    let parsedStepData = typeof stepData === 'string' ? JSON.parse(stepData) : stepData;
-    let processedItinerary = [...parsedStepData.itinerary];
+  // Handle FormData request (for step 4)
+  if (req.body.quotationId && req.body.stepNumber && req.body.stepData) {
+    quotationId = req.body.quotationId;
+    stepNumber = parseInt(req.body.stepNumber, 10);
+    stepData = typeof req.body.stepData === 'string' ? JSON.parse(req.body.stepData) : req.body.stepData;
     
-    // Process uploaded files
-    if (files.length > 0) {
-      // Create a map of day index to uploaded files
-      const fileMap = {};
-      
-      // You can include the day index in the filename or use order
-      // For simplicity, we'll use the order of files
-      files.forEach((file, index) => {
-        if (index < processedItinerary.length) {
-          fileMap[index] = file;
-        }
-      });
-
-      // Upload files to Cloudinary and update itinerary
-      for (let i = 0; i < processedItinerary.length; i++) {
-        if (fileMap[i]) {
-          const cloudinaryResponse = await uploadOnCloudinary(fileMap[i].path);
-          if (cloudinaryResponse && cloudinaryResponse.url) {
-            processedItinerary[i].image = cloudinaryResponse.url;
-          }
-        }
-      }
-    }
-    
-    quotation.tourDetails.itinerary = processedItinerary;
+    console.log("📦 FormData Parsed:");
+    console.log("  quotationId:", quotationId);
+    console.log("  stepNumber:", stepNumber, "(type:", typeof stepNumber, ")");
+    console.log("  stepData:", stepData);
   } else {
-    // Handle other steps normally (same as before)
-    switch (stepNumber) {
-      case 1:
-        quotation.clientDetails = stepData;
-        break;
-      case 2:
-        quotation.pickupDrop = stepData;
-        break;
-      case 3:
-        quotation.tourDetails = { ...quotation.tourDetails, ...stepData };
-        break;
-      case 5:
-        quotation.tourDetails.vehicleDetails = {
-          basicsDetails: {
-            clientName: stepData.clientName,
-            vehicleType: stepData.vehicleType,
-            tripType: stepData.tripType,
-            noOfDays: stepData.noOfDays,
-            perDayCost: stepData.perDayCost || stepData.totalCost || "0",
-          },
-          costDetails: {
-            totalCost: stepData.totalCost || "0",
-          },
-          pickupDropDetails: {
-            pickupDate: stepData.pickupDate || "",
-            pickupTime: stepData.pickupTime || "",
-            pickupLocation: stepData.pickupLocation || "",
-            dropDate: stepData.dropDate || "",
-            dropTime: stepData.dropTime || "",
-            dropLocation: stepData.dropLocation || "",
-          },
-        };
-        break;
-      case 6:
-        Object.assign(quotation, stepData);
-        break;
-      default:
-        throw new ApiError(400, "Invalid step number");
-    }
+    // Handle regular JSON request
+    ({ quotationId, stepNumber, stepData } = req.body);
+    console.log("📦 JSON Request:", { quotationId, stepNumber, stepData });
   }
 
-  await quotation.save();
+  // Validate input
+  if (!quotationId) {
+    console.error("❌ MISSING quotationId");
+    throw new ApiError(400, "Quotation ID is required");
+  }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, quotation, `Step ${stepNumber} updated successfully`));
+  if (!stepNumber || isNaN(stepNumber)) {
+    console.error("❌ INVALID stepNumber:", stepNumber);
+    throw new ApiError(400, "Valid step number is required");
+  }
+
+  console.log("🔍 Searching for quotation with ID:", quotationId);
+  
+  const quotation = await CustomQuotation.findOne({ quotationId });
+  
+  if (!quotation) {
+    console.error("❌ QUOTATION NOT FOUND:", quotationId);
+    throw new ApiError(404, `Quotation not found: ${quotationId}`);
+  }
+
+  console.log("✅ Quotation FOUND:", quotation.quotationId);
+  console.log("📝 Updating step:", stepNumber);
+
+  try {
+    // Handle step 4 with image uploads
+    if (stepNumber === 4) {
+      console.log("🎯 Processing Step 4 - Itinerary with images");
+      
+      let processedItinerary = [...stepData.itinerary];
+      console.log("📋 Itinerary days to process:", processedItinerary.length);
+      
+      // Process uploaded files
+      if (files.length > 0) {
+        console.log("📸 Processing", files.length, "uploaded files");
+        
+        // Create a map of files by index
+        const fileMap = {};
+        files.forEach((file, index) => {
+          console.log(`   File ${index}:`, file.originalname);
+          if (index < processedItinerary.length) {
+            fileMap[index] = file;
+          }
+        });
+
+        // Upload files to Cloudinary and update itinerary
+        for (let i = 0; i < processedItinerary.length; i++) {
+          if (fileMap[i]) {
+            console.log(`☁️ Uploading image for day ${i + 1}`);
+            try {
+              const cloudinaryResponse = await uploadOnCloudinary(fileMap[i].path);
+              if (cloudinaryResponse && cloudinaryResponse.url) {
+                processedItinerary[i].image = cloudinaryResponse.url;
+                console.log("✅ Image uploaded to:", cloudinaryResponse.url);
+              } else {
+                console.log("❌ Cloudinary upload failed for day", i + 1);
+                processedItinerary[i].image = null;
+              }
+            } catch (uploadError) {
+              console.error("💥 Cloudinary upload error:", uploadError);
+              processedItinerary[i].image = null;
+            }
+          } else {
+            console.log(`📭 No image file for day ${i + 1}`);
+            // Keep existing image if no new file uploaded
+            if (!processedItinerary[i].image) {
+              processedItinerary[i].image = null;
+            }
+          }
+        }
+      } else {
+        console.log("📭 No files uploaded, keeping existing images");
+      }
+      
+      // Update the quotation
+      quotation.tourDetails.itinerary = processedItinerary;
+      console.log("✅ Itinerary updated with", processedItinerary.length, "days");
+      
+    } else {
+      // Handle other steps (1, 2, 3, 5, 6) - your existing code
+      switch (stepNumber) {
+        case 1:
+          quotation.clientDetails = stepData;
+          break;
+        case 2:
+          quotation.pickupDrop = stepData;
+          break;
+        case 3:
+          quotation.tourDetails = { ...quotation.tourDetails, ...stepData };
+          break;
+        case 5:
+          quotation.tourDetails.vehicleDetails = {
+            basicsDetails: {
+              clientName: stepData.clientName,
+              vehicleType: stepData.vehicleType,
+              tripType: stepData.tripType,
+              noOfDays: stepData.noOfDays,
+              perDayCost: stepData.perDayCost || stepData.totalCost || "0",
+            },
+            costDetails: {
+              totalCost: stepData.totalCost || "0",
+            },
+            pickupDropDetails: {
+              pickupDate: stepData.pickupDate || "",
+              pickupTime: stepData.pickupTime || "",
+              pickupLocation: stepData.pickupLocation || "",
+              dropDate: stepData.dropDate || "",
+              dropTime: stepData.dropTime || "",
+              dropLocation: stepData.dropLocation || "",
+            },
+          };
+          break;
+        case 6:
+          Object.assign(quotation, stepData);
+          break;
+        default:
+          console.error("❌ INVALID STEP NUMBER:", stepNumber);
+          throw new ApiError(400, `Invalid step number: ${stepNumber}`);
+      }
+    }
+
+    await quotation.save();
+    console.log("✅ Step", stepNumber, "updated successfully!");
+    console.log("========== UPDATE STEP REQUEST END ==========");
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, quotation, `Step ${stepNumber} updated successfully`));
+      
+  } catch (saveError) {
+    console.error("💥 ERROR during quotation update:", saveError);
+    throw saveError;
+  }
 });
 
 // Delete Quotation
