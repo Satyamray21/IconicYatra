@@ -8,6 +8,7 @@ import vehicleQuotationReducer from "../features/quotation/vehicleQuotationSlice
 import flightQuotationReducer from "../features/quotation/flightQuotationSlice"
 import customQuotationReducer from "../features/quotation/customQuotationSlice"
 import fullQuotationReducer from "../features/quotation/fullQuotationSlice"
+import invoiceReducer from "../features/invoice/invoiceSlice"
 export const store = configureStore({
   reducer: {
     leads:LeadReducer,
@@ -19,7 +20,7 @@ export const store = configureStore({
     flightQuotation:flightQuotationReducer,
     customQuotation:customQuotationReducer,
     fullQuotation:fullQuotationReducer,
-
+    invoice:invoiceReducer
 
   },
 });
