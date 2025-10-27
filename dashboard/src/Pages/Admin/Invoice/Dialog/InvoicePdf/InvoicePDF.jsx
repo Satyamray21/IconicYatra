@@ -20,392 +20,211 @@ const InvoicePDF = ({ invoiceData }) => {
   const componentRef = useRef();
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Format date from ISO string to DD/MM/YYYY
   const formatDate = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB');
+    return date.toLocaleDateString("en-GB");
   };
 
-  // Calculate total tax amount
-  const calculateTotalTax = () => {
-    if (!invoiceData?.items) return 0;
-    return invoiceData.items.reduce((total, item) => total + (item.taxAmount || 0), 0);
-  };
+  const calculateTotalTax = () =>
+    invoiceData?.items?.reduce((t, i) => t + (i.taxAmount || 0), 0) || 0;
 
-  // Calculate subtotal (total amount without tax)
-  const calculateSubtotal = () => {
-    if (!invoiceData?.items) return 0;
-    return invoiceData.items.reduce((total, item) => {
-      const itemPrice = item.price || 0;
-      const itemDiscount = item.discount || 0;
-      return total + (itemPrice - itemDiscount);
-    }, 0);
-  };
+  const calculateSubtotal = () =>
+    invoiceData?.items?.reduce((t, i) => t + ((i.price || 0) - (i.discount || 0)), 0) || 0;
 
-  // Proper amount to words conversion
   const amountToWords = (amount) => {
-    if (!amount || amount === 0) return "Zero Only INR";
-    
+    if (!amount) return "Zero Only INR";
     const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
     const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
     const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-
-    function convertLessThanThousand(num) {
+    function convert(num) {
       if (num === 0) return "";
       if (num < 10) return ones[num];
       if (num < 20) return teens[num - 10];
-      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + ones[num % 10] : "");
-      return ones[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " " + convertLessThanThousand(num % 100) : "");
+      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 ? " " + ones[num % 10] : "");
+      return ones[Math.floor(num / 100)] + " Hundred" + (num % 100 ? " " + convert(num % 100) : "");
     }
-
-    let result = "";
-    let num = Math.floor(amount);
-
-    if (num >= 10000000) {
-      result += convertLessThanThousand(Math.floor(num / 10000000)) + " Crore ";
-      num %= 10000000;
-    }
-
-    if (num >= 100000) {
-      result += convertLessThanThousand(Math.floor(num / 100000)) + " Lakh ";
-      num %= 100000;
-    }
-
-    if (num >= 1000) {
-      result += convertLessThanThousand(Math.floor(num / 1000)) + " Thousand ";
-      num %= 1000;
-    }
-
-    if (num > 0) {
-      result += convertLessThanThousand(num);
-    }
-
-    return result.trim() + " Only INR";
+    let res = "", n = Math.floor(amount);
+    if (n >= 10000000) { res += convert(Math.floor(n / 10000000)) + " Crore "; n %= 10000000; }
+    if (n >= 100000) { res += convert(Math.floor(n / 100000)) + " Lakh "; n %= 100000; }
+    if (n >= 1000) { res += convert(Math.floor(n / 1000)) + " Thousand "; n %= 1000; }
+    if (n > 0) res += convert(n);
+    return res.trim() + " Only INR";
   };
 
   const handleDownloadPDF = async () => {
     if (!componentRef.current) return;
     setIsGenerating(true);
-
     try {
-      const element = componentRef.current;
-      
-      const canvas = await html2canvas(element, {
-        scale: 1.2, // Balanced scale
+      const canvas = await html2canvas(componentRef.current, {
+        scale: 1.5,
         useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        width: element.scrollWidth,
-        height: element.scrollHeight,
-        windowWidth: element.scrollWidth, // Set window width to content width
+        backgroundColor: "#fff",
       });
-
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      // Calculate dimensions to fit width properly
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = pdfWidth / imgWidth; // Fit to page width
-      const scaledHeight = imgHeight * ratio;
-      
-      // Add image to PDF - fit to width
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, scaledHeight);
-      
+      const ratio = pdfWidth / canvas.width;
+      const imgHeight = canvas.height * ratio;
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfWidth, imgHeight);
       pdf.save(`Invoice-${invoiceData?.invoiceNo || "INV"}.pdf`);
-    } catch (err) {
-      console.error("Error generating PDF:", err);
+    } catch (e) {
+      console.error(e);
       alert("Error generating PDF");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Use API data with fallbacks
-  const billingName = invoiceData?.billingName || "N/A";
-  const partyName = invoiceData?.partyName || "N/A";
-  const gstin = invoiceData?.gstin || "N/A";
-  const billingAddress = invoiceData?.billingAddress || "N/A";
-  const stateOfSupply = invoiceData?.stateOfSupply || "N/A";
-  const invoiceNo = invoiceData?.invoiceNo || "N/A";
-  const invoiceDate = formatDate(invoiceData?.invoiceDate);
-  const dueDate = formatDate(invoiceData?.dueDate);
-  const items = invoiceData?.items || [];
-  const totalAmount = invoiceData?.totalAmount || 0;
-  const receivedAmount = invoiceData?.receivedAmount || 0;
-  const balanceAmount = invoiceData?.balanceAmount || 0;
-  const paymentMode = invoiceData?.paymentMode || "N/A";
-  const referenceNo = invoiceData?.referenceNo || "N/A";
+  const {
+    billingName = "N/A",
+    partyName = "N/A",
+    gstin = "N/A",
+    billingAddress = "N/A",
+    stateOfSupply = "N/A",
+    invoiceNo = "N/A",
+    invoiceDate,
+    dueDate,
+    items = [],
+    totalAmount = 0,
+    receivedAmount = 0,
+    balanceAmount = 0,
+    paymentMode = "N/A",
+    referenceNo = "N/A",
+  } = invoiceData || {};
+
   const subtotal = calculateSubtotal();
   const totalTax = calculateTotalTax();
 
   return (
     <Box>
-      {/* Download PDF Button */}
-      <Box sx={{ mb: 2, textAlign: "right" }}>
+      <Box sx={{ mb: 1, textAlign: "right" }}>
         <Button
           variant="contained"
           color="primary"
-          startIcon={
-            isGenerating ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              <PictureAsPdfIcon />
-            )
-          }
+          startIcon={isGenerating ? <CircularProgress size={20} color="inherit" /> : <PictureAsPdfIcon />}
           onClick={handleDownloadPDF}
           disabled={isGenerating}
+          sx={{ textTransform: "none" }}
         >
           {isGenerating ? "Generating..." : "Download PDF"}
         </Button>
       </Box>
 
-      {/* Invoice Container - Optimized for A4 width */}
       <Box
         ref={componentRef}
         sx={{
-          backgroundColor: "white",
-          p: 2,
-          width: "210mm", // Exact A4 width in mm
-          maxWidth: "100%",
+          backgroundColor: "#fff",
+          p: 1.2,
+          width: "210mm",
           mx: "auto",
           border: "1px solid #2196f3",
           borderRadius: "4px",
           fontFamily: "Arial, sans-serif",
-          fontSize: "12px",
-          lineHeight: 1.2,
-          boxSizing: 'border-box',
+          fontSize: "11px",
+          lineHeight: 1.1,
+          boxSizing: "border-box",
         }}
       >
         {/* Header */}
-        <Typography
-          variant="h6"
-          align="center"
-          sx={{ 
-            fontWeight: "bold", 
-            color: "#1976d2", 
-            mb: 1,
-            fontSize: "16px"
-          }}
-        >
+        <Typography align="center" sx={{ fontWeight: "bold", color: "#1976d2", fontSize: "15px", mb: 0.5 }}>
           Tax Invoice
         </Typography>
 
-        {/* Company Info - Compact */}
-        <Box sx={{ 
-          display: "flex", 
-          justifyContent: "space-between", 
-          mb: 1, 
-          alignItems: 'flex-start',
-          gap: 1
-        }}>
-          <Box sx={{ flexShrink: 0 }}>
-            <Box
-              component="img"
-              src="https://iconicyatra.com/assets/logoiconic-CDBgNKCW.jpg"
-              alt="Company Logo"
-              sx={{ 
-                width: 80, 
-                height: 'auto',
-                maxWidth: '100%'
-              }}
-            />
-          </Box>
-          <Box sx={{ flex: 1, textAlign: "right", minWidth: 0 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: "bold", fontSize: '14px' }}>
-              Iconic Yatra
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '11px' }}>
-              Noida - 201301, Uttar Pradesh
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '11px' }}>
-              Phone: +91 7053900957
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '11px' }}>
-              Email: info@iconicyatra.com
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '11px' }}>
-              State: 9 - Uttar Pradesh
-            </Typography>
+        {/* Company Info */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+          <img
+            src="https://iconicyatra.com/assets/logoiconic-CDBgNKCW.jpg"
+            alt="Logo"
+            style={{ width: 70 }}
+          />
+          <Box sx={{ textAlign: "right" }}>
+            <Typography sx={{ fontWeight: "bold", fontSize: "13px" }}>Iconic Yatra</Typography>
+            <Typography sx={{ fontSize: "10px" }}>Noida - 201301, Uttar Pradesh</Typography>
+            <Typography sx={{ fontSize: "10px" }}>Phone: +91 7053900957</Typography>
+            <Typography sx={{ fontSize: "10px" }}>Email: info@iconicyatra.com</Typography>
+            <Typography sx={{ fontSize: "10px" }}>State: 9 - Uttar Pradesh</Typography>
           </Box>
         </Box>
 
-        <Divider sx={{ my: 1, borderColor: "#1976d2" }} />
+        <Divider sx={{ mb: 0.6, borderColor: "#1976d2" }} />
 
-        {/* Billing & Invoice Details - Optimized width */}
-        <Box sx={{ 
-          display: "flex", 
-          gap: 1, 
-          mb: 1,
-          '& > *': { minWidth: 0 } // Prevent overflow
-        }}>
-          {/* Billing To */}
+        {/* Billing & Invoice Info */}
+        <Box sx={{ display: "flex", gap: 0.6, mb: 0.8 }}>
           <Box sx={{ flex: 1 }}>
-            <Typography
-              variant="subtitle2"
-              sx={{ 
-                fontWeight: "bold", 
-                bgcolor: "#2196f3", 
-                color: "white", 
-                p: 0.5, 
-                fontSize: '11px' 
-              }}
-            >
+            <Typography sx={{ bgcolor: "#2196f3", color: "#fff", p: 0.3, fontWeight: "bold", fontSize: "10px" }}>
               Billing To
             </Typography>
-            <Box sx={{ 
-              p: 0.5, 
-              border: "1px solid #2196f3", 
-              minHeight: "70px",
-              fontSize: '11px'
-            }}>
-              <Typography variant="body2" sx={{ fontSize: '11px', fontWeight: 'bold' }}>
-                {partyName}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                {billingName}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                {billingAddress}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                GSTIN: {gstin}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                State: {stateOfSupply}
-              </Typography>
+            <Box sx={{ border: "1px solid #2196f3", p: 0.3 }}>
+              <b>{partyName}</b><br />
+              {billingName}<br />
+              {billingAddress}<br />
+              GSTIN: {gstin}<br />
+              State: {stateOfSupply}
             </Box>
           </Box>
 
-          {/* Invoice Details */}
           <Box sx={{ flex: 1 }}>
-            <Typography
-              variant="subtitle2"
-              sx={{ 
-                fontWeight: "bold", 
-                bgcolor: "#2196f3", 
-                color: "white", 
-                p: 0.5, 
-                fontSize: '11px' 
-              }}
-            >
+            <Typography sx={{ bgcolor: "#2196f3", color: "#fff", p: 0.3, fontWeight: "bold", fontSize: "10px" }}>
               Invoice Details
             </Typography>
-            <Box sx={{ 
-              p: 0.5, 
-              border: "1px solid #2196f3", 
-              minHeight: "70px",
-              fontSize: '11px'
-            }}>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                <strong>Place:</strong> {stateOfSupply}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                <strong>Invoice No:</strong> {invoiceNo}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                <strong>Date:</strong> {invoiceDate}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                <strong>Due:</strong> {dueDate}
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                <strong>Payment:</strong> {paymentMode}
-              </Typography>
-              {referenceNo !== "N/A" && (
-                <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                  <strong>Ref:</strong> {referenceNo}
-                </Typography>
-              )}
+            <Box sx={{ border: "1px solid #2196f3", p: 0.3 }}>
+              <div><b>Invoice:</b> {invoiceNo}</div>
+              <div><b>Date:</b> {formatDate(invoiceDate)}</div>
+              <div><b>Due:</b> {formatDate(dueDate)}</div>
+              <div><b>Payment:</b> {paymentMode}</div>
+              {referenceNo !== "N/A" && <div><b>Ref:</b> {referenceNo}</div>}
             </Box>
           </Box>
         </Box>
 
-        {/* Item Table - Optimized for width */}
-        <Box sx={{ mb: 1 }}>
-          <TableContainer component={Paper} sx={{ border: "1px solid #2196f3" }}>
-            <Table size="small" sx={{ 
-              '& .MuiTableCell-root': { 
-                padding: '3px 4px', 
-                fontSize: '10px',
-                lineHeight: 1.1
-              },
-              '& .MuiTableCell-body': {
-                fontSize: '10px'
-              }
-            }}>
-              <TableBody>
-                <TableRow sx={{ bgcolor: "#2196f3" }}>
-                  <TableCell sx={{ color: "white", fontWeight: "bold", width: "5%" }}>#</TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold", width: "30%" }}>Particulars</TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold", width: "10%" }}>HSN/SAC</TableCell>
-                  <TableCell align="right" sx={{ color: "white", fontWeight: "bold", width: "13%" }}>Price (₹)</TableCell>
-                  <TableCell align="right" sx={{ color: "white", fontWeight: "bold", width: "13%" }}>Disc (₹)</TableCell>
-                  <TableCell align="right" sx={{ color: "white", fontWeight: "bold", width: "14%" }}>GST (₹)</TableCell>
-                  <TableCell align="right" sx={{ color: "white", fontWeight: "bold", width: "15%" }}>Amount (₹)</TableCell>
-                </TableRow>
-
-                {items.map((item, index) => (
-                  <TableRow key={item._id || index}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell sx={{ fontSize: '10px' }}>{item.particulars || "N/A"}</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell align="right">₹{item.price || 0}</TableCell>
-                    <TableCell align="right">₹{item.discount || 0}</TableCell>
-                    <TableCell align="right">₹{item.taxAmount || 0}</TableCell>
-                    <TableCell align="right">₹{item.amount || 0}</TableCell>
-                  </TableRow>
+        {/* Items Table */}
+        <TableContainer component={Paper} sx={{ border: "1px solid #2196f3", mb: 0.6 }}>
+          <Table size="small">
+            <TableBody>
+              <TableRow sx={{ bgcolor: "#2196f3" }}>
+                {["#", "Particulars", "HSN/SAC", "Price ₹", "Disc ₹", "GST ₹", "Amount ₹"].map((h, i) => (
+                  <TableCell key={i} sx={{ color: "#fff", fontWeight: "bold", fontSize: "9.5px", py: 0.5 }}>
+                    {h}
+                  </TableCell>
                 ))}
-
-                <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-                  <TableCell colSpan={6} align="right" sx={{ fontWeight: "bold", fontSize: '11px' }}>
-                    Total
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: "bold", fontSize: '11px' }}>
-                    ₹{totalAmount}
-                  </TableCell>
+              </TableRow>
+              {items.map((item, i) => (
+                <TableRow key={i}>
+                  <TableCell>{i + 1}</TableCell>
+                  <TableCell>{item.particulars}</TableCell>
+                  <TableCell>-</TableCell>
+                  <TableCell align="right">₹{item.price || 0}</TableCell>
+                  <TableCell align="right">₹{item.discount || 0}</TableCell>
+                  <TableCell align="right">₹{item.taxAmount || 0}</TableCell>
+                  <TableCell align="right">₹{item.amount || 0}</TableCell>
                 </TableRow>
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
+              ))}
+              <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                <TableCell colSpan={6} align="right" sx={{ fontWeight: "bold" }}>Total</TableCell>
+                <TableCell align="right" sx={{ fontWeight: "bold" }}>₹{totalAmount}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-        {/* Combined GST and Amount Summary */}
-        <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-          {/* GST Details */}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="subtitle2"
-              sx={{ 
-                fontWeight: "bold", 
-                bgcolor: "#2196f3", 
-                color: "white", 
-                p: 0.5, 
-                fontSize: '11px' 
-              }}
-            >
+        {/* GST + Amount Summary */}
+        <Box sx={{ display: "flex", gap: 0.8, mb: 0.8 }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ bgcolor: "#2196f3", color: "#fff", p: 0.3, fontWeight: "bold", fontSize: "10px" }}>
               GST Details
             </Typography>
             <TableContainer component={Paper} sx={{ border: "1px solid #2196f3" }}>
-              <Table size="small" sx={{ 
-                '& .MuiTableCell-root': { 
-                  padding: '2px 3px', 
-                  fontSize: '9px',
-                  lineHeight: 1
-                } 
-              }}>
+              <Table size="small">
                 <TableBody>
                   <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-                    <TableCell sx={{ fontWeight: "bold" }}>Tax Type</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Taxable Amt</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Type</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Amt ₹</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Rate</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Tax Amt</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Tax ₹</TableCell>
                   </TableRow>
-                  {items.map((item, index) => (
-                    <TableRow key={index}>
+                  {items.map((item, i) => (
+                    <TableRow key={i}>
                       <TableCell>{invoiceData?.isInternational ? "IGST" : "CGST/SGST"}</TableCell>
                       <TableCell>₹{(item.price || 0) - (item.discount || 0)}</TableCell>
                       <TableCell>{item.taxPercent || 0}%</TableCell>
@@ -413,58 +232,28 @@ const InvoicePDF = ({ invoiceData }) => {
                     </TableRow>
                   ))}
                   <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                    <TableCell colSpan={3} sx={{ fontWeight: "bold", fontSize: '10px' }}>Total Tax</TableCell>
-                    <TableCell sx={{ fontWeight: "bold", fontSize: '10px' }}>₹{totalTax}</TableCell>
+                    <TableCell colSpan={3} sx={{ fontWeight: "bold" }}>Total Tax</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>₹{totalTax}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
           </Box>
 
-          {/* Amount Summary */}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="subtitle2"
-              sx={{ 
-                fontWeight: "bold", 
-                bgcolor: "#2196f3", 
-                color: "white", 
-                p: 0.5, 
-                fontSize: '11px' 
-              }}
-            >
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ bgcolor: "#2196f3", color: "#fff", p: 0.3, fontWeight: "bold", fontSize: "10px" }}>
               Amount Summary
             </Typography>
             <TableContainer component={Paper} sx={{ border: "1px solid #2196f3" }}>
-              <Table size="small" sx={{ 
-                '& .MuiTableCell-root': { 
-                  padding: '2px 3px', 
-                  fontSize: '10px',
-                  lineHeight: 1
-                } 
-              }}>
+              <Table size="small">
                 <TableBody>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Sub Total</TableCell>
-                    <TableCell align="right">₹{subtotal}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Total Tax</TableCell>
-                    <TableCell align="right">₹{totalTax}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Total Amount</TableCell>
-                    <TableCell align="right">₹{totalAmount}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Received</TableCell>
-                    <TableCell align="right">₹{receivedAmount}</TableCell>
-                  </TableRow>
+                  <TableRow><TableCell>Sub Total</TableCell><TableCell align="right">₹{subtotal}</TableCell></TableRow>
+                  <TableRow><TableCell>Total Tax</TableCell><TableCell align="right">₹{totalTax}</TableCell></TableRow>
+                  <TableRow><TableCell>Total</TableCell><TableCell align="right">₹{totalAmount}</TableCell></TableRow>
+                  <TableRow><TableCell>Received</TableCell><TableCell align="right">₹{receivedAmount}</TableCell></TableRow>
                   <TableRow sx={{ bgcolor: "#e3f2fd" }}>
                     <TableCell sx={{ fontWeight: "bold" }}>Balance Due</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
-                      ₹{balanceAmount}
-                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: "bold" }}>₹{balanceAmount}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -472,102 +261,40 @@ const InvoicePDF = ({ invoiceData }) => {
           </Box>
         </Box>
 
-        {/* Amount in Words & Payment Details */}
-        <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="subtitle2"
-              sx={{ 
-                fontWeight: "bold", 
-                bgcolor: "#2196f3", 
-                color: "white", 
-                p: 0.5, 
-                fontSize: '11px' 
-              }}
-            >
+        {/* Footer */}
+        <Box sx={{ display: "flex", gap: 0.8 }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ bgcolor: "#2196f3", color: "#fff", p: 0.3, fontWeight: "bold", fontSize: "10px" }}>
               Amount in Words
             </Typography>
-            <Box sx={{ 
-              border: "1px solid #2196f3", 
-              p: 0.5, 
-              minHeight: "35px",
-              fontSize: '10px',
-              lineHeight: 1.1
-            }}>
-              {amountToWords(totalAmount)}
-            </Box>
+            <Box sx={{ border: "1px solid #2196f3", p: 0.4 }}>{amountToWords(totalAmount)}</Box>
           </Box>
 
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="subtitle2"
-              sx={{ 
-                fontWeight: "bold", 
-                bgcolor: "#2196f3", 
-                color: "white", 
-                p: 0.5, 
-                fontSize: '11px' 
-              }}
-            >
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ bgcolor: "#2196f3", color: "#fff", p: 0.3, fontWeight: "bold", fontSize: "10px" }}>
               Payment Details
             </Typography>
-            <Box sx={{ 
-              border: "1px solid #2196f3", 
-              p: 0.5, 
-              minHeight: "35px",
-              fontSize: '11px'
-            }}>
-              <div>Mode: {paymentMode}</div>
-              {referenceNo !== "N/A" && (
-                <div>Ref: {referenceNo}</div>
-              )}
+            <Box sx={{ border: "1px solid #2196f3", p: 0.4 }}>
+              Mode: {paymentMode}<br />
+              {referenceNo !== "N/A" && `Ref: ${referenceNo}`}
             </Box>
           </Box>
         </Box>
 
-        {/* Terms and Footer */}
-        <Box sx={{ 
-          display: "flex", 
-          justifyContent: "space-between", 
-          alignItems: "flex-start",
-          gap: 1
-        }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="subtitle2"
-              sx={{ 
-                fontWeight: "bold", 
-                bgcolor: "#2196f3", 
-                color: "white", 
-                p: 0.5, 
-                fontSize: '11px' 
-              }}
-            >
+        <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.8 }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ bgcolor: "#2196f3", color: "#fff", p: 0.3, fontWeight: "bold", fontSize: "10px" }}>
               Terms & Conditions
             </Typography>
-            <Box sx={{ 
-              border: "1px solid #2196f3", 
-              p: 0.5, 
-              minHeight: "40px",
-              fontSize: '11px'
-            }}>
+            <Box sx={{ border: "1px solid #2196f3", p: 0.4 }}>
               This is invoice payment. Thanks for doing business with us!
             </Box>
           </Box>
 
-          <Box sx={{ 
-            flexShrink: 0, 
-            textAlign: "center", 
-            mt: 2,
-            minWidth: 100
-          }}>
-            <Typography variant="body2" sx={{ fontWeight: "bold", fontSize: '11px' }}>
-              For, Iconic Yatra
-            </Typography>
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" sx={{ fontSize: '11px' }}>
-                <strong>Authorized Signatory</strong>
-              </Typography>
+          <Box sx={{ textAlign: "center", minWidth: 110 }}>
+            <Typography sx={{ fontWeight: "bold", fontSize: "10px" }}>For, Iconic Yatra</Typography>
+            <Box sx={{ mt: 1 }}>
+              <Typography sx={{ fontSize: "10px" }}>Authorized Signatory</Typography>
             </Box>
           </Box>
         </Box>
