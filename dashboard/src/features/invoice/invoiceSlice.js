@@ -174,10 +174,21 @@ const invoiceSlice = createSlice({
       .addCase(getInvoices.pending, (state) => {
         state.loading = true;
       })
-      .addCase(getInvoices.fulfilled, (state, action) => {
-        state.loading = false;
-        state.invoices = action.payload;
-      })
+    // In your invoiceSlice.js - update this part
+.addCase(getInvoices.fulfilled, (state, action) => {
+  state.loading = false;
+  console.log("🔄 Redux: getInvoices payload", action.payload);
+  
+  if (Array.isArray(action.payload)) {
+    state.invoices = action.payload;
+  } else if (action.payload?.data) {
+    state.invoices = Array.isArray(action.payload.data) ? action.payload.data : [action.payload.data];
+  } else {
+    state.invoices = [];
+  }
+  state.error = null;
+})
+
       .addCase(getInvoices.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
