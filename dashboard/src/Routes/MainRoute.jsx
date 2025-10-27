@@ -34,7 +34,10 @@ import FlightFinalize from "../Pages/Admin/Quotation/FlightQuotation/FlightFinal
 import VehicleFinalize from "../Pages/Admin/Quotation/VehicleQuotation/VehicleFinalize";
 import HotelFinalize from "../Pages/Admin/Quotation/HotelQuotation/HotelFinalize";
 import CustomFinalize from "../Pages/Admin/Quotation/CustomQuotation/CustomFinalize";
-
+import InvoiceCard from "../Pages/Admin/Invoice/InvoiceCard";
+import InvoiceForm from "../Pages/Admin/Invoice/Form/InvoiceForm";
+import InvoiceEditForm from "../Pages/Admin/Invoice/Form/InvoiceEditForm";
+import InvoiceGeneration from "../Pages/Admin/Invoice/Dialog/InvoicePdf/InvoiceGeneration";
 const MainRoute = () => {
     const isAuthenticated = true;
 
@@ -76,6 +79,12 @@ const MainRoute = () => {
 
                 {/* Invoice Routes */}
                 <Route path="/invoice-view" element={<InvoiceView />} />
+                  {/* Invoice Routing  */}
+
+        <Route path="/invoice" element={<InvoiceCard />} />
+        <Route path="/invoiceform" element={<InvoiceForm />} />
+        <Route path="/invoice/edit" element={<InvoiceEditForm />} />
+         <Route path="/invoice/generate/:id" element={<InvoiceGeneration />} />
                  {/* Quotation Routing */}
         <Route path="/quotation" element={<QuotationCard />} />
         <Route path="/vehiclequotation" element={<VehicleQuotation />} />
