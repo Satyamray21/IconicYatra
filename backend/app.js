@@ -36,6 +36,8 @@ app.use('/api/v1/associate',associateRouter);
 
 import paymentRouter from "./src/routers/payment.route.js"
 app.use('/api/v1/payment',paymentRouter);
+import activityRouter from "./src/routers/activityRoutes.js"
+app.use('/api/v1/activity', activityRouter);
 
 import calcualteAccommodationRouter from "./src/routers/calculateAccommodation.router.js"
 app.use('/api/v1/accommodation',calcualteAccommodationRouter);
@@ -47,7 +49,8 @@ import vehicleQuotationRouter from "./src/routers/quotation/vehicleQuotation.rou
 app.use("/api/v1/vehicleQT",vehicleQuotationRouter);
 import allCountryStatesAndCity from "./src/routers/allCountryStatesAndCity.router.js";
 app.use("/api/v1/countryStateAndCity",allCountryStatesAndCity);
-
+import invoiceRouter from "./src/routers/invoice.router.js";
+app.use("/api/v1/invoice",invoiceRouter);
 import FlightQuotationRouter from "./src/routers/quotation/flightQuotation.router.js";
 app.use("/api/v1/flightQT",FlightQuotationRouter);
 
