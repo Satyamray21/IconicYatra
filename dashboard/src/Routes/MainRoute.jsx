@@ -83,7 +83,7 @@ const MainRoute = () => {
 
         <Route path="/invoice" element={<InvoiceCard />} />
         <Route path="/invoiceform" element={<InvoiceForm />} />
-        <Route path="/invoice/edit" element={<InvoiceEditForm />} />
+        <Route path="/invoice/edit/:id" element={<InvoiceEditForm />} />
          <Route path="/invoice/generate/:id" element={<InvoiceGeneration />} />
                  {/* Quotation Routing */}
         <Route path="/quotation" element={<QuotationCard />} />
