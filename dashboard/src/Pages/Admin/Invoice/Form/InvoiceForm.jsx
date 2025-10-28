@@ -30,6 +30,7 @@ import {
   setSelectedInvoiceField,
 } from "../../../../features/invoice/invoiceSlice";
 import AddNewBank from "../Dialog/AddNewBank";
+import axios from "../../../../utils/axios";
 
 const accountTypes = ["Agent", "Supplier"];
 const states = ["Maharashtra", "Gujarat", "Delhi"];
@@ -42,6 +43,7 @@ const InvoiceForm = () => {
   const [isInitialSyncDone, setIsInitialSyncDone] = useState(false);
   const dispatch = useDispatch();
   const { loading, selectedInvoice } = useSelector((state) => state.invoice);
+  const [companies, setCompanies] = useState([]);
 
   const handleAddNewPaymentMode = (newMode) => {
     if (newMode && !paymentModeOptions.includes(newMode)) {
@@ -52,6 +54,7 @@ const InvoiceForm = () => {
 
   const formik = useFormik({
     initialValues: {
+      companyId: "",
       accountType: "",
       partyName: "",
       billingName: "",
@@ -83,6 +86,8 @@ const InvoiceForm = () => {
       balanceAmount: "",
     },
     validationSchema: Yup.object({
+      companyId: Yup.string().required("Please select a company"),
+
       accountType: Yup.string().required("Required"),
       partyName: Yup.string().required("Required"),
       billingName: Yup.string().required("Required"),
@@ -194,6 +199,17 @@ const InvoiceForm = () => {
     const itemsCopy = values.items || [];
     updateItemsAndTotals(itemsCopy, values.receivedAmount);
   }, [values.receivedAmount, updateItemsAndTotals]); // eslint-disable-line
+  useEffect(() => {
+  const fetchCompanies = async () => {
+    try {
+      const { data } = await axios.get("/company");
+      setCompanies(data?.data || data); // depends on your ApiResponse structure
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+    }
+  };
+  fetchCompanies();
+}, []);
 
   // Called whenever a field in an item changes (price, taxPercent, discountPercent, particulars)
   const handleItemChange = (e, index) => {
@@ -223,6 +239,28 @@ const InvoiceForm = () => {
 
       <form onSubmit={handleSubmit}>
         <Grid container spacing={2}>
+          {/* Company Name */}
+<Grid item xs={12} sm={6} md={3}>
+  <TextField
+    select
+    fullWidth
+    label="Company"
+    name="companyId"
+    value={values.companyId || ""}
+    onChange={(e) => {
+      handleChange(e);
+      // also sync to redux
+      dispatch(setSelectedInvoiceField({ field: "companyId", value: e.target.value }));
+    }}
+  >
+    {companies.map((company) => (
+      <MenuItem key={company._id} value={company._id}>
+        {company.companyName}
+      </MenuItem>
+    ))}
+  </TextField>
+</Grid>
+
           {/* Account Type */}
           <Grid item xs={12} sm={6} md={3}>
             <TextField
