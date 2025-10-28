@@ -217,25 +217,25 @@ const InvoicePDF = ({ invoiceData }) => {
         {/* Company Info */}
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <img
-            src="https://iconicyatra.com/assets/logoiconic-CDBgNKCW.jpg"
+            src={invoiceData?.companyId?.logo }
             alt="Logo"
             style={{ width: 85, objectFit: "contain" }}
           />
           <Box sx={{ textAlign: "right" }}>
             <Typography sx={{ fontWeight: "bold", fontSize: "13px" }}>
-              Iconic Yatra
+              {invoiceData?.companyId?.companyName}
             </Typography>
             <Typography sx={{ fontSize: "10px" }}>
-              Noida - 201301, Uttar Pradesh
+              {invoiceData?.companyId?.address}
             </Typography>
             <Typography sx={{ fontSize: "10px" }}>
-              Phone: +91 7053900957
+              Phone: +91 {invoiceData?.companyId?.phone}
             </Typography>
             <Typography sx={{ fontSize: "10px" }}>
-              Email: info@iconicyatra.com
+              Email: {invoiceData?.companyId?.email}
             </Typography>
             <Typography sx={{ fontSize: "10px" }}>
-              State Code: 09 (Uttar Pradesh)
+              State Code: {invoiceData?.companyId?.stateCode}
             </Typography>
           </Box>
         </Box>
@@ -525,14 +525,22 @@ const InvoicePDF = ({ invoiceData }) => {
           </Box>
 
           <Box sx={{ textAlign: "center", minWidth: 120 }}>
-            <Typography sx={{ fontWeight: "bold", fontSize: "10px" }}>
-              For, Iconic Yatra
-            </Typography>
-            <Box sx={{ mt: 1 }}>
-              <Typography sx={{ fontSize: "10px" }}>
-                Authorized Signatory
-              </Typography>
-            </Box>
+            {invoiceData?.companyId?.authorizedSignatory?.signatureImage && (
+  <Box
+    component="img"
+    src={invoiceData?.companyId?.authorizedSignatory?.signatureImage}
+    alt="Authorized Signatory"
+    sx={{
+      width: 80,
+      height: "auto",
+      mt: 4,
+      objectFit: "contain",
+      display: "block",
+      marginLeft: "auto",
+    }}
+  />
+)}
+
           </Box>
         </Box>
       </Box>

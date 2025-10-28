@@ -10,6 +10,11 @@ const itemSchema = new mongoose.Schema({
 });
 const invoiceSchema = new mongoose.Schema(
     {
+        companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+    },
         accountType: { type: String, required: true },
         partyName: { type: String, required: true },
         billingName: { type: String, required: true },

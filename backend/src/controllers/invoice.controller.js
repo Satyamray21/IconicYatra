@@ -47,13 +47,22 @@ export const getInvoices = async (req, res) => {
 // Get Single Invoice
 export const getInvoiceById = async (req, res) => {
     try {
-        const invoice = await Invoice.findById(req.params.id);
-        if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+        const invoice = await Invoice.findById(req.params.id)
+            .populate({
+                path: "companyId", // field name in Invoice model
+                select: "companyName address phone email gstin stateCode logo authorizedSignatory", // specify which fields to fetch
+            });
+
+        if (!invoice) {
+            return res.status(404).json({ message: "Invoice not found" });
+        }
+
         res.json(invoice);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
+
 
 //Update Invoice
 export const updateInvoice = async (req, res) => {
