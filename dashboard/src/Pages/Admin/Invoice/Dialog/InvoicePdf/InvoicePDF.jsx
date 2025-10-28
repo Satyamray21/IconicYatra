@@ -3,6 +3,7 @@ import {
   Box,
   Typography,
   Table,
+  TableHead,
   TableBody,
   TableCell,
   TableContainer,
@@ -141,7 +142,7 @@ const InvoicePDF = ({ invoiceData }) => {
 
   const {
     billingName = "N/A",
-    partyName = "N/A",
+    mobile = "N/A",
     gstin = "N/A",
     billingAddress = "N/A",
     stateOfSupply = "N/A",
@@ -219,11 +220,14 @@ const InvoicePDF = ({ invoiceData }) => {
           <img
             src={invoiceData?.companyId?.logo }
             alt="Logo"
-            style={{ width: 85, objectFit: "contain" }}
+            style={{ width: 100,height:100 ,objectFit: "contain" }}
           />
           <Box sx={{ textAlign: "right" }}>
             <Typography sx={{ fontWeight: "bold", fontSize: "13px" }}>
               {invoiceData?.companyId?.companyName}
+            </Typography>
+            <Typography sx={{ fontSize: "10px" }}>
+             GSTIN: {invoiceData?.companyId?.gstin}
             </Typography>
             <Typography sx={{ fontSize: "10px" }}>
               {invoiceData?.companyId?.address}
@@ -265,9 +269,9 @@ const InvoicePDF = ({ invoiceData }) => {
                 minHeight: 65,
               }}
             >
-              <b>{partyName}</b>
+              <b>{billingName}</b>
               <br />
-              {billingName}
+              Mobile:+91 {mobile}
               <br />
               {billingAddress}
               <br />
@@ -317,53 +321,81 @@ const InvoicePDF = ({ invoiceData }) => {
 
         {/* Items Table */}
         <TableContainer component={Paper} sx={{ mb: 1 }}>
-          <Table size="small">
-            <TableBody>
-              <TableRow sx={{ bgcolor: "#1565c0" }}>
-                {[
-                  "#",
-                  "Particulars",
-                  "HSN/SAC",
-                  "Price ₹",
-                  "Disc ₹",
-                  "GST ₹",
-                  "Amount ₹",
-                ].map((h, i) => (
-                  <TableCell
-                    key={i}
-                    sx={{
-                      color: "#fff",
-                      fontWeight: "bold",
-                      fontSize: "10px",
-                      py: 0.5,
-                    }}
-                  >
-                    {h}
-                  </TableCell>
-                ))}
-              </TableRow>
-              {items.map((item, i) => (
-                <TableRow key={i}>
-                  <TableCell>{i + 1}</TableCell>
-                  <TableCell>{item.particulars}</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell align="right">₹{item.price || 0}</TableCell>
-                  <TableCell align="right">₹{item.discount || 0}</TableCell>
-                  <TableCell align="right">₹{item.taxAmount || 0}</TableCell>
-                  <TableCell align="right">₹{item.amount || 0}</TableCell>
-                </TableRow>
-              ))}
-              <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-                <TableCell colSpan={6} align="right" sx={{ fontWeight: "bold" }}>
-                  Total
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: "bold" }}>
-                  ₹{totalAmount}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
+  <Table size="small">
+    <TableHead>
+      <TableRow sx={{ bgcolor: "#1565c0" }}>
+        {[
+          "#",
+          "Particulars",
+          "HSN/SAC",
+          "Price ₹",
+          "Disc ₹",
+          "GST ₹",
+          "Amount ₹",
+        ].map((h, i) => (
+          <TableCell
+            key={i}
+            align={i === 0 || i === 1 || i === 2 ? "left" : "right"}
+            sx={{
+              color: "#fff",
+              fontWeight: "bold",
+              fontSize: "10px",
+              py: 0.8,
+              px: 1.5,
+            }}
+          >
+            {h}
+          </TableCell>
+        ))}
+      </TableRow>
+    </TableHead>
+
+    <TableBody>
+      {items.map((item, i) => (
+        <TableRow key={i}>
+          <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
+            {i + 1}
+          </TableCell>
+          <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
+            {item.particulars}
+          </TableCell>
+          <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
+            998552
+          </TableCell>
+          <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
+            ₹{item.price || 0}
+          </TableCell>
+          <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
+            ₹{item.discount || 0}
+          </TableCell>
+          <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
+            ₹{item.taxAmount || 0}
+          </TableCell>
+          <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
+            ₹{item.amount || 0}
+          </TableCell>
+        </TableRow>
+      ))}
+
+      <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+        <TableCell
+          colSpan={6}
+          align="right"
+          sx={{ fontWeight: "bold", fontSize: "10px", px: 1.5 }}
+        >
+          Total
+        </TableCell>
+        <TableCell
+          align="right"
+          sx={{ fontWeight: "bold", fontSize: "10px", px: 1.5 }}
+        >
+          ₹{totalAmount}
+        </TableCell>
+      </TableRow>
+    </TableBody>
+  </Table>
+</TableContainer>
+
 
         {/* Summary */}
         <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
@@ -392,7 +424,10 @@ const InvoicePDF = ({ invoiceData }) => {
                   {items.map((item, i) => (
                     <TableRow key={i}>
                       <TableCell>
-                        {invoiceData?.isInternational ? "IGST" : "CGST/SGST"}
+                       {!invoiceData?.stateOfSupply?.includes("Uttar Pradesh")
+  ? "IGST"
+  : "CGST / SGST"}
+
                       </TableCell>
                       <TableCell>
                         ₹{(item.price || 0) - (item.discount || 0)}
@@ -531,8 +566,8 @@ const InvoicePDF = ({ invoiceData }) => {
     src={invoiceData?.companyId?.authorizedSignatory?.signatureImage}
     alt="Authorized Signatory"
     sx={{
-      width: 80,
-      height: "auto",
+      width: 100,
+      height: 100,
       mt: 4,
       objectFit: "contain",
       display: "block",

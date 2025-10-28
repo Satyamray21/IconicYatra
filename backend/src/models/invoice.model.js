@@ -16,7 +16,7 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
     },
         accountType: { type: String, required: true },
-        partyName: { type: String, required: true },
+        mobile: { type: String, required: true },
         billingName: { type: String, required: true },
         billingAddress: { type: String },
         gstin: { type: String },

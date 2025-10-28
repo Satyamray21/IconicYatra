@@ -1,4 +1,5 @@
 // InvoiceForm.jsx
+
 import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
@@ -29,11 +30,13 @@ import {
   recalculateInvoiceTotals,
   setSelectedInvoiceField,
 } from "../../../../features/invoice/invoiceSlice";
+import {
+  fetchCountries,
+  fetchStatesByCountry,
+} from "../../../../features/location/locationSlice";
 import AddNewBank from "../Dialog/AddNewBank";
 import axios from "../../../../utils/axios";
 
-const accountTypes = ["Agent", "Supplier"];
-const states = ["Maharashtra", "Gujarat", "Delhi"];
 const taxOptions = ["0", "5", "12", "18", "28"];
 const paymentModes = ["Cash", "Credit Card", "Bank Transfer", "Cheque"];
 
@@ -42,8 +45,32 @@ const InvoiceForm = () => {
   const [paymentModeOptions, setPaymentModeOptions] = useState(paymentModes);
   const [isInitialSyncDone, setIsInitialSyncDone] = useState(false);
   const dispatch = useDispatch();
+
   const { loading, selectedInvoice } = useSelector((state) => state.invoice);
+  const { countries, states } = useSelector(
+    (state) => state.location
+  );
+
   const [companies, setCompanies] = useState([]);
+
+  // --- Fetch companies
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const { data } = await axios.get("/company");
+        setCompanies(data?.data || data);
+      } catch (error) {
+        console.error("Error fetching companies:", error);
+      }
+    };
+    fetchCompanies();
+  }, []);
+
+  // --- Fetch countries (for international) & Indian states (default)
+  useEffect(() => {
+    dispatch(fetchCountries());
+    dispatch(fetchStatesByCountry("India"));
+  }, [dispatch]);
 
   const handleAddNewPaymentMode = (newMode) => {
     if (newMode && !paymentModeOptions.includes(newMode)) {
@@ -56,7 +83,7 @@ const InvoiceForm = () => {
     initialValues: {
       companyId: "",
       accountType: "",
-      partyName: "",
+      mobile: "",
       billingName: "",
       billingAddress: "",
       gstin: "",
@@ -87,9 +114,10 @@ const InvoiceForm = () => {
     },
     validationSchema: Yup.object({
       companyId: Yup.string().required("Please select a company"),
-
       accountType: Yup.string().required("Required"),
-      partyName: Yup.string().required("Required"),
+      mobile: Yup.string()
+        .matches(/^[0-9]{10}$/, "Enter valid mobile number")
+        .required("Required"),
       billingName: Yup.string().required("Required"),
       items: Yup.array().of(
         Yup.object().shape({
@@ -110,9 +138,10 @@ const InvoiceForm = () => {
     },
   });
 
-  const { values, errors, touched, handleChange, handleSubmit, setFieldValue } = formik;
+  const { values, errors, touched, handleChange, handleSubmit, setFieldValue } =
+    formik;
 
-  // Helper to compute totals given items array and optionally received amount
+  // === Compute Totals ===
   const computeTotals = useCallback((itemsArr, received) => {
     let total = 0;
     const recalculated = itemsArr.map((it) => {
@@ -124,14 +153,10 @@ const InvoiceForm = () => {
       const discountedPrice = price - discount;
       const taxAmount = (discountedPrice * taxPercent) / 100;
       const amount = discountedPrice + taxAmount;
-
       total += amount;
 
       return {
         ...it,
-        price: isNaN(price) ? "" : price,
-        discountPercent: isNaN(discountPercent) ? "" : discountPercent,
-        taxPercent: isNaN(taxPercent) ? "" : taxPercent,
         discount: Number(discount.toFixed(2)),
         taxAmount: Number(taxAmount.toFixed(2)),
         amount: Number(amount.toFixed(2)),
@@ -139,97 +164,65 @@ const InvoiceForm = () => {
     });
 
     const totalFixed = Number(total.toFixed(2));
-    const rec = {
+    return {
       items: recalculated,
       totalAmount: totalFixed,
-      balanceAmount: Number((totalFixed - (parseFloat(received) || 0)).toFixed(2)),
+      balanceAmount: Number(
+        (totalFixed - (parseFloat(received) || 0)).toFixed(2)
+      ),
     };
-    return rec;
   }, []);
 
-  // Centralized updater used when items or receivedAmount change
+  // === Update Items & Totals ===
   const updateItemsAndTotals = useCallback(
     (updatedItems, receivedAmountVal = values.receivedAmount) => {
       const { items: recalcItems, totalAmount, balanceAmount } = computeTotals(
         updatedItems,
         receivedAmountVal
       );
-
-      // update Formik
       setFieldValue("items", recalcItems, false);
       setFieldValue("totalAmount", totalAmount, false);
       setFieldValue("balanceAmount", balanceAmount, false);
 
-      // sync to redux selectedInvoice
       dispatch(setSelectedInvoiceField({ field: "items", value: recalcItems }));
-      dispatch(setSelectedInvoiceField({ field: "totalAmount", value: totalAmount }));
-      dispatch(setSelectedInvoiceField({ field: "balanceAmount", value: balanceAmount }));
+      dispatch(
+        setSelectedInvoiceField({ field: "totalAmount", value: totalAmount })
+      );
+      dispatch(
+        setSelectedInvoiceField({ field: "balanceAmount", value: balanceAmount })
+      );
 
-      // trigger slice-level recalc so slice keeps derived fields in sync
       dispatch(recalculateInvoiceTotals());
     },
     [computeTotals, dispatch, setFieldValue, values.receivedAmount]
   );
 
-  // Sync Redux selectedInvoice values into Formik (for edit case)
+  // === Handle receivedAmount change ===
   useEffect(() => {
-  if (selectedInvoice && Object.keys(selectedInvoice).length && !isInitialSyncDone) {
-    const merged = { ...formik.initialValues, ...selectedInvoice };
-    formik.setValues({
-      ...merged,
-      items:
-        merged.items && merged.items.length
-          ? merged.items.map((it) => ({
-              particulars: it.particulars ?? it.item ?? "",
-              price: it.price ?? "",
-              discountPercent: it.discountPercent ?? 0,
-              discount: it.discount ?? 0,
-              taxPercent: it.taxPercent ?? 0,
-              taxAmount: it.taxAmount ?? 0,
-              amount: it.amount ?? 0,
-            }))
-          : formik.initialValues.items,
-    });
-    setIsInitialSyncDone(true); // ✅ prevent future resets
-  }
-}, [selectedInvoice, isInitialSyncDone]);
+    updateItemsAndTotals(values.items || [], values.receivedAmount);
+  }, [values.receivedAmount, updateItemsAndTotals]);
 
-  // When receivedAmount changes, update balance (and sync)
-  useEffect(() => {
-    const itemsCopy = values.items || [];
-    updateItemsAndTotals(itemsCopy, values.receivedAmount);
-  }, [values.receivedAmount, updateItemsAndTotals]); // eslint-disable-line
-  useEffect(() => {
-  const fetchCompanies = async () => {
-    try {
-      const { data } = await axios.get("/company");
-      setCompanies(data?.data || data); // depends on your ApiResponse structure
-    } catch (error) {
-      console.error("Error fetching companies:", error);
-    }
-  };
-  fetchCompanies();
-}, []);
-
-  // Called whenever a field in an item changes (price, taxPercent, discountPercent, particulars)
+  // === Handle item change ===
   const handleItemChange = (e, index) => {
-    const { name, value } = e.target; // name like "items[0].price"
-    // update Formik field first (this keeps touched/validation correct)
+    const { name, value } = e.target;
     setFieldValue(name, value, false);
 
-    // build updated items locally and compute totals
-    const updatedItems = (values.items || []).map((it, idx) =>
+    const updatedItems = values.items.map((it, idx) =>
       idx === index
-        ? {
-            ...it,
-            // update the specific property (extract after last dot)
-            [name.split(".").pop()]: value,
-          }
+        ? { ...it, [name.split(".").pop()]: value }
         : it
     );
-
     updateItemsAndTotals(updatedItems, values.receivedAmount);
   };
+
+  // === Handle isInternational toggle ===
+  useEffect(() => {
+    if (values.isInternational) {
+      dispatch(fetchCountries());
+    } else {
+      dispatch(fetchStatesByCountry("India"));
+    }
+  }, [values.isInternational, dispatch]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -239,27 +232,31 @@ const InvoiceForm = () => {
 
       <form onSubmit={handleSubmit}>
         <Grid container spacing={2}>
-          {/* Company Name */}
-<Grid item xs={12} sm={6} md={3}>
-  <TextField
-    select
-    fullWidth
-    label="Company"
-    name="companyId"
-    value={values.companyId || ""}
-    onChange={(e) => {
-      handleChange(e);
-      // also sync to redux
-      dispatch(setSelectedInvoiceField({ field: "companyId", value: e.target.value }));
-    }}
-  >
-    {companies.map((company) => (
-      <MenuItem key={company._id} value={company._id}>
-        {company.companyName}
-      </MenuItem>
-    ))}
-  </TextField>
-</Grid>
+          {/* Company */}
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              select
+              fullWidth
+              label="Company"
+              name="companyId"
+              value={values.companyId}
+              onChange={(e) => {
+                handleChange(e);
+                dispatch(
+                  setSelectedInvoiceField({
+                    field: "companyId",
+                    value: e.target.value,
+                  })
+                );
+              }}
+            >
+              {companies.map((company) => (
+                <MenuItem key={company._id} value={company._id}>
+                  {company.companyName}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
 
           {/* Account Type */}
           <Grid item xs={12} sm={6} md={3}>
@@ -273,7 +270,7 @@ const InvoiceForm = () => {
               error={touched.accountType && Boolean(errors.accountType)}
               helperText={touched.accountType && errors.accountType}
             >
-              {accountTypes.map((type) => (
+              {["Agent", "Supplier"].map((type) => (
                 <MenuItem key={type} value={type}>
                   {type}
                 </MenuItem>
@@ -281,67 +278,123 @@ const InvoiceForm = () => {
             </TextField>
           </Grid>
 
-          {/* Party Name */}
+          {/* Mobile */}
           <Grid item xs={12} sm={6} md={3}>
             <TextField
-              select
               fullWidth
-              label="Party Name"
-              name="partyName"
-              value={values.partyName}
+              label="Mobile"
+              name="mobile"
+              value={values.mobile}
               onChange={handleChange}
-              error={touched.partyName && Boolean(errors.partyName)}
-              helperText={touched.partyName && errors.partyName}
-            >
-              <MenuItem value="ABC Travels">ABC Travels</MenuItem>
-              <MenuItem value="XYZ Traders">XYZ Traders</MenuItem>
-            </TextField>
+              error={touched.mobile && Boolean(errors.mobile)}
+              helperText={touched.mobile && errors.mobile}
+            />
           </Grid>
 
           {/* Invoice No */}
           <Grid item xs={12} sm={6} md={3}>
-            <TextField fullWidth label="Invoice No" name="invoiceNo" value={values.invoiceNo} onChange={handleChange} />
+            <TextField
+              fullWidth
+              label="Invoice No"
+              name="invoiceNo"
+              value={values.invoiceNo}
+              onChange={handleChange}
+            />
           </Grid>
 
           {/* Invoice Date */}
           <Grid item xs={12} sm={6} md={3}>
-            <TextField fullWidth type="date" label="Invoice Date" name="invoiceDate" InputLabelProps={{ shrink: true }} value={values.invoiceDate} onChange={handleChange} />
+            <TextField
+              fullWidth
+              type="date"
+              label="Invoice Date"
+              name="invoiceDate"
+              InputLabelProps={{ shrink: true }}
+              value={values.invoiceDate}
+              onChange={handleChange}
+            />
           </Grid>
 
           {/* Billing Name */}
           <Grid item xs={12} sm={6}>
-            <TextField fullWidth label="Billing Name" name="billingName" value={values.billingName} onChange={handleChange} error={touched.billingName && Boolean(errors.billingName)} helperText={touched.billingName && errors.billingName} />
+            <TextField
+              fullWidth
+              label="Billing Name"
+              name="billingName"
+              value={values.billingName}
+              onChange={handleChange}
+            />
           </Grid>
 
           {/* Billing Address */}
           <Grid item xs={12} sm={6}>
-            <TextField fullWidth multiline minRows={2} label="Billing Address" name="billingAddress" value={values.billingAddress} onChange={handleChange} />
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              label="Billing Address"
+              name="billingAddress"
+              value={values.billingAddress}
+              onChange={handleChange}
+            />
           </Grid>
 
-          {/* GSTIN, Due Date, State */}
+          {/* GSTIN, Due Date */}
           <Grid item xs={12} sm={4}>
-            <TextField fullWidth label="GSTIN Number" name="gstin" value={values.gstin} onChange={handleChange} />
+            <TextField
+              fullWidth
+              label="GSTIN"
+              name="gstin"
+              value={values.gstin}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Due Date"
+              name="dueDate"
+              InputLabelProps={{ shrink: true }}
+              value={values.dueDate}
+              onChange={handleChange}
+            />
           </Grid>
 
+          {/* State or Country */}
           <Grid item xs={12} sm={4}>
-            <TextField fullWidth type="date" label="Due Date" name="dueDate" InputLabelProps={{ shrink: true }} value={values.dueDate} onChange={handleChange} />
-          </Grid>
-
-          <Grid item xs={12} sm={4}>
-            <TextField select fullWidth label="State of Supply" name="stateOfSupply" value={values.stateOfSupply} onChange={handleChange}>
-              {states.map((state) => (
-                <MenuItem key={state} value={state}>
-                  {state}
+            <TextField
+              select
+              fullWidth
+              label={
+                values.isInternational ? "Country of Supply" : "State of Supply"
+              }
+              name="stateOfSupply"
+              value={values.stateOfSupply}
+              onChange={handleChange}
+            >
+              {(values.isInternational ? countries : states).map((item, i) => (
+                <MenuItem key={i} value={item.name || item}>
+                  {item.name || item}
                 </MenuItem>
               ))}
             </TextField>
           </Grid>
 
+          {/* International checkbox */}
           <Grid item xs={12}>
-            <FormControlLabel control={<Checkbox name="isInternational" checked={values.isInternational} onChange={handleChange} />} label="International" />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  name="isInternational"
+                  checked={values.isInternational}
+                  onChange={handleChange}
+                />
+              }
+              label="International"
+            />
           </Grid>
         </Grid>
-
         {/* Tax Type */}
         <RadioGroup row name="taxType" value={values.taxType} onChange={handleChange} sx={{ mt: 2 }}>
           <FormControlLabel value="withTax" control={<Radio />} label="With Tax" />
