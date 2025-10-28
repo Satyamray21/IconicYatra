@@ -57,6 +57,8 @@ export const deleteInvoice = createAsyncThunk("invoice/deleteInvoice", async (id
 const initialState = {
   invoices: [],
   selectedInvoice: {
+    companyId: "",
+
     accountType: "",
     partyName: "",
     billingName: "",

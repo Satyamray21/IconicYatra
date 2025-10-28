@@ -1,14 +1,37 @@
 import Invoice from "../models/invoice.model.js";
-
+import Company from "../models/company.model.js";
 // Create Invoice
 export const createInvoice = async (req, res) => {
-    try {
-        const invoice = new Invoice(req.body);
-        const saved = await invoice.save();
-        res.status(201).json(saved);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+  try {
+    const { companyId } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
     }
+
+    // Check if company exists
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    // Create invoice
+    const invoice = new Invoice(req.body);
+    const savedInvoice = await invoice.save();
+
+    // Populate company details in response
+    const populatedInvoice = await Invoice.findById(savedInvoice._id)
+      .populate("companyId", "companyName address phone email gstin stateCode logo authorizedSignatory");
+
+    res.status(201).json({
+      success: true,
+      message: "Invoice created successfully",
+      invoice: populatedInvoice,
+    });
+  } catch (error) {
+    console.error("Error creating invoice:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 };
 
 // Get All Invoices

@@ -53,7 +53,8 @@ import invoiceRouter from "./src/routers/invoice.router.js";
 app.use("/api/v1/invoice",invoiceRouter);
 import FlightQuotationRouter from "./src/routers/quotation/flightQuotation.router.js";
 app.use("/api/v1/flightQT",FlightQuotationRouter);
-
+import companyRouter from "./src/routers/company.router.js";
+app.use("/api/v1/company",companyRouter);
 import hotelQuotationRouter from "./src/routers/quotation/hotelQuotation.router.js";
 app.use("/api/v1/hotelQT",hotelQuotationRouter);
 
