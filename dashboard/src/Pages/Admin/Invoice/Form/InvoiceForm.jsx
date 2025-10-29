@@ -237,13 +237,36 @@ const InvoiceForm = () => {
   }, [values.receivedAmount]);
 
   const handleItemChange = (e, index) => {
-    const { name, value } = e.target;
-    setFieldValue(name, value, false);
-    const updatedItems = values.items.map((it, idx) =>
-      idx === index ? { ...it, [name.split(".").pop()]: value } : it
-    );
-    updateItemsAndTotals(updatedItems, values.receivedAmount);
-  };
+  const { name, value } = e.target;
+  const field = name.split(".").pop();
+
+  // Update the current item temporarily
+  const updatedItems = values.items.map((it, idx) => {
+    if (idx !== index) return it;
+
+    let updatedItem = { ...it, [field]: value };
+
+    const price = parseFloat(updatedItem.price) || 0;
+    let discountPercent = parseFloat(updatedItem.discountPercent) || 0;
+    let discount = parseFloat(updatedItem.discount) || 0;
+
+    // === Interdependent discount logic ===
+    if (field === "discountPercent" && price > 0) {
+      // If percentage changed → recalc discount amount
+      discount = (price * discountPercent) / 100;
+      updatedItem.discount = Number(discount.toFixed(2));
+    } else if (field === "discount" && price > 0) {
+      // If amount changed → recalc discount percentage
+      discountPercent = (discount / price) * 100;
+      updatedItem.discountPercent = Number(discountPercent.toFixed(2));
+    }
+
+    return updatedItem;
+  });
+
+  updateItemsAndTotals(updatedItems, values.receivedAmount);
+};
+
 
   // Handle international toggle
   useEffect(() => {
