@@ -87,3 +87,20 @@ export const deleteInvoice = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+export const getNextInvoiceNumber = async (req, res) => {
+  try {
+    const lastInvoice = await Invoice.findOne().sort({ createdAt: -1 });
+    let nextNo = 1;
+
+    if (lastInvoice?.invoiceNo) {
+      const match = lastInvoice.invoiceNo.match(/ICYR_(\d+)/);
+      if (match) nextNo = parseInt(match[1]) + 1;
+    }
+
+    const formatted = `ICYR_${String(nextNo).padStart(4, "0")}`;
+    res.json({ nextNumber: formatted });
+  } catch (error) {
+    res.status(500).json({ message: "Error generating invoice number" });
+  }
+};
