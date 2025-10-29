@@ -7,6 +7,7 @@ import { startOfDay, startOfMonth, subMonths } from "date-fns";
 import { getNextLeadId } from "../utils/getNextLeadId.js";
 import {LeadOptions} from  "../models/leadOptions.model.js"
 import {calculateAccommodation} from "../utils/calculateAccommodation.js"
+import { logActivity } from "../utils/ActivityLog.js"
 //  Helper for single-value fields
 const handleAddMoreValue = (valueObj) => {
   if (typeof valueObj === "string") return valueObj;
@@ -215,6 +216,13 @@ export const createLead = asyncHandler(async (req, res) => {
     leadId,
     status: "Active",
   });
+await logActivity({
+  action: "Created",
+  model: "Lead",
+  referenceId: leadId,
+  description: `Lead ${leadId} created successfully by ${req.user?.name || 'System'}`,
+  performedBy: req.user?.name || "System",
+});
 
   return res
     .status(201)
@@ -394,6 +402,13 @@ export const deleteLead = asyncHandler(async (req, res) => {
   if (!deletedLead) {
     throw new ApiError(404, "Lead not found");
   }
+await logActivity({
+  action: "Deleted",
+  model: "Lead",
+  referenceId: leadId,
+  description: `Lead ${leadId} deleted by ${req.user?.name || 'System'}`,
+  performedBy: req.user?.name || "System",
+});
 
   res.status(200).json(new ApiResponse(200, {}, "Lead deleted successfully"));
 });
@@ -454,6 +469,13 @@ export const changeLeadStatus = asyncHandler(async (req, res) => {
 
   lead.status = status;
   await lead.save();
+await logActivity({
+  action: "Status Changed",
+  model: "Lead",
+  referenceId: leadId,
+  description: `Lead ${leadId} status changed from ${currentStatus} to ${status} by ${req.user?.name || 'System'}`,
+  performedBy: req.user?.name || "System",
+});
 
   return res
     .status(200)

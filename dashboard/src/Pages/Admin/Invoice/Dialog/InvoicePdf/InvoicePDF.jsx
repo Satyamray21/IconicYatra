@@ -363,7 +363,7 @@ const InvoicePDF = ({ invoiceData }) => {
             998552
           </TableCell>
           <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
-            ₹{item.price || 0}
+            ₹{item.basePrice || 0}
           </TableCell>
           <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
             ₹{item.discount || 0}

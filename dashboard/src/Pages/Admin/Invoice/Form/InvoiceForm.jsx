@@ -34,6 +34,8 @@ import {
 } from "../../../../features/location/locationSlice";
 import AddNewBank from "../Dialog/AddNewBank";
 import axios from "../../../../utils/axios";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const taxOptions = ["0", "5", "12", "18", "28"];
 const paymentModes = ["Cash", "Credit Card", "Bank Transfer", "Cheque"];
@@ -41,8 +43,10 @@ const paymentModes = ["Cash", "Credit Card", "Bank Transfer", "Cheque"];
 const InvoiceForm = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [paymentModeOptions, setPaymentModeOptions] = useState(paymentModes);
-  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
+  const dispatch = useDispatch();
+  const [autoInvoiceNo, setAutoInvoiceNo] = useState("ICYR_0001");
   const { loading } = useSelector((state) => state.invoice);
   const { countries, states } = useSelector((state) => state.location);
 
@@ -82,7 +86,7 @@ const InvoiceForm = () => {
       billingName: "",
       billingAddress: "",
       gstin: "",
-      invoiceNo: "I-202517",
+      invoiceNo: autoInvoiceNo,
       invoiceDate: "",
       dueDate: "",
       stateOfSupply: "",
@@ -107,6 +111,7 @@ const InvoiceForm = () => {
       receivedAmount: "",
       balanceAmount: "",
     },
+     enableReinitialize: true,
     validationSchema: Yup.object({
       companyId: Yup.string().required("Please select a company"),
       accountType: Yup.string().required("Required"),
@@ -123,12 +128,19 @@ const InvoiceForm = () => {
     }),
     onSubmit: async (values, { resetForm }) => {
       try {
-        await dispatch(createInvoice(values)).unwrap();
-        alert("Invoice created successfully!");
-        resetForm();
-      } catch (err) {
-        alert(err?.message || "Error creating invoice");
-      }
+        const payload = {
+      ...values,
+      withTax: values.taxType === "withTax", // true if withTax, false if withoutTax
+    };
+        await dispatch(createInvoice(payload)).unwrap();
+       toast.success("Invoice created successfully!");
+    resetForm();
+
+    // navigate to invoice listing page (adjust path if needed)
+    setTimeout(() => navigate("/invoice"), 800);
+  } catch (err) {
+    toast.error(err?.message || "Error creating invoice");
+  }
     },
   });
 
@@ -241,7 +253,20 @@ const InvoiceForm = () => {
       dispatch(fetchStatesByCountry("India"));
     }
   }, [values.isInternational, dispatch]);
-
+useEffect(() => {
+    const fetchNextInvoiceNo = async () => {
+      try {
+        const { data } = await axios.get("/invoice/next-number");
+        if (data?.nextNumber) {
+          setAutoInvoiceNo(data.nextNumber);
+          formik.setFieldValue("invoiceNo", data.nextNumber);
+        }
+      } catch (error) {
+        console.error("Error generating invoice number:", error);
+      }
+    };
+    fetchNextInvoiceNo();
+  }, [])
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h6" gutterBottom>
