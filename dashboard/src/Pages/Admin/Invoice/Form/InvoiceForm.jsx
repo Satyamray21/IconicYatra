@@ -1,5 +1,3 @@
-// InvoiceForm.jsx
-
 import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
@@ -43,13 +41,10 @@ const paymentModes = ["Cash", "Credit Card", "Bank Transfer", "Cheque"];
 const InvoiceForm = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [paymentModeOptions, setPaymentModeOptions] = useState(paymentModes);
-  const [isInitialSyncDone, setIsInitialSyncDone] = useState(false);
   const dispatch = useDispatch();
 
-  const { loading, selectedInvoice } = useSelector((state) => state.invoice);
-  const { countries, states } = useSelector(
-    (state) => state.location
-  );
+  const { loading } = useSelector((state) => state.invoice);
+  const { countries, states } = useSelector((state) => state.location);
 
   const [companies, setCompanies] = useState([]);
 
@@ -66,7 +61,7 @@ const InvoiceForm = () => {
     fetchCompanies();
   }, []);
 
-  // --- Fetch countries (for international) & Indian states (default)
+  // --- Fetch countries & states
   useEffect(() => {
     dispatch(fetchCountries());
     dispatch(fetchStatesByCountry("India"));
@@ -74,7 +69,7 @@ const InvoiceForm = () => {
 
   const handleAddNewPaymentMode = (newMode) => {
     if (newMode && !paymentModeOptions.includes(newMode)) {
-      setPaymentModeOptions((p) => [...p, newMode]);
+      setPaymentModeOptions((prev) => [...prev, newMode]);
     }
     setOpenDialog(false);
   };
@@ -99,7 +94,7 @@ const InvoiceForm = () => {
           price: "",
           discountPercent: "",
           discount: "",
-          taxPercent: "",
+          taxPercent: "5", // default fixed 5% for withTax
           taxAmount: "",
           amount: "",
         },
@@ -123,7 +118,6 @@ const InvoiceForm = () => {
         Yup.object().shape({
           particulars: Yup.string().required("Required"),
           price: Yup.number().typeError("Must be a number").required("Required"),
-          taxPercent: Yup.string().required("Required"),
         })
       ),
     }),
@@ -138,84 +132,108 @@ const InvoiceForm = () => {
     },
   });
 
-  const { values, errors, touched, handleChange, handleSubmit, setFieldValue } =
-    formik;
+  const { values, handleChange, handleSubmit, setFieldValue } = formik;
 
-  // === Compute Totals ===
-  const computeTotals = useCallback((itemsArr, received) => {
+  // === Compute Totals (withTax / withoutTax logic) ===
+  const computeTotals = useCallback((itemsArr, received, taxType) => {
     let total = 0;
+    let invoiceValuePurchase = 0;
+
     const recalculated = itemsArr.map((it) => {
       const price = parseFloat(it.price) || 0;
       const discountPercent = parseFloat(it.discountPercent) || 0;
-      const taxPercent = parseFloat(it.taxPercent) || 0;
+      const taxPercent = taxType === "withTax" ? 5 : parseFloat(it.taxPercent) || 0;
 
       const discount = (price * discountPercent) / 100;
       const discountedPrice = price - discount;
-      const taxAmount = (discountedPrice * taxPercent) / 100;
-      const amount = discountedPrice + taxAmount;
+
+      let baseAmount = 0;
+      let taxAmount = 0;
+      let amount = 0;
+
+      if (taxType === "withTax") {
+        baseAmount = discountedPrice / (1 + 5 / 100);
+        taxAmount = discountedPrice - baseAmount;
+        amount = discountedPrice;
+      } else {
+        baseAmount = discountedPrice;
+        taxAmount = (baseAmount * taxPercent) / 100;
+        amount = baseAmount + taxAmount;
+      }
+
       total += amount;
+      invoiceValuePurchase += baseAmount;
 
       return {
         ...it,
         discount: Number(discount.toFixed(2)),
+        taxPercent,
         taxAmount: Number(taxAmount.toFixed(2)),
         amount: Number(amount.toFixed(2)),
       };
     });
 
     const totalFixed = Number(total.toFixed(2));
+    const invoiceValuePurchaseFixed = Number(invoiceValuePurchase.toFixed(2));
+
     return {
       items: recalculated,
       totalAmount: totalFixed,
-      balanceAmount: Number(
-        (totalFixed - (parseFloat(received) || 0)).toFixed(2)
-      ),
+      invoiceValuePurchase: invoiceValuePurchaseFixed,
+      balanceAmount: Number((totalFixed - (parseFloat(received) || 0)).toFixed(2)),
     };
   }, []);
 
   // === Update Items & Totals ===
   const updateItemsAndTotals = useCallback(
     (updatedItems, receivedAmountVal = values.receivedAmount) => {
-      const { items: recalcItems, totalAmount, balanceAmount } = computeTotals(
-        updatedItems,
-        receivedAmountVal
-      );
+      const {
+        items: recalcItems,
+        totalAmount,
+        balanceAmount,
+        invoiceValuePurchase,
+      } = computeTotals(updatedItems, receivedAmountVal, values.taxType);
+
       setFieldValue("items", recalcItems, false);
       setFieldValue("totalAmount", totalAmount, false);
       setFieldValue("balanceAmount", balanceAmount, false);
+      setFieldValue("invoiceValuePurchase", invoiceValuePurchase, false);
 
       dispatch(setSelectedInvoiceField({ field: "items", value: recalcItems }));
+      dispatch(setSelectedInvoiceField({ field: "totalAmount", value: totalAmount }));
       dispatch(
-        setSelectedInvoiceField({ field: "totalAmount", value: totalAmount })
+        setSelectedInvoiceField({
+          field: "invoiceValuePurchase",
+          value: invoiceValuePurchase,
+        })
       );
-      dispatch(
-        setSelectedInvoiceField({ field: "balanceAmount", value: balanceAmount })
-      );
+      dispatch(setSelectedInvoiceField({ field: "balanceAmount", value: balanceAmount }));
 
       dispatch(recalculateInvoiceTotals());
     },
-    [computeTotals, dispatch, setFieldValue, values.receivedAmount]
+    [computeTotals, dispatch, setFieldValue, values.receivedAmount, values.taxType]
   );
 
-  // === Handle receivedAmount change ===
+  // Recalculate when taxType changes
   useEffect(() => {
     updateItemsAndTotals(values.items || [], values.receivedAmount);
-  }, [values.receivedAmount, updateItemsAndTotals]);
+  }, [values.taxType]);
 
-  // === Handle item change ===
+  // Update on receivedAmount change
+  useEffect(() => {
+    updateItemsAndTotals(values.items || [], values.receivedAmount);
+  }, [values.receivedAmount]);
+
   const handleItemChange = (e, index) => {
     const { name, value } = e.target;
     setFieldValue(name, value, false);
-
     const updatedItems = values.items.map((it, idx) =>
-      idx === index
-        ? { ...it, [name.split(".").pop()]: value }
-        : it
+      idx === index ? { ...it, [name.split(".").pop()]: value } : it
     );
     updateItemsAndTotals(updatedItems, values.receivedAmount);
   };
 
-  // === Handle isInternational toggle ===
+  // Handle international toggle
   useEffect(() => {
     if (values.isInternational) {
       dispatch(fetchCountries());
@@ -240,15 +258,7 @@ const InvoiceForm = () => {
               label="Company"
               name="companyId"
               value={values.companyId}
-              onChange={(e) => {
-                handleChange(e);
-                dispatch(
-                  setSelectedInvoiceField({
-                    field: "companyId",
-                    value: e.target.value,
-                  })
-                );
-              }}
+              onChange={handleChange}
             >
               {companies.map((company) => (
                 <MenuItem key={company._id} value={company._id}>
@@ -267,8 +277,6 @@ const InvoiceForm = () => {
               name="accountType"
               value={values.accountType}
               onChange={handleChange}
-              error={touched.accountType && Boolean(errors.accountType)}
-              helperText={touched.accountType && errors.accountType}
             >
               {["Agent", "Supplier"].map((type) => (
                 <MenuItem key={type} value={type}>
@@ -286,8 +294,6 @@ const InvoiceForm = () => {
               name="mobile"
               value={values.mobile}
               onChange={handleChange}
-              error={touched.mobile && Boolean(errors.mobile)}
-              helperText={touched.mobile && errors.mobile}
             />
           </Grid>
 
@@ -339,7 +345,7 @@ const InvoiceForm = () => {
             />
           </Grid>
 
-          {/* GSTIN, Due Date */}
+          {/* GSTIN & Due Date */}
           <Grid item xs={12} sm={4}>
             <TextField
               fullWidth
@@ -349,6 +355,7 @@ const InvoiceForm = () => {
               onChange={handleChange}
             />
           </Grid>
+
           <Grid item xs={12} sm={4}>
             <TextField
               fullWidth
@@ -361,7 +368,7 @@ const InvoiceForm = () => {
             />
           </Grid>
 
-          {/* State or Country */}
+          {/* State / Country */}
           <Grid item xs={12} sm={4}>
             <TextField
               select
@@ -395,9 +402,16 @@ const InvoiceForm = () => {
             />
           </Grid>
         </Grid>
+
         {/* Tax Type */}
-        <RadioGroup row name="taxType" value={values.taxType} onChange={handleChange} sx={{ mt: 2 }}>
-          <FormControlLabel value="withTax" control={<Radio />} label="With Tax" />
+        <RadioGroup
+          row
+          name="taxType"
+          value={values.taxType}
+          onChange={handleChange}
+          sx={{ mt: 2 }}
+        >
+          <FormControlLabel value="withTax" control={<Radio />} label="With Tax (5%)" />
           <FormControlLabel value="withoutTax" control={<Radio />} label="Without Tax" />
         </RadioGroup>
 
@@ -436,15 +450,34 @@ const InvoiceForm = () => {
                         ].map((field) => (
                           <TableCell key={field}>
                             {field === "taxPercent" ? (
-                              <TextField select name={`items[${index}].${field}`} value={item[field]} onChange={(e) => handleItemChange(e, index)} fullWidth>
-                                {taxOptions.map((tax) => (
-                                  <MenuItem key={tax} value={tax}>
-                                    {tax}%
-                                  </MenuItem>
-                                ))}
-                              </TextField>
+                              values.taxType === "withTax" ? (
+                                <TextField
+                                  fullWidth
+                                  value="5"
+                                  disabled
+                                />
+                              ) : (
+                                <TextField
+                                  select
+                                  name={`items[${index}].${field}`}
+                                  value={item[field]}
+                                  onChange={(e) => handleItemChange(e, index)}
+                                  fullWidth
+                                >
+                                  {taxOptions.map((tax) => (
+                                    <MenuItem key={tax} value={tax}>
+                                      {tax}%
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                              )
                             ) : (
-                              <TextField name={`items[${index}].${field}`} value={item[field]} onChange={(e) => handleItemChange(e, index)} fullWidth />
+                              <TextField
+                                name={`items[${index}].${field}`}
+                                value={item[field]}
+                                onChange={(e) => handleItemChange(e, index)}
+                                fullWidth
+                              />
                             )}
                           </TableCell>
                         ))}
@@ -453,7 +486,6 @@ const InvoiceForm = () => {
                             color="error"
                             onClick={() => {
                               arrayHelpers.remove(index);
-                              // recompute after removal
                               const newItems = values.items.filter((_, i) => i !== index);
                               updateItemsAndTotals(newItems, values.receivedAmount);
                             }}
@@ -474,13 +506,10 @@ const InvoiceForm = () => {
                         price: "",
                         discountPercent: "",
                         discount: "",
-                        taxPercent: "",
+                        taxPercent: values.taxType === "withTax" ? "5" : "",
                         taxAmount: "",
                         amount: "",
                       });
-                      // push then compute (use current values plus the new blank item)
-                      const newItems = [...values.items, { particulars: "", price: "", discountPercent: "", discount: "", taxPercent: "", taxAmount: "", amount: "" }];
-                      updateItemsAndTotals(newItems, values.receivedAmount);
                     }}
                   >
                     Add New
@@ -491,10 +520,17 @@ const InvoiceForm = () => {
           />
         </FormikProvider>
 
-        {/* Payment / Totals */}
+        {/* Payment & Totals */}
         <Grid container spacing={2} sx={{ mt: 2 }}>
           <Grid item xs={12} sm={4}>
-            <TextField select fullWidth label="Payment Mode" name="paymentMode" value={values.paymentMode} onChange={handleChange}>
+            <TextField
+              select
+              fullWidth
+              label="Payment Mode"
+              name="paymentMode"
+              value={values.paymentMode}
+              onChange={handleChange}
+            >
               {paymentModeOptions.map((mode) => (
                 <MenuItem key={mode} value={mode}>
                   {mode}
@@ -505,35 +541,49 @@ const InvoiceForm = () => {
           </Grid>
 
           <Grid item xs={12} sm={4}>
-            <TextField fullWidth label="Reference/Cash/Cheque No." name="referenceNo" value={values.referenceNo} onChange={handleChange} />
+            <TextField
+              fullWidth
+              label="Reference/Cash/Cheque No."
+              name="referenceNo"
+              value={values.referenceNo}
+              onChange={handleChange}
+            />
           </Grid>
 
           <Grid item xs={12}>
-            <TextField fullWidth multiline minRows={2} label="Additional Note" name="note" value={values.note} onChange={handleChange} />
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              label="Additional Note"
+              name="note"
+              value={values.note}
+              onChange={handleChange}
+            />
           </Grid>
         </Grid>
 
-        {/* Totals Section */}
+        {/* Totals */}
         <Box sx={{ mt: 3 }}>
           <Grid container spacing={2}>
-            {["invoiceValuePurchase", "totalAmount", "receivedAmount", "balanceAmount"].map((field, i) => (
-              <Grid item xs={12} sm={3} key={i}>
+            {[
+              "invoiceValuePurchase",
+              "totalAmount",
+              "receivedAmount",
+              "balanceAmount",
+            ].map((field) => (
+              <Grid item xs={12} sm={3} key={field}>
                 <TextField
                   fullWidth
-                  label={field.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())}
+                  label={field
+                    .replace(/([A-Z])/g, " $1")
+                    .replace(/^./, (s) => s.toUpperCase())}
                   name={field}
                   value={values[field]}
                   onChange={(e) => {
-                    // special handling for receivedAmount -> recalc
                     handleChange(e);
                     if (field === "receivedAmount") {
-                      // set then recompute
-                      const newReceived = e.target.value;
-                      updateItemsAndTotals(values.items || [], newReceived);
-                      dispatch(setSelectedInvoiceField({ field: "receivedAmount", value: newReceived }));
-                    } else {
-                      handleChange(e);
-                      dispatch(setSelectedInvoiceField({ field, value: e.target.value }));
+                      updateItemsAndTotals(values.items || [], e.target.value);
                     }
                   }}
                 />
@@ -550,7 +600,11 @@ const InvoiceForm = () => {
         </Box>
       </form>
 
-      <AddNewBank open={openDialog} onClose={() => setOpenDialog(false)} onSave={handleAddNewPaymentMode} />
+      <AddNewBank
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onSave={handleAddNewPaymentMode}
+      />
     </Box>
   );
 };
