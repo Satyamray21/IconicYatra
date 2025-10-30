@@ -154,6 +154,14 @@ const InvoicePDF = ({ invoiceData }) => {
     receivedAmount = 0,
     balanceAmount = 0,
     paymentMode = "N/A",
+    description="N/A",
+    startDate,
+    returnDate,
+    cabType="N/A",
+    tourType="N/A",
+    noOfPax="N/A",
+    financialYear,
+    advancedReceiptNo="N/A",
     referenceNo = "N/A",
   } = invoiceData || {};
 
@@ -303,18 +311,18 @@ const InvoicePDF = ({ invoiceData }) => {
               }}
             >
               <div>
-                <b>Invoice No:</b> {invoiceNo}
+                <b>Financial Year:</b> {financialYear}
               </div>
               <div>
+              <div>
+              <b>Advanced Receipt No:</b> {advancedReceiptNo}
+              </div>
                 <b>Date:</b> {formatDate(invoiceDate)}
               </div>
               <div>
-                <b>Due:</b> {formatDate(dueDate)}
+                <b>Description</b> {description}
               </div>
-              <div>
-                <b>Payment:</b> {paymentMode}
-              </div>
-              {referenceNo !== "N/A" && <div><b>Ref:</b> {referenceNo}</div>}
+              
             </Box>
           </Box>
         </Box>
@@ -524,12 +532,16 @@ const InvoicePDF = ({ invoiceData }) => {
                 fontSize: "10px",
               }}
             >
-              Payment Details
+              Tour Details
             </Typography>
             <Box sx={{ border: "1px solid #1565c0", p: 0.5 }}>
-              Mode: {paymentMode}
+             <b>Start Date</b>: {formatDate(startDate)} , <b>Starting Point</b> : {invoiceData?.startingPoint}
               <br />
-              {referenceNo !== "N/A" && `Ref: ${referenceNo}`}
+              <b>Return Date</b>: {formatDate(returnDate)} , <b>Returning Point </b> : {invoiceData?.dropPoint}
+              <br />
+              <b>No Of Pax</b>:{noOfPax} || <b>Cab Type</b> : {cabType}
+              <br />
+              <b>Tour Type</b>: {tourType} 
             </Box>
           </Box>
         </Box>

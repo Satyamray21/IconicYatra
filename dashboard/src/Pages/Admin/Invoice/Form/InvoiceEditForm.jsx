@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
   Grid,
@@ -21,29 +21,33 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { useFormik, FieldArray, FormikProvider } from "formik";
-import * as Yup from "yup";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useDispatch, useSelector } from "react-redux";
+import { useFormik, FieldArray, FormikProvider } from "formik";
+import * as Yup from "yup";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+
+// Import the PartySelector component
+import PartySelector from "../../Payments/Form/PartySelector";
+
+// Import your slices
 import {
-  getInvoiceById,
+  createInvoice,
   updateInvoice,
+  getInvoiceById,
   clearInvoiceState,
 } from "../../../../features/invoice/invoiceSlice";
-import { useParams, useNavigate } from "react-router-dom";
-
-import AddNewBank from "../Dialog/AddNewBank";
 
 // Dropdown options
-const accountTypes = ["Agent", "Supplier"];
 const states = ["Maharashtra", "Gujarat", "Delhi"];
 const taxOptions = ["0%", "5%", "12%", "18%", "28%"];
 const paymentModes = ["Cash", "Credit Card", "Bank Transfer", "Cheque"];
 
-const InvoiceFormEdit = () => {
-  const { id } = useParams();
+const InvoiceForm = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { invoiceId } = useParams();
 
   const { selectedInvoice, loading, successMessage, error } = useSelector(
     (state) => state.invoice
@@ -54,21 +58,23 @@ const InvoiceFormEdit = () => {
 
   // Debug logs
   useEffect(() => {
-    console.log("🔄 InvoiceEditForm: Component mounted with ID:", id);
-    dispatch(getInvoiceById(id));
-  }, [id, dispatch]);
+    console.log("🔄 InvoiceForm: Component mounted with ID:", invoiceId);
+    if (invoiceId) {
+      dispatch(getInvoiceById(invoiceId));
+    }
+  }, [invoiceId, dispatch]);
 
   useEffect(() => {
-    console.log("📥 InvoiceEditForm: selectedInvoice", selectedInvoice);
-    console.log("⏳ InvoiceEditForm: loading state", loading);
-    console.log("❌ InvoiceEditForm: error state", error);
+    console.log("📥 InvoiceForm: selectedInvoice", selectedInvoice);
+    console.log("⏳ InvoiceForm: loading state", loading);
+    console.log("❌ InvoiceForm: error state", error);
   }, [selectedInvoice, loading, error]);
 
   useEffect(() => {
     if (successMessage) {
-      alert(successMessage);
+      toast.success(successMessage);
       dispatch(clearInvoiceState());
-      navigate("/invoice");
+      navigate("/invoices");
     }
   }, [successMessage, navigate, dispatch]);
 
@@ -111,13 +117,48 @@ const InvoiceFormEdit = () => {
     note: "",
   };
 
+  // Calculate item totals function
+  const calculateItemTotals = useCallback((items, receivedAmount = 0) => {
+    let totalAmount = 0;
+    
+    const updatedItems = items.map((item) => {
+      const price = parseFloat(item.price) || 0;
+      const discountPercent = parseFloat(item.discountPercent) || 0;
+      const taxPercent = parseFloat(item.taxPercent?.replace('%', '') || 0);
+
+      const discount = (price * discountPercent) / 100;
+      const discountedPrice = price - discount;
+      const taxAmount = (discountedPrice * taxPercent) / 100;
+      const amount = discountedPrice + taxAmount;
+
+      totalAmount += amount;
+
+      return {
+        ...item,
+        discount: Number(discount.toFixed(2)),
+        taxAmount: Number(taxAmount.toFixed(2)),
+        amount: Number(amount.toFixed(2)),
+      };
+    });
+
+    const balanceAmount = Number((totalAmount - (parseFloat(receivedAmount) || 0)).toFixed(2));
+
+    return {
+      items: updatedItems,
+      totalAmount: Number(totalAmount.toFixed(2)),
+      balanceAmount
+    };
+  }, []);
+
   const formik = useFormik({
     enableReinitialize: true,
-    initialValues: selectedInvoice || emptyInvoice,
+    initialValues: invoiceId ? (selectedInvoice || emptyInvoice) : emptyInvoice,
     validationSchema: Yup.object({
       accountType: Yup.string().required("Required"),
       partyName: Yup.string().required("Required"),
       billingName: Yup.string().required("Required"),
+      invoiceNo: Yup.string().required("Required"),
+      invoiceDate: Yup.date().required("Required"),
       items: Yup.array().of(
         Yup.object().shape({
           particulars: Yup.string().required("Required"),
@@ -127,35 +168,62 @@ const InvoiceFormEdit = () => {
       ),
     }),
     onSubmit: (values) => {
-  console.log("📤 Submitting form with values:", values);
-  const updatedData = { ...values };
-  delete updatedData.invoiceNo;
-
-  // ✅ Ensure items is always an array
-  if (!Array.isArray(updatedData.items)) {
-    updatedData.items = [updatedData.items];
-  }
-
-  // ✅ Convert numeric strings to numbers
-  updatedData.items = updatedData.items.map((item) => ({
-    ...item,
-    price: Number(item.price) || 0,
-    discountPercent: Number(item.discountPercent) || 0,
-    discount: Number(item.discount) || 0,
-    taxPercent: Number((item.taxPercent || "").replace("%", "")) || 0,
-    taxAmount: Number(item.taxAmount) || 0,
-    amount: Number(item.amount) || 0,
-  }));
-
-  dispatch(updateInvoice({ id, updatedData }));
-},
-
+      console.log("📤 Submitting form with values:", values);
+      
+      if (invoiceId) {
+        // Update existing invoice
+        const updatedData = { ...values };
+        delete updatedData.invoiceNo; // Prevent invoiceNo modification in edit
+        dispatch(updateInvoice({ id: invoiceId, updatedData }));
+      } else {
+        // Create new invoice
+        dispatch(createInvoice(values));
+      }
+    },
   });
 
   const { values, errors, touched, handleChange, handleSubmit, setFieldValue } = formik;
 
-  // Show loading state
-  if (loading) {
+  // Handle item field changes with calculation
+  const handleItemChange = useCallback((e, index) => {
+    const { name, value } = e.target;
+    const fieldName = `items[${index}].${name}`;
+    
+    // Update the field
+    setFieldValue(fieldName, value);
+    
+    // Calculate totals after a short delay to avoid excessive calculations
+    setTimeout(() => {
+      const calculated = calculateItemTotals(values.items, values.receivedAmount);
+      setFieldValue("items", calculated.items);
+      setFieldValue("totalAmount", calculated.totalAmount);
+      setFieldValue("balanceAmount", calculated.balanceAmount);
+    }, 100);
+  }, [values.items, values.receivedAmount, setFieldValue, calculateItemTotals]);
+
+  // Handle received amount change
+  const handleReceivedAmountChange = useCallback((e) => {
+    const { value } = e.target;
+    setFieldValue("receivedAmount", value);
+    
+    // Recalculate balance
+    const totalAmount = parseFloat(values.totalAmount) || 0;
+    const receivedAmount = parseFloat(value) || 0;
+    setFieldValue("balanceAmount", Number((totalAmount - receivedAmount).toFixed(2)));
+  }, [values.totalAmount, setFieldValue]);
+
+  // Initialize calculations when form loads or invoice data is loaded
+  useEffect(() => {
+    if (values.items && values.items.length > 0 && (!values.totalAmount || values.totalAmount === 0)) {
+      const calculated = calculateItemTotals(values.items, values.receivedAmount);
+      setFieldValue("items", calculated.items);
+      setFieldValue("totalAmount", calculated.totalAmount);
+      setFieldValue("balanceAmount", calculated.balanceAmount);
+    }
+  }, [values.items, values.receivedAmount, values.totalAmount, setFieldValue, calculateItemTotals]);
+
+  // Show loading state for edit
+  if (invoiceId && loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
         <CircularProgress />
@@ -164,8 +232,8 @@ const InvoiceFormEdit = () => {
     );
   }
 
-  // Show error state
-  if (error) {
+  // Show error state for edit
+  if (invoiceId && error) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -173,7 +241,7 @@ const InvoiceFormEdit = () => {
         </Alert>
         <Button 
           variant="contained" 
-          onClick={() => dispatch(getInvoiceById(id))}
+          onClick={() => dispatch(getInvoiceById(invoiceId))}
         >
           Retry Loading
         </Button>
@@ -188,8 +256,8 @@ const InvoiceFormEdit = () => {
     );
   }
 
-  // Show no data state
-  if (!selectedInvoice) {
+  // Show no data state for edit
+  if (invoiceId && !selectedInvoice) {
     return (
       <Box sx={{ p: 3 }}>
         <Typography variant="h6" color="error">
@@ -197,7 +265,7 @@ const InvoiceFormEdit = () => {
         </Typography>
         <Button 
           variant="contained" 
-          onClick={() => dispatch(getInvoiceById(id))}
+          onClick={() => dispatch(getInvoiceById(invoiceId))}
           sx={{ mt: 2 }}
         >
           Retry Loading
@@ -209,8 +277,14 @@ const InvoiceFormEdit = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h6" gutterBottom>
-        Edit Invoice - {values.invoiceNo || "Loading..."}
+        {invoiceId ? `Edit Invoice - ${values.invoiceNo || "Loading..."}` : "Create New Invoice"}
       </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* Top Section */}
@@ -225,42 +299,42 @@ const InvoiceFormEdit = () => {
               onChange={handleChange}
               error={touched.accountType && Boolean(errors.accountType)}
               helperText={touched.accountType && errors.accountType}
+              required
             >
-              {accountTypes.map((type) => (
-                <MenuItem key={type} value={type}>
-                  {type}
-                </MenuItem>
-              ))}
+              <MenuItem value="Vendor">Vendor</MenuItem>
+              <MenuItem value="Vehicle">Vehicle</MenuItem>
+              <MenuItem value="Agent">Agent</MenuItem>
+              <MenuItem value="Client">Client</MenuItem>
             </TextField>
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              select
-              fullWidth
-              label="Party Name"
-              name="partyName"
-              value={values.partyName}
-              onChange={handleChange}
-              error={touched.partyName && Boolean(errors.partyName)}
-              helperText={touched.partyName && errors.partyName}
-            >
-              <MenuItem value="ABC Travels">ABC Travels</MenuItem>
-              <MenuItem value="XYZ Traders">XYZ Traders</MenuItem>
-            </TextField>
+            {/* Party Selector Component */}
+            <PartySelector formik={formik} />
+            {touched.partyName && errors.partyName && (
+              <Typography variant="caption" color="error" sx={{ ml: 2 }}>
+                {errors.partyName}
+              </Typography>
+            )}
           </Grid>
 
-          {/* Invoice No (Read-only) */}
+          {/* Invoice No (Read-only for edit, editable for create) */}
           <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               label="Invoice No"
               name="invoiceNo"
               value={values.invoiceNo}
-              InputProps={{
-                readOnly: true,
-                style: { backgroundColor: "#f5f5f5" },
-              }}
+              onChange={handleChange}
+              error={touched.invoiceNo && Boolean(errors.invoiceNo)}
+              helperText={touched.invoiceNo && errors.invoiceNo}
+              required
+              InputProps={
+                invoiceId ? {
+                  readOnly: true,
+                  style: { backgroundColor: "#f5f5f5" },
+                } : {}
+              }
             />
           </Grid>
 
@@ -273,6 +347,9 @@ const InvoiceFormEdit = () => {
               InputLabelProps={{ shrink: true }}
               value={values.invoiceDate ? values.invoiceDate.split('T')[0] : ''}
               onChange={handleChange}
+              error={touched.invoiceDate && Boolean(errors.invoiceDate)}
+              helperText={touched.invoiceDate && errors.invoiceDate}
+              required
             />
           </Grid>
 
@@ -285,6 +362,7 @@ const InvoiceFormEdit = () => {
               onChange={handleChange}
               error={touched.billingName && Boolean(errors.billingName)}
               helperText={touched.billingName && errors.billingName}
+              required
             />
           </Grid>
 
@@ -375,11 +453,11 @@ const InvoiceFormEdit = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell>#</TableCell>
-                      <TableCell>Particulars</TableCell>
-                      <TableCell>Price</TableCell>
+                      <TableCell>Particulars *</TableCell>
+                      <TableCell>Price *</TableCell>
                       <TableCell>Discount %</TableCell>
                       <TableCell>Discount</TableCell>
-                      <TableCell>Tax %</TableCell>
+                      <TableCell>Tax % *</TableCell>
                       <TableCell>Tax Amount</TableCell>
                       <TableCell>Amount</TableCell>
                       <TableCell align="center">Action</TableCell>
@@ -391,9 +469,9 @@ const InvoiceFormEdit = () => {
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>
                           <TextField
-                            name={`items[${index}].particulars`}
+                            name={`particulars`}
                             value={item.particulars}
-                            onChange={handleChange}
+                            onChange={(e) => handleItemChange(e, index)}
                             fullWidth
                             error={touched.items?.[index]?.particulars && Boolean(errors.items?.[index]?.particulars)}
                             helperText={touched.items?.[index]?.particulars && errors.items?.[index]?.particulars}
@@ -401,36 +479,39 @@ const InvoiceFormEdit = () => {
                         </TableCell>
                         <TableCell>
                           <TextField
-                            name={`items[${index}].price`}
+                            name={`price`}
                             value={item.price}
-                            onChange={handleChange}
+                            onChange={(e) => handleItemChange(e, index)}
                             fullWidth
+                            type="number"
                             error={touched.items?.[index]?.price && Boolean(errors.items?.[index]?.price)}
                             helperText={touched.items?.[index]?.price && errors.items?.[index]?.price}
                           />
                         </TableCell>
                         <TableCell>
                           <TextField
-                            name={`items[${index}].discountPercent`}
+                            name={`discountPercent`}
                             value={item.discountPercent}
-                            onChange={handleChange}
+                            onChange={(e) => handleItemChange(e, index)}
                             fullWidth
+                            type="number"
                           />
                         </TableCell>
                         <TableCell>
                           <TextField
-                            name={`items[${index}].discount`}
+                            name={`discount`}
                             value={item.discount}
-                            onChange={handleChange}
                             fullWidth
+                            InputProps={{ readOnly: true }}
+                            sx={{ backgroundColor: "#f5f5f5" }}
                           />
                         </TableCell>
                         <TableCell>
                           <TextField
                             select
-                            name={`items[${index}].taxPercent`}
+                            name={`taxPercent`}
                             value={item.taxPercent}
-                            onChange={handleChange}
+                            onChange={(e) => handleItemChange(e, index)}
                             fullWidth
                             error={touched.items?.[index]?.taxPercent && Boolean(errors.items?.[index]?.taxPercent)}
                             helperText={touched.items?.[index]?.taxPercent && errors.items?.[index]?.taxPercent}
@@ -444,18 +525,20 @@ const InvoiceFormEdit = () => {
                         </TableCell>
                         <TableCell>
                           <TextField
-                            name={`items[${index}].taxAmount`}
+                            name={`taxAmount`}
                             value={item.taxAmount}
-                            onChange={handleChange}
                             fullWidth
+                            InputProps={{ readOnly: true }}
+                            sx={{ backgroundColor: "#f5f5f5" }}
                           />
                         </TableCell>
                         <TableCell>
                           <TextField
-                            name={`items[${index}].amount`}
+                            name={`amount`}
                             value={item.amount}
-                            onChange={handleChange}
                             fullWidth
+                            InputProps={{ readOnly: true }}
+                            sx={{ backgroundColor: "#f5f5f5" }}
                           />
                         </TableCell>
                         <TableCell align="center">
@@ -546,7 +629,6 @@ const InvoiceFormEdit = () => {
                 label="Total Amount"
                 name="totalAmount"
                 value={values.totalAmount}
-                onChange={handleChange}
                 InputProps={{
                   readOnly: true,
                   style: { backgroundColor: "#f5f5f5" },
@@ -559,7 +641,8 @@ const InvoiceFormEdit = () => {
                 label="Received Amount"
                 name="receivedAmount"
                 value={values.receivedAmount}
-                onChange={handleChange}
+                onChange={handleReceivedAmountChange}
+                type="number"
               />
             </Grid>
             <Grid item xs={12} sm={3}>
@@ -568,7 +651,6 @@ const InvoiceFormEdit = () => {
                 label="Balance Amount"
                 name="balanceAmount"
                 value={values.balanceAmount}
-                onChange={handleChange}
                 InputProps={{
                   readOnly: true,
                   style: { backgroundColor: "#f5f5f5" },
@@ -584,8 +666,9 @@ const InvoiceFormEdit = () => {
             variant="contained" 
             color="primary"
             disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {loading ? <CircularProgress size={24} /> : "Update Invoice"}
+            {loading ? "Processing..." : (invoiceId ? "Update Invoice" : "Create Invoice")}
           </Button>
           <Button 
             variant="outlined" 
@@ -596,14 +679,8 @@ const InvoiceFormEdit = () => {
           </Button>
         </Box>
       </form>
-
-      <AddNewBank
-        open={openDialog}
-        onClose={() => setOpenDialog(false)}
-        onSave={handleAddNewPaymentMode}
-      />
     </Box>
   );
 };
 
-export default InvoiceFormEdit;
+export default InvoiceForm;

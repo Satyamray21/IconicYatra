@@ -175,54 +175,51 @@ const CustomFinalize = () => {
     id: null
   });
 
-  // Initialize quotation with API data or defaults
+  // Initialize quotation state
   const [quotation, setQuotation] = useState({
-    date: "27/08/2025",
-    reference: "41",
+    date: "",
+    reference: "",
     actions: ["Finalize", "Add Service", "Email Quotation", "Preview PDF", "Make Payment", "Add Flight", "Transaction"],
     bannerImage: "",
     customer: {
-      name: "Amit Jaiswal",
-      location: "Andhya Pradesh",
-      phone: "+91 7053900957",
-      email: "amit.jaiswal@example.com",
+      name: "",
+      location: "",
+      phone: "",
+      email: "",
     },
     pickup: {
-      arrival: "Arrival: Lucknow (22/08/2025) at Airport, 3:35PM",
-      departure: "Departure: Delhi (06/09/2025) from Local Address, 6:36PM",
+      arrival: "",
+      departure: "",
     },
     hotel: {
-      guests: "6 Adults",
-      rooms: "3 Bedroom",
-      mealPlan: "CP, AP, EP",
-      destination: "3N Borong, 2N Damthang",
-      itinerary: "This is only tentative schedule for sightseeing and travel...",
+      guests: "",
+      rooms: "",
+      mealPlan: "",
+      destination: "",
+      itinerary: "",
     },
-    vehicles: [
-      {
-        pickup: { date: "22/08/2025", time: "3:35PM" },
-        drop: { date: "06/09/2025", time: "6:36PM" },
-      },
-    ],
-    pricing: { discount: "₹ 200", gst: "₹ 140", total: "₹ 3,340" },
+    vehicles: [],
+    pricing: { 
+      discount: "", 
+      gst: "", 
+      total: "",
+      roomCost: "",
+      vehicleCost: "",
+      totalCost: ""
+    },
     policies: {
-      inclusions: [
-        "All transfers tours in a Private AC cab.",
-        "Parking, Toll charges, Fuel and Driver expenses.",
-        "Hotel Taxes.",
-        "Car AC off during hill stations.",
-      ],
-      exclusions: "1. Any Cost change...",
-      paymentPolicy: "50% amount to pay at confirmation, balance before 10 days.",
-      cancellationPolicy: "1. Before 15 days: 50%. 2. Within 7 days: 100%.",
-      terms: "1. This is only a Quote. Availability is checked only on confirmation...",
+      inclusions: [],
+      exclusions: "",
+      paymentPolicy: "",
+      cancellationPolicy: "",
+      terms: "",
     },
     footer: {
-      contact: "Amit Jaiswal | +91 7053900957 (Noida)",
-      phone: "+91 7053900957",
-      email: "amit.jaiswal@example.com",
-      received: "₹ 1,500",
-      balance: "₹ 1,840",
+      contact: "",
+      phone: "",
+      email: "",
+      received: "",
+      balance: "",
       company: "Iconic Yatra",
       address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
       website: "https://www.iconicyatra.com",
@@ -251,9 +248,7 @@ const CustomFinalize = () => {
   const [flights, setFlights] = useState([]);
   const [openAddBankDialog, setOpenAddBankDialog] = useState(false);
   const [openTransactionDialog, setOpenTransactionDialog] = useState(false);
-  const [days, setDays] = useState([
-    { id: 1, date: "11/09/2025", title: "About Day 1", image: null },
-  ]);
+  const [days, setDays] = useState([]);
   const [accountType, setAccountType] = useState("company");
   const [accountName, setAccountName] = useState("Iconic Yatra");
   const [accountNumber, setAccountNumber] = useState("");
@@ -274,6 +269,19 @@ const CustomFinalize = () => {
     { value: "YES Bank", label: "YES Bank" },
   ]);
 
+  // Safe data access helper function
+  const safeGet = (obj, path, defaultValue = '') => {
+    try {
+      const value = path.split('.').reduce((current, key) => {
+        return current && current[key] !== undefined ? current[key] : undefined;
+      }, obj);
+      return value !== undefined ? value : defaultValue;
+    } catch (error) {
+      console.warn(`Error accessing path ${path}:`, error);
+      return defaultValue;
+    }
+  };
+
   // Fetch quotation data on component mount
   useEffect(() => {
     if (id) {
@@ -283,45 +291,107 @@ const CustomFinalize = () => {
 
   // Update local state when API data is loaded
   useEffect(() => {
-    if (selectedQuotation) {
-      setQuotation(prev => ({
-        ...prev,
-        date: formatDate(selectedQuotation.createdAt) || prev.date,
-        reference: selectedQuotation.quotationId || prev.reference,
-        customer: {
-          name: selectedQuotation.clientDetails?.clientName || prev.customer.name,
-          location: selectedQuotation.clientDetails?.sector || prev.customer.location,
-          phone: "+91 7053900957", // Default as not in API
-          email: "amit.jaiswal@example.com", // Default as not in API
-        },
-        pickup: {
-          arrival: `Arrival: ${selectedQuotation.tourDetails?.arrivalCity || 'N/A'} (${formatDate(selectedQuotation.tourDetails?.arrivalDate)})`,
-          departure: `Departure: ${selectedQuotation.tourDetails?.departureCity || 'N/A'} (${formatDate(selectedQuotation.tourDetails?.departureDate)})`,
-        },
-        hotel: {
-          ...prev.hotel,
-          guests: `${selectedQuotation.tourDetails?.quotationDetails?.adults || 0} Adults`,
-          rooms: `${selectedQuotation.tourDetails?.quotationDetails?.rooms?.numberOfRooms || 0} ${selectedQuotation.tourDetails?.quotationDetails?.rooms?.roomType || 'Room'}`,
-          mealPlan: selectedQuotation.tourDetails?.quotationDetails?.mealPlan || prev.hotel.mealPlan,
-          destination: generateDestinationText(selectedQuotation.tourDetails?.quotationDetails?.destinations),
-        },
-        pricing: {
-          ...prev.pricing,
-          // You can calculate pricing from destinations data
-          total: calculateTotalPrice(selectedQuotation.tourDetails?.quotationDetails)
-        }
+    if (selectedQuotation && selectedQuotation.data) {
+      const apiData = selectedQuotation.data;
+      
+      console.log('API Data received:', apiData);
+
+      // Extract all data from API response
+      const tourDetails = safeGet(apiData, 'tourDetails', {});
+      const quotationDetails = safeGet(tourDetails, 'quotationDetails', {});
+      const clientDetails = safeGet(apiData, 'clientDetails', {});
+      const vehicleDetails = safeGet(tourDetails, 'vehicleDetails', {});
+      const policies = safeGet(tourDetails, 'policies', {});
+      const destinations = safeGet(quotationDetails, 'destinations', []);
+      const rooms = safeGet(quotationDetails, 'rooms', {});
+      const taxes = safeGet(quotationDetails, 'taxes', {});
+      const pickupDrop = safeGet(apiData, 'pickupDrop', []);
+
+      // Calculate pricing
+      const roomCost = calculateRoomCost(destinations, rooms);
+      const vehicleCost = safeGet(vehicleDetails, 'costDetails.totalCost', 0);
+      const totalCost = parseFloat(roomCost) + parseFloat(vehicleCost);
+      const gstAmount = taxes.applyGST ? totalCost * 0.18 : 0;
+      const finalTotal = totalCost + gstAmount;
+
+      // Format itinerary days
+      const itineraryData = safeGet(tourDetails, 'itinerary', []);
+      const formattedDays = itineraryData.map((item, index) => ({
+        id: safeGet(item, '_id', index + 1),
+        date: formatDate(safeGet(item, 'date')) || `Day ${index + 1}`,
+        title: safeGet(item, 'dayTitle', `Day ${index + 1}`),
+        description: safeGet(item, 'dayNote', ''),
+        image: safeGet(item, 'image', null)
       }));
 
-      // Set days from itinerary if available
-      if (selectedQuotation.tourDetails?.itinerary?.length > 0) {
-        setDays(selectedQuotation.tourDetails.itinerary.map((item, index) => ({
-          id: item._id || index + 1,
-          date: formatDate(item.date) || new Date().toLocaleDateString(),
-          title: item.title || `Day ${index + 1}`,
-          description: item.description || "",
-          image: null // You can handle images if available in API
-        })));
-      }
+      // Update quotation state with API data
+      setQuotation({
+        date: formatDate(safeGet(apiData, 'createdAt')),
+        reference: safeGet(apiData, 'quotationId'),
+        actions: ["Finalize", "Add Service", "Email Quotation", "Preview PDF", "Make Payment", "Add Flight", "Transaction"],
+        bannerImage: safeGet(tourDetails, 'bannerImage', ''),
+        customer: {
+          name: safeGet(clientDetails, 'clientName'),
+          location: safeGet(clientDetails, 'sector'),
+          phone: "+91 7053900957", // Default as not in API
+          email: "client@example.com", // Default as not in API
+        },
+        pickup: {
+          arrival: `Arrival: ${safeGet(tourDetails, 'arrivalCity')} (${formatDate(safeGet(tourDetails, 'arrivalDate'))})`,
+          departure: `Departure: ${safeGet(tourDetails, 'departureCity')} (${formatDate(safeGet(tourDetails, 'departureDate'))})`,
+        },
+        hotel: {
+          guests: `${safeGet(quotationDetails, 'adults', 0)} Adults, ${safeGet(quotationDetails, 'children', 0)} Children, ${safeGet(quotationDetails, 'kids', 0)} Kids, ${safeGet(quotationDetails, 'infants', 0)} Infants`,
+          rooms: `${safeGet(rooms, 'numberOfRooms', 0)} ${safeGet(rooms, 'roomType', '')} (${safeGet(rooms, 'sharingType', '')})`,
+          mealPlan: safeGet(quotationDetails, 'mealPlan'),
+          destination: generateDestinationText(destinations),
+          itinerary: safeGet(tourDetails, 'initalNotes', 'This is only tentative schedule for sightseeing and travel...'),
+        },
+        vehicles: vehicleDetails.basicsDetails ? [{
+          pickup: { 
+            date: formatDate(safeGet(vehicleDetails, 'pickupDropDetails.pickupDate')),
+            time: formatTime(safeGet(vehicleDetails, 'pickupDropDetails.pickupTime'))
+          },
+          drop: { 
+            date: formatDate(safeGet(vehicleDetails, 'pickupDropDetails.dropDate')),
+            time: formatTime(safeGet(vehicleDetails, 'pickupDropDetails.dropTime'))
+          },
+          vehicleType: safeGet(vehicleDetails, 'basicsDetails.vehicleType'),
+          tripType: safeGet(vehicleDetails, 'basicsDetails.tripType'),
+          noOfDays: safeGet(vehicleDetails, 'basicsDetails.noOfDays'),
+          perDayCost: safeGet(vehicleDetails, 'basicsDetails.perDayCost'),
+        }] : [],
+        pricing: {
+          discount: `₹ ${safeGet(quotationDetails, 'discount', 0)}`,
+          gst: `₹ ${gstAmount.toLocaleString('en-IN')}`,
+          total: `₹ ${finalTotal.toLocaleString('en-IN')}`,
+          roomCost: `₹ ${parseFloat(roomCost).toLocaleString('en-IN')}`,
+          vehicleCost: `₹ ${parseFloat(vehicleCost).toLocaleString('en-IN')}`,
+          totalCost: `₹ ${finalTotal.toLocaleString('en-IN')}`
+        },
+        policies: {
+          inclusions: safeGet(policies, 'inclusionPolicy', []).filter(item => item.trim() !== ''),
+          exclusions: safeGet(policies, 'exclusionPolicy', []).filter(item => item.trim() !== '').join('\n'),
+          paymentPolicy: safeGet(policies, 'paymentPolicy', []).filter(item => item.trim() !== '').join('\n'),
+          cancellationPolicy: safeGet(policies, 'cancellationPolicy', []).filter(item => item.trim() !== '').join('\n'),
+          terms: safeGet(policies, 'termsAndConditions', []).filter(item => item.trim() !== '').join('\n'),
+        },
+        footer: {
+          contact: `${safeGet(clientDetails, 'clientName')} | +91 7053900957`,
+          phone: "+91 7053900957",
+          email: "support@iconicyatra.com",
+          received: "₹ 0",
+          balance: `₹ ${finalTotal.toLocaleString('en-IN')}`,
+          company: "Iconic Yatra",
+          address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
+          website: "https://www.iconicyatra.com",
+        },
+      });
+
+      // Set days from itinerary
+      setDays(formattedDays.length > 0 ? formattedDays : [
+        { id: 1, date: new Date().toLocaleDateString(), title: "Day 1", description: "", image: null }
+      ]);
     }
   }, [selectedQuotation]);
 
@@ -335,36 +405,85 @@ const CustomFinalize = () => {
     }
   };
 
+  const formatTime = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleTimeString('en-IN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    } catch {
+      return "N/A";
+    }
+  };
+
   const generateDestinationText = (destinations = []) => {
     if (!destinations || destinations.length === 0) return "N/A";
     return destinations.map(dest => 
-      `${dest.nights || 0}N ${dest.cityName || 'Unknown'}`
+      `${safeGet(dest, 'nights', 0)}N ${safeGet(dest, 'cityName', 'Unknown')}`
     ).join(", ");
   };
 
-  const calculateTotalPrice = (quotationDetails) => {
-    if (!quotationDetails?.destinations) return "₹ 0";
+  const calculateRoomCost = (destinations = [], rooms = {}) => {
+    if (!destinations || destinations.length === 0) return 0;
     
-    const roomType = quotationDetails.rooms?.roomType || 'standard';
+    const roomType = safeGet(rooms, 'roomType', 'standard');
     let total = 0;
     
-    quotationDetails.destinations.forEach(dest => {
-      const price = dest.prices?.[roomType] || 0;
-      const nights = dest.nights || 0;
+    destinations.forEach(dest => {
+      const price = safeGet(dest, `prices.${roomType}`, 0);
+      const nights = safeGet(dest, 'nights', 0);
       total += price * nights;
     });
     
-    // Apply discount
-    const discount = quotationDetails.discount || 0;
-    total -= discount;
-    
-    // Apply GST if applicable
-    if (quotationDetails.taxes?.applyGST) {
-      const gstAmount = total * 0.18; // Assuming 18% GST
-      total += gstAmount;
+    return total;
+  };
+
+  const generateHotelPricingData = (destinations = []) => {
+    if (!destinations || destinations.length === 0) {
+      return [
+        {
+          destination: "No destinations",
+          nights: "-",
+          standard: "-",
+          deluxe: "-",
+          superior: "-",
+        }
+      ];
     }
-    
-    return `₹ ${total.toLocaleString('en-IN')}`;
+
+    const destinationRows = destinations.map(dest => ({
+      destination: safeGet(dest, 'cityName', 'Unknown'),
+      nights: `${safeGet(dest, 'nights', 0)} N`,
+      standard: safeGet(dest, 'standardHotels', []).join(', ') || '-',
+      deluxe: safeGet(dest, 'deluxeHotels', []).join(', ') || '-',
+      superior: safeGet(dest, 'superiorHotels', []).join(', ') || '-',
+    }));
+
+    // Calculate totals
+    const totalNights = destinations.reduce((sum, dest) => sum + safeGet(dest, 'nights', 0), 0);
+    const standardTotal = destinations.reduce((sum, dest) => sum + (safeGet(dest, 'prices.standard', 0) * safeGet(dest, 'nights', 0)), 0);
+    const deluxeTotal = destinations.reduce((sum, dest) => sum + (safeGet(dest, 'prices.deluxe', 0) * safeGet(dest, 'nights', 0)), 0);
+    const superiorTotal = destinations.reduce((sum, dest) => sum + (safeGet(dest, 'prices.superior', 0) * safeGet(dest, 'nights', 0)), 0);
+
+    return [
+      ...destinationRows,
+      {
+        destination: "Quotation Cost",
+        nights: "-",
+        standard: `₹ ${standardTotal.toLocaleString('en-IN')}`,
+        deluxe: `₹ ${deluxeTotal.toLocaleString('en-IN')}`,
+        superior: `₹ ${superiorTotal.toLocaleString('en-IN')}`,
+      },
+      {
+        destination: "Total Quotation Cost",
+        nights: `${totalNights} N`,
+        standard: `₹ ${standardTotal.toLocaleString('en-IN')}`,
+        deluxe: `₹ ${deluxeTotal.toLocaleString('en-IN')}`,
+        superior: `₹ ${superiorTotal.toLocaleString('en-IN')}`,
+      }
+    ];
   };
 
   const taxOptions = [
@@ -373,43 +492,7 @@ const CustomFinalize = () => {
     { value: "non", label: "Non", rate: 0 },
   ];
 
-  const hotelPricingData = [
-    {
-      destination: "Borong",
-      nights: "3 N",
-      standard: "Tempo Heritage Resort",
-      deluxe: "Tempo Heritage Resort",
-      superior: "Yovage The Aryan Regency",
-    },
-    {
-      destination: "Damthang",
-      nights: "2 N",
-      standard: "Tempo Heritage Resort",
-      deluxe: "Tempo Heritage Resort",
-      superior: "Yovage The Aryan Regency",
-    },
-    {
-      destination: "Quotation Cost",
-      nights: "-",
-      standard: "₹ 40,366",
-      deluxe: "₹ 440,829",
-      superior: "₹ 92,358",
-    },
-    {
-      destination: "IGST",
-      nights: "-",
-      standard: "₹ 2,018.3",
-      deluxe: "₹ 22,041.4",
-      superior: "₹ 4,617.9",
-    },
-    {
-      destination: "Total Quotation Cost",
-      nights: "5 N",
-      standard: "₹ 42,384",
-      deluxe: "₹ 462,870",
-      superior: "₹ 96,976",
-    },
-  ];
+  const hotelPricingData = generateHotelPricingData(safeGet(selectedQuotation, 'data.tourDetails.quotationDetails.destinations', []));
 
   // Show loading state
   if (loading) {
@@ -442,8 +525,17 @@ const CustomFinalize = () => {
     );
   }
 
-  // Rest of your component code remains the same...
-  // [All your existing handlers and UI code]
+  // If no quotation data is available yet, show a message
+  if (!selectedQuotation || !selectedQuotation.data) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <Alert severity="info" sx={{ width: '100%', maxWidth: 500 }}>
+          <Typography variant="h6">No quotation data available</Typography>
+          <Typography>Please check if the quotation ID is correct.</Typography>
+        </Alert>
+      </Box>
+    );
+  }
 
   // Dialog handlers
   const handleEmailOpen = () => setOpenEmailDialog(true);
@@ -675,8 +767,9 @@ const CustomFinalize = () => {
       ...prev,
       {
         id: newDayId,
-        date: "12/09/2025",
-        title: `About Day ${newDayId}`,
+        date: new Date().toLocaleDateString(),
+        title: `Day ${newDayId}`,
+        description: "",
         image: null,
       },
     ]);
@@ -833,7 +926,7 @@ const CustomFinalize = () => {
     {
       title: "Inclusion Policy",
       icon: <CheckCircle sx={{ mr: 0.5, color: "success.main" }} />,
-      content: (
+      content: quotation.policies.inclusions.length > 0 ? (
         <List dense>
           {quotation.policies.inclusions.map((i, k) => (
             <ListItem key={k}>
@@ -841,6 +934,8 @@ const CustomFinalize = () => {
             </ListItem>
           ))}
         </List>
+      ) : (
+        <Typography variant="body2">No inclusions specified</Typography>
       ),
       field: "policies.inclusions",
       isArray: true,
@@ -848,19 +943,19 @@ const CustomFinalize = () => {
     {
       title: "Exclusion Policy",
       icon: <Cancel sx={{ mr: 0.5, color: "error.main" }} />,
-      content: quotation.policies.exclusions,
+      content: quotation.policies.exclusions || "No exclusions specified",
       field: "policies.exclusions",
     },
     {
       title: "Payment Policy",
       icon: <Payment sx={{ mr: 0.5, color: "primary.main" }} />,
-      content: quotation.policies.paymentPolicy,
+      content: quotation.policies.paymentPolicy || "No payment policy specified",
       field: "policies.paymentPolicy",
     },
     {
       title: "Cancellation & Refund",
       icon: <Warning sx={{ mr: 0.5, color: "warning.main" }} />,
-      content: quotation.policies.cancellationPolicy,
+      content: quotation.policies.cancellationPolicy || "No cancellation policy specified",
       field: "policies.cancellationPolicy",
     },
   ];
@@ -1357,6 +1452,77 @@ const CustomFinalize = () => {
                 </TableContainer>
               </Box>
 
+              {/* Vehicle Details */}
+              {quotation.vehicles.length > 0 && (
+                <Box mt={3}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Vehicle Details
+                      </Typography>
+                      {quotation.vehicles.map((vehicle, index) => (
+                        <Box key={index} mb={2}>
+                          <Typography variant="body2">
+                            <strong>Vehicle Type:</strong> {vehicle.vehicleType}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Trip Type:</strong> {vehicle.tripType}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>No. of Days:</strong> {vehicle.noOfDays}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Per Day Cost:</strong> ₹ {parseFloat(vehicle.perDayCost).toLocaleString('en-IN')}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Pickup:</strong> {vehicle.pickup.date} at {vehicle.pickup.time}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Drop:</strong> {vehicle.drop.date} at {vehicle.drop.time}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Total Vehicle Cost:</strong> {quotation.pricing.vehicleCost}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </Box>
+              )}
+
+              {/* Cost Summary */}
+              <Box mt={3}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Cost Summary
+                    </Typography>
+                    <Box display="flex" justifyContent="space-between" mb={1}>
+                      <Typography variant="body2">Room Cost:</Typography>
+                      <Typography variant="body2">{quotation.pricing.roomCost}</Typography>
+                    </Box>
+                    {quotation.vehicles.length > 0 && (
+                      <Box display="flex" justifyContent="space-between" mb={1}>
+                        <Typography variant="body2">Vehicle Cost:</Typography>
+                        <Typography variant="body2">{quotation.pricing.vehicleCost}</Typography>
+                      </Box>
+                    )}
+                    <Box display="flex" justifyContent="space-between" mb={1}>
+                      <Typography variant="body2">Discount:</Typography>
+                      <Typography variant="body2">{quotation.pricing.discount}</Typography>
+                    </Box>
+                    <Box display="flex" justifyContent="space-between" mb={1}>
+                      <Typography variant="body2">GST:</Typography>
+                      <Typography variant="body2">{quotation.pricing.gst}</Typography>
+                    </Box>
+                    <Box display="flex" justifyContent="space-between" mb={1}>
+                      <Typography variant="body1" fontWeight="bold">Total Cost:</Typography>
+                      <Typography variant="body1" fontWeight="bold">{quotation.pricing.total}</Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+
               {/* Policies */}
               <Grid container spacing={2} mt={1}>
                 {Policies.map((p, i) => (
@@ -1433,7 +1599,7 @@ const CustomFinalize = () => {
                       </IconButton>
                     </Box>
                     <Typography variant="body2">
-                      {quotation.policies.terms}
+                      {quotation.policies.terms || "No terms and conditions specified"}
                     </Typography>
                   </CardContent>
                 </Card>
