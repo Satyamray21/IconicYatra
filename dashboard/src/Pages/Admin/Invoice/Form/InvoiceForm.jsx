@@ -103,6 +103,12 @@ const InvoiceForm = () => {
           amount: "",
         },
       ],
+      decription:"",
+      noOfPax:"",
+      startDate:"",
+      returnDate:"",
+      cabType:"",
+      tourType:"",
       paymentMode: "",
       referenceNo: "",
       note: "",
@@ -110,6 +116,8 @@ const InvoiceForm = () => {
       totalAmount: "",
       receivedAmount: "",
       balanceAmount: "",
+      startingPoint:"",
+      dropPoint:"",
     },
      enableReinitialize: true,
     validationSchema: Yup.object({
@@ -299,7 +307,7 @@ useEffect(() => {
       <form onSubmit={handleSubmit}>
         <Grid container spacing={2}>
           {/* Company */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{xs:12, sm:6, md:3}}>
             <TextField
               select
               fullWidth
@@ -317,7 +325,7 @@ useEffect(() => {
           </Grid>
 
           {/* Account Type */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs:12, sm:6, md:3}}>
             <TextField
               select
               fullWidth
@@ -335,7 +343,7 @@ useEffect(() => {
           </Grid>
 
           {/* Mobile */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs:12, sm:6, md:3}}>
             <TextField
               fullWidth
               label="Mobile"
@@ -346,7 +354,7 @@ useEffect(() => {
           </Grid>
 
           {/* Invoice No */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs:12, sm:6, md:3}}>
             <TextField
               fullWidth
               label="Invoice No"
@@ -357,7 +365,7 @@ useEffect(() => {
           </Grid>
 
           {/* Invoice Date */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs:12, sm:6, md:3}}>
             <TextField
               fullWidth
               type="date"
@@ -368,9 +376,30 @@ useEffect(() => {
               onChange={handleChange}
             />
           </Grid>
-
+<Grid size={{ xs:12, sm:6, md:3}}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Start Date"
+              name="startDate"
+              InputLabelProps={{ shrink: true }}
+              value={values.startDate}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid size={{ xs:12, sm:6, md:3}}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Return Date"
+              name="returnDate"
+              InputLabelProps={{ shrink: true }}
+              value={values.returnDate}
+              onChange={handleChange}
+            />
+          </Grid>
           {/* Billing Name */}
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs:12, sm:6}}>
             <TextField
               fullWidth
               label="Billing Name"
@@ -381,7 +410,7 @@ useEffect(() => {
           </Grid>
 
           {/* Billing Address */}
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs:12, sm:6}}>
             <TextField
               fullWidth
               multiline
@@ -394,7 +423,7 @@ useEffect(() => {
           </Grid>
 
           {/* GSTIN & Due Date */}
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs:12, sm:4}}>
             <TextField
               fullWidth
               label="GSTIN"
@@ -403,8 +432,63 @@ useEffect(() => {
               onChange={handleChange}
             />
           </Grid>
+              <Grid size={{ xs:12, sm:4}}>
+            <TextField
+              fullWidth
+              label="Description"
+              name="description"
+              value={values.description}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid size={{ xs:12, sm:4}}>
+            <TextField
+              fullWidth
+              label="Tour Type"
+              name="tourType"
+              value={values.tourType}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid size={{ xs:12, sm:4}}>
+            <TextField
+              fullWidth
+              label="Start Point"
+              name="startingPoint"
+              value={values.startingPoint}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid size={{ xs:12, sm:4}}>
+            <TextField
+              fullWidth
+              label="Drop Point"
+              name="dropPoint"
+              value={values.dropPoint}
+              onChange={handleChange}
+            />
+          </Grid>
+          
 
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs:12, sm:4}}>
+            <TextField
+              fullWidth
+              label="No of Pax"
+              name="noOfPax"
+              value={values.noOfPax}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid size={{ xs:12, sm:4}}>
+            <TextField
+              fullWidth
+              label="Cab Type"
+              name="cabType"
+              value={values.cabType}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid size={{ xs:12, sm:4}}>
             <TextField
               fullWidth
               type="date"
@@ -417,7 +501,7 @@ useEffect(() => {
           </Grid>
 
           {/* State / Country */}
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs:12, sm:4}}>
             <TextField
               select
               fullWidth
@@ -437,7 +521,7 @@ useEffect(() => {
           </Grid>
 
           {/* International checkbox */}
-          <Grid item xs={12}>
+          <Grid size={{ xs:12}}>
             <FormControlLabel
               control={
                 <Checkbox
@@ -570,7 +654,7 @@ useEffect(() => {
 
         {/* Payment & Totals */}
         <Grid container spacing={2} sx={{ mt: 2 }}>
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs:12, sm:4}}>
             <TextField
               select
               fullWidth
@@ -588,7 +672,7 @@ useEffect(() => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={4}>
+          <Grid size={{ xs:12, sm:4}}>
             <TextField
               fullWidth
               label="Reference/Cash/Cheque No."
@@ -598,7 +682,7 @@ useEffect(() => {
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{ xs:12}}>
             <TextField
               fullWidth
               multiline
