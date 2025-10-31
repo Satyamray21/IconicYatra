@@ -32,7 +32,7 @@ const InvoicePDF = ({ invoiceData }) => {
 
   const calculateSubtotal = () =>
     invoiceData?.items?.reduce(
-      (t, i) => t + ((i.price || 0) - (i.discount || 0)),
+      (t, i) => t + ((i.basePrice || 0) - (i.discount || 0)),
       0
     ) || 0;
 
@@ -438,7 +438,7 @@ const InvoicePDF = ({ invoiceData }) => {
 
                       </TableCell>
                       <TableCell>
-                        ₹{(item.price || 0) - (item.discount || 0)}
+                        ₹{(item.basePrice || 0) - (item.discount || 0)}
                       </TableCell>
                       <TableCell>{item.taxPercent || 0}%</TableCell>
                       <TableCell>₹{item.taxAmount || 0}</TableCell>
