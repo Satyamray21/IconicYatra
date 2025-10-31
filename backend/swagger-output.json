@@ -1068,17 +1068,50 @@
     "/api/v1/invoice/create": {
       "post": {
         "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "companyId": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
         "responses": {
           "201": {
             "description": "Created"
           },
           "400": {
             "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
     },
     "/api/v1/invoice/get": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/invoice/next-number": {
       "get": {
         "description": "",
         "responses": {
@@ -1275,6 +1308,9 @@
                 },
                 "authorizedSignatory": {
                   "example": "any"
+                },
+                "termsConditions": {
+                  "example": "any"
                 }
               }
             }
@@ -1346,6 +1382,9 @@
                   "example": "any"
                 },
                 "authorizedSignatory": {
+                  "example": "any"
+                },
+                "termsConditions": {
                   "example": "any"
                 }
               }

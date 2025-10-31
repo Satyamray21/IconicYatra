@@ -547,29 +547,49 @@ const InvoicePDF = ({ invoiceData }) => {
         </Box>
 
         <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            mt: 1,
-            alignItems: "flex-end",
-          }}
-        >
-          <Box sx={{ flex: 1 }}>
-            <Typography
-              sx={{
-                bgcolor: "#1565c0",
-                color: "#fff",
-                p: 0.5,
-                fontWeight: "bold",
-                fontSize: "10px",
-              }}
-            >
-              Terms & Conditions
-            </Typography>
-            <Box sx={{ border: "1px solid #1565c0", p: 0.5 }}>
-              This is a system-generated invoice. Thank you for your business!
-            </Box>
-          </Box>
+  sx={{
+    display: "flex",
+    justifyContent: "space-between",
+    mt: 1,
+    alignItems: "flex-end",
+  }}
+>
+  <Box sx={{ flex: 1 }}>
+    <Typography
+      sx={{
+        bgcolor: "#1565c0",
+        color: "#fff",
+        p: 0.5,
+        fontWeight: "bold",
+        fontSize: "10px",
+      }}
+    >
+      Terms & Conditions
+    </Typography>
+
+    <Box sx={{ border: "1px solid #1565c0", p: 0.5 }}>
+      {invoiceData?.companyId?.termsConditions && (
+        <Typography sx={{ fontSize: "10px", mb: 0.5 }}>
+          <a
+            href={invoiceData.companyId.termsConditions}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: "#1565c0",
+              textDecoration: "underline",
+              fontWeight: 500,
+            }}
+          >
+            View Terms & Conditions
+          </a>
+        </Typography>
+      )}
+
+      <Typography sx={{ fontSize: "10px" }}>
+        This is a system-generated invoice. Thank you for your business!
+      </Typography>
+    </Box>
+  </Box>
 
           <Box sx={{ textAlign: "center", minWidth: 120 }}>
             {invoiceData?.companyId?.authorizedSignatory?.signatureImage && (

@@ -15,6 +15,7 @@ const companySchema = new mongoose.Schema(
       designation: { type: String },
       signatureImage: { type: String }, // optional signature image (Cloudinary URL)
     },
+    termsConditions: { type: String },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

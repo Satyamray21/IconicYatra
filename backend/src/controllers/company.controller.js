@@ -14,6 +14,7 @@ export const createCompany = asyncHandler(async (req, res) => {
     gstin,
     stateCode,
     authorizedSignatory,
+    termsConditions,
   } = req.body;
 
   if (!companyName || !address)
@@ -54,6 +55,7 @@ export const createCompany = asyncHandler(async (req, res) => {
       designation: parsedSignatory?.designation,
       signatureImage: signatureUrl,
     },
+    termsConditions,
   });
 
   res
@@ -80,7 +82,7 @@ export const getCompanyById = asyncHandler(async (req, res) => {
 // ✅ UPDATE Company
 export const updateCompany = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { companyName, address, phone, email, gstin, stateCode, authorizedSignatory } = req.body;
+  const { companyName, address, phone, email, gstin, stateCode, authorizedSignatory,termsConditions } = req.body;
 
   const company = await Company.findById(id);
   if (!company) throw new ApiError(404, "Company not found");
@@ -119,7 +121,7 @@ export const updateCompany = asyncHandler(async (req, res) => {
       parsedSignatory?.designation || company.authorizedSignatory?.designation,
     signatureImage: signatureUrl,
   };
-
+  company.termsConditions = termsConditions || company.termsConditions;
   await company.save();
 
   res
