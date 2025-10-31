@@ -78,7 +78,7 @@ const MainRoute = () => {
                 <Route path="/payments-form" element={<PaymentsForm />} />
 
                 {/* Invoice Routes */}
-                <Route path="/invoice-view" element={<InvoiceView />} />
+                <Route path="/invoice-view/:id" element={<InvoiceView />} />
                   {/* Invoice Routing  */}
 
         <Route path="/invoice" element={<InvoiceCard />} />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import {
   Box,
   Button,
@@ -20,8 +20,10 @@ import {
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
+import {useNavigate} from "react-router-dom";
 import { toast } from "react-toastify";
 import { createVoucher } from "../../../../features/payment/paymentSlice"; 
+import axios from "../../../../utils/axios";
 import PartySelector from "./PartySelector"
 //const accountTypes = ["Savings", "Current", "Credit"];
 
@@ -31,11 +33,14 @@ const paymentLink = "https://iconicyatra.com/payment";
 const PaymentsForm = () => {
   const dispatch = useDispatch();
   const [voucherType, setVoucherType] = useState("");
+  const naviagte = useNavigate();
   const [previewImage, setPreviewImage] = useState(null);
   const [uploadFile, setUploadFile] = useState(null);
-  
+  const [companies, setCompanies] = useState([]);
   const formik = useFormik({
     initialValues: {
+            companyId: "",
+
       date: "",
       accountType: "",
       partyName: "",
@@ -63,6 +68,8 @@ const PaymentsForm = () => {
   try {
     const payload = {
       paymentType: voucherType === "receive" ? "Receive Voucher" : "Payment Voucher",
+      companyId: values.companyId,
+
       date: values.date,
       accountType: values.accountType,
       partyName: values.partyName,
@@ -78,6 +85,7 @@ const PaymentsForm = () => {
     toast.success("Voucher created successfully!");
     resetForm();
     setVoucherType("");
+    navigate("/payment")
 
   } catch (err) {
     console.error(err);
@@ -101,7 +109,17 @@ const PaymentsForm = () => {
       formik.setFieldValue("reference", `Online-Payment-${Date.now()}`);
     }
   };
-
+ useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const { data } = await axios.get("/company");
+        setCompanies(data?.data || data);
+      } catch (error) {
+        console.error("Error fetching companies:", error);
+      }
+    };
+    fetchCompanies();
+  }, []);
   return (
     <Paper
       elevation={5}
@@ -208,7 +226,26 @@ const PaymentsForm = () => {
     </Select>
   </FormControl>
 </Grid>
+          <Grid size={{xs:12, sm:6, md:3}}>
+            <TextField
+  select
+  fullWidth
+  label="Company"
+  name="companyId"
+  value={formik.values.companyId}
+  onChange={formik.handleChange}
+  error={formik.touched.companyId && Boolean(formik.errors.companyId)}
+  helperText={formik.touched.companyId && formik.errors.companyId}
+  sx={{ bgcolor: "white" }}
+>
 
+              {companies.map((company) => (
+                <MenuItem key={company._id} value={company._id}>
+                  {company.companyName}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
 <Grid size={{ xs:12 ,md:6}}>
   <PartySelector formik={formik} />
 </Grid>

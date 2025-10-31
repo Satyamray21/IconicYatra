@@ -16,9 +16,9 @@ const PaymentsCard = () => {
         navigate('/payments-form');
     };
 
-    const handleInvoiceClick = (payment) => {
-        navigate('/invoice-view', { state: { payment } });
-    };
+     const handleInvoiceClick = (payment) => {
+    navigate(`/invoice-view/${payment._id}`);
+  };
 
     return (
         <Box>

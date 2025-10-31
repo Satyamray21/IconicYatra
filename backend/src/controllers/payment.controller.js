@@ -1,6 +1,6 @@
 import ReceivedVoucher from "../models/payment.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-
+import Company from "../models/company.model.js";
 // @desc    Create a new voucher
 export const createVoucher = asyncHandler(async (req, res) => {
   const {
@@ -13,6 +13,7 @@ export const createVoucher = asyncHandler(async (req, res) => {
     particulars,
     amount,
     invoice,
+    companyId
   } = req.body; // req.body is now JSON
 
   if (!date || !accountType || !partyName || !paymentMode || !particulars || !amount) {
@@ -36,6 +37,7 @@ export const createVoucher = asyncHandler(async (req, res) => {
     invoice,
     receiptNumber: nextReceiptNumber,
     invoiceId,
+    companyId,
   });
 
   res.status(201).json({
@@ -58,7 +60,12 @@ export const getAllVouchers = asyncHandler(async (req, res) => {
 
 // @desc    Get voucher by ID
 export const getVoucherById = asyncHandler(async (req, res) => {
-  const voucher = await ReceivedVoucher.findById(req.params.id);
+  const voucher = await ReceivedVoucher.findById(req.params.id)
+  .populate({
+        path: "companyId",
+        select:
+          "companyName address phone email gstin stateCode logo authorizedSignatory termsConditions paymentLink", // ✅ fixed
+      });
   if (!voucher) {
     res.status(404);
     throw new Error("Voucher not found");

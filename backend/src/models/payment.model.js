@@ -1,6 +1,12 @@
 import mongoose from "mongoose";
 
 const receivedVoucherSchema = new mongoose.Schema({
+  
+      companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Company",
+        required: true,
+      },
   paymentType: {
     type: String,
     enum: ["Receive Voucher", "Payment Voucher"],
@@ -24,7 +30,7 @@ const receivedVoucherSchema = new mongoose.Schema({
   paymentMode: {
     type: String,
     required: true,
-    enum: ["Cash", "Cheque", "Bank Transfer", "UPI", "Other"], // Example modes
+   
   },
   referenceNumber: {
     type: String,

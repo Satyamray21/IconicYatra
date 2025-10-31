@@ -15,6 +15,7 @@ export const createCompany = asyncHandler(async (req, res) => {
     stateCode,
     authorizedSignatory,
     termsConditions,
+    paymentLink,
   } = req.body;
 
   if (!companyName || !address)
@@ -56,6 +57,7 @@ export const createCompany = asyncHandler(async (req, res) => {
       signatureImage: signatureUrl,
     },
     termsConditions,
+    paymentLink,
   });
 
   res
@@ -82,7 +84,7 @@ export const getCompanyById = asyncHandler(async (req, res) => {
 // ✅ UPDATE Company
 export const updateCompany = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { companyName, address, phone, email, gstin, stateCode, authorizedSignatory,termsConditions } = req.body;
+  const { companyName, address, phone, email, gstin, stateCode, authorizedSignatory,termsConditions,paymentLink } = req.body;
 
   const company = await Company.findById(id);
   if (!company) throw new ApiError(404, "Company not found");
@@ -122,6 +124,8 @@ export const updateCompany = asyncHandler(async (req, res) => {
     signatureImage: signatureUrl,
   };
   company.termsConditions = termsConditions || company.termsConditions;
+  company.paymentLink=paymentLink ||company.paymentLink;
+
   await company.save();
 
   res

@@ -1311,6 +1311,9 @@
                 },
                 "termsConditions": {
                   "example": "any"
+                },
+                "paymentLink": {
+                  "example": "any"
                 }
               }
             }
@@ -1385,6 +1388,9 @@
                   "example": "any"
                 },
                 "termsConditions": {
+                  "example": "any"
+                },
+                "paymentLink": {
                   "example": "any"
                 }
               }
