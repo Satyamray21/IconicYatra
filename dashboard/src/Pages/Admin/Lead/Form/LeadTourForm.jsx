@@ -79,10 +79,10 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
       country: "",
       destination: [],
       services: "",
-      adults: "",
-      children: "",
+      adults: "0",
+      children: "0",
       kidsWithoutMattress: "",
-      infants: "",
+      infants: "0",
       arrivalDate: null,
       arrivalCity: "",
       arrivalLocation: "",
@@ -166,11 +166,11 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     if (tourType === "Domestic") {
       // For domestic tours, set country to India and fetch Indian states
       setFieldValue("country", "India");
-      setFieldValue("destination", "");
+      setFieldValue("destination", []);
     } else {
       // For international tours, clear the country selection
       setFieldValue("country", "");
-      setFieldValue("destination", "");
+      setFieldValue("destination", []);
       dispatch(clearStates());
     }
   };
@@ -182,7 +182,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
       handleOpenDialog("country");
     } else {
       setFieldValue("country", country);
-      setFieldValue("destination", ""); // Clear destination when changing country
+      setFieldValue("destination", []); // Clear destination when changing country
     }
   };
 
@@ -193,29 +193,20 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     }
   }, [values.country, values.tourType, dispatch]);
 
-  // Get destination options based on selected country
-  const getDestinationOptions = () => {
-    if (values.tourType === "Domestic") {
-      // For domestic tours, show Indian states
-      if (locationLoading) {
-        return ["Loading states..."];
-      }
-      return states && states.length > 0 
-        ? states.map(s => s.name)
-        : ["No states available"];
-    } else {
-      // For international tours, show states of selected country
-      if (!values.country) {
-        return ["Select a country first"];
-      }
-      if (locationLoading) {
-        return ["Loading states..."];
-      }
-      return states && states.length > 0 
-        ? states.map(s => s.name)
-        : ["No states available for selected country"];
-    }
-  };
+ const getDestinationOptions = () => {
+  if (values.tourType === "Domestic") {
+    if (locationLoading) return [];
+    return Array.isArray(states) && states.length > 0
+      ? states.map((s) => s.name)
+      : [];
+  } else {
+    if (!values.country || locationLoading) return [];
+    return Array.isArray(states) && states.length > 0
+      ? states.map((s) => s.name)
+      : [];
+  }
+};
+
 
   const calculateAccommodation = async () => {
     try {
