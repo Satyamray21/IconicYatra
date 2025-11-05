@@ -18,6 +18,7 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
+  Autocomplete,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers";
 import { useFormik } from "formik";
@@ -76,7 +77,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     initialValues: {
       tourType: "Domestic",
       country: "",
-      destination: "",
+      destination: [],
       services: "",
       adults: "",
       children: "",
@@ -99,7 +100,9 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
       ...initialData,
     },
     validationSchema: Yup.object({
-      destination: Yup.string().required("Required"),
+      destination: Yup.array()
+  .of(Yup.string().required("Destination required"))
+  .min(1, "At least one destination required"),
       services: Yup.string().required("Required"),
       adults: Yup.number()
         .required("Required")
@@ -462,31 +465,33 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
             </Grid>
 
             {/* Tour Destination - Shows states of selected country */}
-            <Grid size={{xs:12, md:6}}>
-              <TextField
-                select
-                fullWidth
-                name="destination"
-                label="Tour Destination *"
-                value={values.destination}
-                onChange={handleChange}
-                error={touched.destination && Boolean(errors.destination)}
-                helperText={touched.destination && errors.destination}
-                disabled={
-                  values.tourType === "International" && !values.country ||
-                  locationLoading
-                }
-              >
-                {getDestinationOptions().map((option, index) => (
-                  <MenuItem key={index} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-                <MenuItem value="__add_new" onClick={() => handleOpenDialog("destination")}>
-                  + Add New
-                </MenuItem>
-              </TextField>
-            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+  <Autocomplete
+    multiple
+    freeSolo
+    options={getDestinationOptions()}
+    value={values.destination}
+    onChange={(e, newValue) => setFieldValue("destination", newValue)}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" && e.target.value.trim()) {
+        e.preventDefault();
+        if (!values.destination.includes(e.target.value.trim())) {
+          setFieldValue("destination", [...values.destination, e.target.value.trim()]);
+        }
+      }
+    }}
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        label="Tour Destination *"
+        placeholder="Type or select destination"
+        error={touched.destination && Boolean(errors.destination)}
+        helperText={touched.destination && errors.destination}
+      />
+    )}
+  />
+</Grid>
+
 
             <Grid size={{xs:12, md:6}}>
               <TextField
