@@ -21,13 +21,13 @@ export const createVoucher = createAsyncThunk("voucher/create", async (voucherDa
 
 // Update voucher
 export const updateVoucher = createAsyncThunk("payment/update", async ({ id, data }) => {
-  const res = await axios.put(`/voucher/${id}`, data);
+  const res = await axios.put(`/payment/${id}`, data);
   return res.data.data;
 });
 
 // Delete voucher
 export const deleteVoucher = createAsyncThunk("voucher/delete", async (id) => {
-  await axios.delete(`/voucher/${id}`);
+  await axios.delete(`/payment/${id}`);
   return id;
 });
 

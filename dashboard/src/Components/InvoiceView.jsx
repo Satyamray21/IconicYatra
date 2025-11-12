@@ -16,8 +16,7 @@ import html2pdf from "html2pdf.js";
 import DownloadIcon from "@mui/icons-material/Download";
 import ShareIcon from "@mui/icons-material/Share";
 import PaymentIcon from "@mui/icons-material/Payment";
-import axios from "../utils/axios"; // ✅ your axios instance
-
+import axios from "../utils/axios"; // ✅ axios instance
 
 const InvoiceView = () => {
   const { id } = useParams();
@@ -25,6 +24,8 @@ const InvoiceView = () => {
   const [paymentData, setPaymentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [totalPaidTillDate, setTotalPaidTillDate] = useState(0);
+  const [remainingAmount, setRemainingAmount] = useState(0);
 
   // ✅ Fetch Payment Data
   useEffect(() => {
@@ -32,7 +33,27 @@ const InvoiceView = () => {
       try {
         setLoading(true);
         const { data } = await axios.get(`/payment/${id}`);
-        setPaymentData(data?.data || data);
+        const mainData = data?.data || data;
+        setPaymentData(mainData);
+
+        // 🧮 Fetch total paid till date
+        if (mainData?.companyId?._id && mainData?.partyName) {
+          const { data: allPayments } = await axios.get(
+            `/payment?companyId=${mainData.companyId._id}`
+          );
+          const vouchers = allPayments?.data || [];
+          const partyPayments = vouchers.filter(
+            (v) => v.partyName === mainData.partyName
+          );
+          const totalPaid = partyPayments.reduce((sum, v) => sum + (v.amount || 0), 0);
+          setTotalPaidTillDate(totalPaid);
+
+          const remaining = Math.max(
+            (mainData.totalCost || 0) - totalPaid,
+            0
+          );
+          setRemainingAmount(remaining);
+        }
       } catch (err) {
         console.error(err);
         setError("Failed to fetch payment details.");
@@ -65,13 +86,13 @@ const InvoiceView = () => {
     referenceNumber,
     particulars,
     amount,
+    totalCost,
     invoiceId,
   } = paymentData;
 
   const isReceipt = paymentType?.toLowerCase().includes("receive");
-  const amountInWords = `${toWords(amount || 0)} only`.replace(
-    /\b\w/g,
-    (c) => c.toUpperCase()
+  const amountInWords = `${toWords(amount || 0)} only`.replace(/\b\w/g, (c) =>
+    c.toUpperCase()
   );
   const formattedDate = new Date(date).toLocaleDateString("en-GB");
   const paymentLink = company.paymentLink || "https://iconicyatra.com/payment";
@@ -114,13 +135,7 @@ const InvoiceView = () => {
   return (
     <Box maxWidth="1000px" mx="auto" my={4}>
       {/* === Top Buttons === */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={2}
-        gap={2}
-      >
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} gap={2}>
         <Button
           variant="outlined"
           sx={{
@@ -171,7 +186,6 @@ const InvoiceView = () => {
           overflow: "hidden",
           fontFamily: "Poppins, sans-serif",
           boxShadow: "0px 8px 30px rgba(0,0,0,0.08)",
-          maxWidth: "100%",
         }}
       >
         {/* Watermark */}
@@ -188,8 +202,6 @@ const InvoiceView = () => {
               opacity: 0.05,
               height: 200,
               zIndex: 0,
-              userSelect: "none",
-              pointerEvents: "none",
             }}
           />
         )}
@@ -204,10 +216,10 @@ const InvoiceView = () => {
             color: "#0b5394",
             mb: 1,
             letterSpacing: 1,
-            position: "relative",
-            zIndex: 1,
             borderBottom: "2px solid #1976d2",
             pb: 0.5,
+            position: "relative",
+            zIndex: 1,
           }}
         >
           {isReceipt ? "Receive Voucher" : "Payment Voucher"}
@@ -216,13 +228,11 @@ const InvoiceView = () => {
         {/* Company Header */}
         <Grid container justifyContent="space-between" alignItems="center" mt={2}>
           <Grid item xs={12} sm={6}>
-            {company.logo && (
-              <img src={company.logo} alt="Logo" style={{ height: 50 }} />
-            )}
+            {company.logo && <img src={company.logo} alt="Logo" style={{ height: 50 }} />}
           </Grid>
           <Grid item xs={12} sm={6}>
             <Box textAlign={{ xs: "left", sm: "right" }}>
-              <Typography variant="h6" fontWeight={700} fontSize="1.1rem">
+              <Typography variant="h6" fontWeight={700}>
                 {company.companyName || "Company Name"}
               </Typography>
               {company.address && (
@@ -253,12 +263,7 @@ const InvoiceView = () => {
 
         {/* Party Info */}
         <Stack spacing={0.3} mb={2}>
-          <Typography
-            variant="subtitle1"
-            fontWeight={600}
-            color="#1976d2"
-            fontSize="0.9rem"
-          >
+          <Typography variant="subtitle1" fontWeight={600} color="#1976d2">
             {isReceipt ? "Received From:" : "Paid To:"}
           </Typography>
           <Typography fontSize={14} fontWeight={500}>
@@ -278,13 +283,12 @@ const InvoiceView = () => {
           </Grid>
           <Grid item>
             <Typography fontSize={12}>
-              <strong>{isReceipt ? "Receipt No:" : "Payment No:"}</strong>{" "}
-              {invoiceId || "-"}
+              <strong>{isReceipt ? "Receipt No:" : "Payment No:"}</strong> {invoiceId || "-"}
             </Typography>
           </Grid>
         </Grid>
 
-        {/* Amount */}
+        {/* Amount Summary */}
         <Box
           my={2}
           sx={{
@@ -294,42 +298,41 @@ const InvoiceView = () => {
             p: 2,
           }}
         >
-          <Grid container justifyContent="space-between" alignItems="center">
-            <Grid item xs={12} sm={8}>
-              <Typography
-                fontWeight={600}
-                gutterBottom
-                color="#0d47a1"
-                fontSize="0.9rem"
-              >
-                Amount In Words
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Typography fontWeight={600} color="#0d47a1">
+                 Package Cost
               </Typography>
-              <Typography fontSize={14}>{amountInWords}</Typography>
-              <Typography fontSize={12} color="text.secondary">
-                INR
-              </Typography>
+              <Typography fontSize={15}>₹ {Number(totalCost || 0).toLocaleString()}</Typography>
             </Grid>
-            <Grid item xs={12} sm={4}>
-              <Typography
-                fontSize="1.8rem"
-                fontWeight="bold"
-                color="#2e7d32"
-                textAlign={{ xs: "left", sm: "right" }}
-              >
-                ₹ {Number(amount).toLocaleString()}
+            <Grid item xs={12} sm={6}>
+              <Typography fontWeight={600} color="#0d47a1">
+                Total Received Amount 
+              </Typography>
+              <Typography fontSize={15}>₹ {Number(totalPaidTillDate).toLocaleString()}</Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography fontWeight={600} color="#0d47a1">
+                Remaining Amount
+              </Typography>
+              <Typography fontSize={15} color="#d32f2f">
+                ₹ {Number(remainingAmount).toLocaleString()}
               </Typography>
             </Grid>
           </Grid>
         </Box>
 
+        {/* Amount in Words */}
+        <Box my={2}>
+          <Typography fontWeight={600} color="#1976d2">
+            Amount In Words
+          </Typography>
+          <Typography fontSize={14}>{amountInWords}</Typography>
+        </Box>
+
         {/* Particulars */}
         <Box my={2}>
-          <Typography
-            fontWeight={600}
-            gutterBottom
-            color="#1976d2"
-            fontSize="0.9rem"
-          >
+          <Typography fontWeight={600} color="#1976d2">
             Particulars
           </Typography>
           <Typography fontSize={14}>{particulars}</Typography>
@@ -337,23 +340,18 @@ const InvoiceView = () => {
 
         {/* Payment Mode */}
         <Box mb={2}>
-          <Typography
-            fontWeight={600}
-            gutterBottom
-            color="#1976d2"
-            fontSize="0.9rem"
-          >
-            Payment Mode
+          <Typography fontWeight={600} color="#1976d2">
+            Payment Bank
           </Typography>
           <Typography fontSize={14}>{paymentMode}</Typography>
           {referenceNumber && (
-            <Typography fontSize={14} color="text.secondary">
+            <Typography fontSize={13} color="text.secondary">
               Transaction ID: {referenceNumber}
             </Typography>
           )}
         </Box>
 
-        {/* Payment Link */}
+        {/* Online Payment Link */}
         {!isReceipt && (
           <Box
             mb={3}
@@ -365,13 +363,7 @@ const InvoiceView = () => {
               textAlign: "center",
             }}
           >
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              color="#28a745"
-              gutterBottom
-              fontSize="1rem"
-            >
+            <Typography variant="h6" fontWeight={700} color="#28a745" gutterBottom>
               💳 Online Payment
             </Typography>
             <Button
@@ -383,25 +375,14 @@ const InvoiceView = () => {
                 py: 1,
                 borderRadius: 2,
                 fontWeight: "bold",
-                fontSize: "0.9rem",
                 mb: 1,
-                "&:hover": {
-                  background: "linear-gradient(to right, #218838, #1e7e34)",
-                  transform: "translateY(-1px)",
-                  boxShadow: "0 4px 8px rgba(40, 167, 69, 0.3)",
-                },
               }}
               startIcon={<PaymentIcon />}
               onClick={handlePaymentClick}
             >
               Pay ₹{Number(amount).toLocaleString()} Now
             </Button>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              gutterBottom
-              fontSize="0.8rem"
-            >
+            <Typography variant="body2" color="text.secondary">
               Secure payment via {company.companyName || "Iconic Yatra"}
             </Typography>
             <Link
@@ -432,13 +413,13 @@ const InvoiceView = () => {
           </Grid>
           <Grid item>
             <Box textAlign="right">
-              <img
-                src={
-                  company.authorizedSignatory?.signatureImage 
-                }
-                alt="Digital Signature"
-                style={{ height: "50px", width: "150px" }}
-              />
+              {company.authorizedSignatory?.signatureImage && (
+                <img
+                  src={company.authorizedSignatory.signatureImage}
+                  alt="Signature"
+                  style={{ height: "50px", width: "150px" }}
+                />
+              )}
               <Typography fontWeight={600} fontSize={12}>
                 Authorized Signatory
               </Typography>
@@ -446,7 +427,6 @@ const InvoiceView = () => {
           </Grid>
         </Grid>
 
-        {/* Footer */}
         <Box textAlign="center" mt={2}>
           <Typography variant="caption" color="gray" fontSize={11}>
             Powered by {company.companyName || "Our Company"} Billing System

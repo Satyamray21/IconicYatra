@@ -38,6 +38,7 @@ import InvoiceCard from "../Pages/Admin/Invoice/InvoiceCard";
 import InvoiceForm from "../Pages/Admin/Invoice/Form/InvoiceForm";
 import InvoiceEditForm from "../Pages/Admin/Invoice/Form/InvoiceEditForm";
 import InvoiceGeneration from "../Pages/Admin/Invoice/Dialog/InvoicePdf/InvoiceGeneration";
+import PaymentEdit from "../Pages/Admin/Payments/Form/PaymentEdit";
 const MainRoute = () => {
     const isAuthenticated = true;
 
@@ -76,6 +77,8 @@ const MainRoute = () => {
                 {/* Payments Routes */}
                 <Route path="/payments" element={<PaymentsCard />} />
                 <Route path="/payments-form" element={<PaymentsForm />} />
+                <Route path="/payments-form/:id" element={<PaymentEdit />} />
+
 
                 {/* Invoice Routes */}
                 <Route path="/invoice-view/:id" element={<InvoiceView />} />
