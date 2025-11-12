@@ -90,12 +90,12 @@ const PaymentsCard = () => {
               }}
             >
               <Box flex={0.5}>{String(index + 1).padStart(2, '0')}</Box>
-              <Box flex={1}>{payment.receipt || '-'}</Box>
+              <Box flex={1}>{payment.receiptNumber || '-'}</Box>
               <Box flex={1}>{payment.invoice || '-'}</Box>
               <Box flex={1.5}>{payment.partyName}</Box>
               <Box flex={2}>{payment.particulars}</Box>
               <Box flex={1}>{payment.drCr}</Box>
-              <Box flex={1}>{payment.reference}</Box>
+              <Box flex={1}>{payment.referenceNumber}</Box>
               <Box flex={1}>₹{payment.amount}</Box>
 
               {/* Action Buttons */}
