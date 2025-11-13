@@ -113,7 +113,7 @@ status:{
 },
 tourDetails: {
   tourType: String,
-  tourDestination: String,
+  tourDestination: [String],
   servicesRequired: [String],
   members: {
     adults: Number,

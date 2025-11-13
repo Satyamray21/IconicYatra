@@ -140,119 +140,90 @@ export const updateCustomQuotation = asyncHandler(async (req, res) => {
 // In your customQuotation.controller.js - Update the updateQuotationStep function
 export const updateQuotationStep = asyncHandler(async (req, res) => {
   console.log("🔄 ========== UPDATE STEP REQUEST START ==========");
-  
+
   let quotationId, stepNumber, stepData;
-  const files = req.files || [];
+  const files = req.files || {};
 
-  // Debug the incoming request
   console.log("📦 Request body keys:", Object.keys(req.body));
-  console.log("📦 Files received:", files.length);
+  console.log("📸 Files received:", Object.keys(files));
 
-  // Handle FormData request (for step 4)
+  // Parse FormData correctly
   if (req.body.quotationId && req.body.stepNumber && req.body.stepData) {
     quotationId = req.body.quotationId;
     stepNumber = parseInt(req.body.stepNumber, 10);
-    stepData = typeof req.body.stepData === 'string' ? JSON.parse(req.body.stepData) : req.body.stepData;
-    
-    console.log("📦 FormData Parsed:");
-    console.log("  quotationId:", quotationId);
-    console.log("  stepNumber:", stepNumber, "(type:", typeof stepNumber, ")");
-    console.log("  stepData:", stepData);
+    stepData =
+      typeof req.body.stepData === "string"
+        ? JSON.parse(req.body.stepData)
+        : req.body.stepData;
   } else {
-    // Handle regular JSON request
     ({ quotationId, stepNumber, stepData } = req.body);
-    console.log("📦 JSON Request:", { quotationId, stepNumber, stepData });
   }
 
-  // Validate input
-  if (!quotationId) {
-    console.error("❌ MISSING quotationId");
-    throw new ApiError(400, "Quotation ID is required");
-  }
-
-  if (!stepNumber || isNaN(stepNumber)) {
-    console.error("❌ INVALID stepNumber:", stepNumber);
+  if (!quotationId) throw new ApiError(400, "Quotation ID is required");
+  if (!stepNumber || isNaN(stepNumber))
     throw new ApiError(400, "Valid step number is required");
-  }
 
-  console.log("🔍 Searching for quotation with ID:", quotationId);
-  
+  console.log("🔍 Searching for quotation:", quotationId);
   const quotation = await CustomQuotation.findOne({ quotationId });
-  
-  if (!quotation) {
-    console.error("❌ QUOTATION NOT FOUND:", quotationId);
-    throw new ApiError(404, `Quotation not found: ${quotationId}`);
-  }
+  if (!quotation) throw new ApiError(404, `Quotation not found: ${quotationId}`);
 
-  console.log("✅ Quotation FOUND:", quotation.quotationId);
-  console.log("📝 Updating step:", stepNumber);
+  console.log("✅ Found Quotation:", quotation.quotationId);
 
   try {
-    // Handle step 4 with image uploads
-    if (stepNumber === 4) {
-      console.log("🎯 Processing Step 4 - Itinerary with images");
-      
-      let processedItinerary = [...stepData.itinerary];
-      console.log("📋 Itinerary days to process:", processedItinerary.length);
-      
-      // Process uploaded files
-      if (files.length > 0) {
-        console.log("📸 Processing", files.length, "uploaded files");
-        
-        // Create a map of files by index
-        const fileMap = {};
-        files.forEach((file, index) => {
-          console.log(`   File ${index}:`, file.originalname);
-          if (index < processedItinerary.length) {
-            fileMap[index] = file;
-          }
-        });
+    // ✅ STEP 3 - Tour Details (with Banner Image)
+    if (stepNumber === 3) {
+      console.log("🖼 Step 3 - Updating Tour Details + Banner Image");
 
-        // Upload files to Cloudinary and update itinerary
-        for (let i = 0; i < processedItinerary.length; i++) {
-          if (fileMap[i]) {
-            console.log(`☁️ Uploading image for day ${i + 1}`);
-            try {
-              const cloudinaryResponse = await uploadOnCloudinary(fileMap[i].path);
-              if (cloudinaryResponse && cloudinaryResponse.url) {
-                processedItinerary[i].image = cloudinaryResponse.url;
-                console.log("✅ Image uploaded to:", cloudinaryResponse.url);
-              } else {
-                console.log("❌ Cloudinary upload failed for day", i + 1);
-                processedItinerary[i].image = null;
-              }
-            } catch (uploadError) {
-              console.error("💥 Cloudinary upload error:", uploadError);
-              processedItinerary[i].image = null;
-            }
-          } else {
-            console.log(`📭 No image file for day ${i + 1}`);
-            // Keep existing image if no new file uploaded
-            if (!processedItinerary[i].image) {
-              processedItinerary[i].image = null;
-            }
-          }
-        }
-      } else {
-        console.log("📭 No files uploaded, keeping existing images");
+      let bannerUrl = quotation.tourDetails?.bannerImage || null;
+
+      // Upload new banner if file exists
+      if (files.bannerImage && files.bannerImage[0]) {
+        console.log("☁️ Uploading new banner image...");
+        const uploaded = await uploadOnCloudinary(files.bannerImage[0].path);
+        if (uploaded?.url) bannerUrl = uploaded.url;
+      } else if (stepData.bannerImage && typeof stepData.bannerImage === "string") {
+        bannerUrl = stepData.bannerImage; // keep existing url if already sent
       }
-      
-      // Update the quotation
+
+      quotation.tourDetails = {
+        ...quotation.tourDetails,
+        ...stepData,
+        bannerImage: bannerUrl,
+      };
+    }
+
+    // ✅ STEP 4 - Itinerary with Multiple Images
+    else if (stepNumber === 4) {
+      console.log("🗓 Step 4 - Updating Itinerary Days + Images");
+
+      const processedItinerary = [...(stepData.itinerary || [])];
+      const itineraryFiles = files.itineraryImages || [];
+
+      for (let i = 0; i < processedItinerary.length; i++) {
+        const file = itineraryFiles[i];
+        if (file) {
+          console.log(`☁️ Uploading image for day ${i + 1}`);
+          const uploadResult = await uploadOnCloudinary(file.path);
+          if (uploadResult?.url) processedItinerary[i].image = uploadResult.url;
+        } else if (!processedItinerary[i].image) {
+          processedItinerary[i].image = null;
+        }
+      }
+
       quotation.tourDetails.itinerary = processedItinerary;
-      console.log("✅ Itinerary updated with", processedItinerary.length, "days");
-      
-    } else {
-      // Handle other steps (1, 2, 3, 5, 6) - your existing code
+    }
+
+    // ✅ STEP 1, 2, 5, 6 - Standard updates
+    else {
       switch (stepNumber) {
         case 1:
           quotation.clientDetails = stepData;
           break;
+
         case 2:
           quotation.pickupDrop = stepData;
           break;
-        case 3:
-          quotation.tourDetails = { ...quotation.tourDetails, ...stepData };
-          break;
+
         case 5:
           quotation.tourDetails.vehicleDetails = {
             basicsDetails: {
@@ -262,9 +233,7 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
               noOfDays: stepData.noOfDays,
               perDayCost: stepData.perDayCost || stepData.totalCost || "0",
             },
-            costDetails: {
-              totalCost: stepData.totalCost || "0",
-            },
+            costDetails: { totalCost: stepData.totalCost || "0" },
             pickupDropDetails: {
               pickupDate: stepData.pickupDate || "",
               pickupTime: stepData.pickupTime || "",
@@ -275,67 +244,57 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
             },
           };
           break;
-       case 6:
-  console.log("🧩 Processing Step 6 - Final quotation details");
 
-  // Merge client details
-  if (stepData.clientDetails) {
-    quotation.clientDetails = {
-      ...quotation.clientDetails,
-      ...stepData.clientDetails,
-    };
-  }
+        case 6:
+          console.log("🧾 Step 6 - Final Quotation Merge");
 
-  // Merge pickupDrop
-  if (stepData.pickupDrop && Array.isArray(stepData.pickupDrop)) {
-    quotation.pickupDrop = stepData.pickupDrop;
-  }
+          if (stepData.clientDetails)
+            quotation.clientDetails = {
+              ...quotation.clientDetails,
+              ...stepData.clientDetails,
+            };
 
-  // Merge tour details and quotation details
-  if (stepData.tourDetails) {
-    quotation.tourDetails = {
-      ...quotation.tourDetails,
-      ...stepData.tourDetails,
-    };
+          if (stepData.pickupDrop && Array.isArray(stepData.pickupDrop))
+            quotation.pickupDrop = stepData.pickupDrop;
 
-    // If tourDetails.quotationDetails is included, merge it separately
-    if (stepData.tourDetails.quotationDetails) {
-      quotation.tourDetails.quotationDetails = {
-        ...quotation.tourDetails.quotationDetails,
-        ...stepData.tourDetails.quotationDetails,
-      };
-    }
-  }
+          if (stepData.tourDetails) {
+            quotation.tourDetails = {
+              ...quotation.tourDetails,
+              ...stepData.tourDetails,
+            };
 
-  // Merge vehicle details (optional, if included in stepData)
-  if (stepData.vehicleDetails) {
-    quotation.tourDetails.vehicleDetails = {
-      ...quotation.tourDetails.vehicleDetails,
-      ...stepData.vehicleDetails,
-    };
-  }
+            if (stepData.tourDetails.quotationDetails)
+              quotation.tourDetails.quotationDetails = {
+                ...quotation.tourDetails.quotationDetails,
+                ...stepData.tourDetails.quotationDetails,
+              };
+          }
 
-  break;
+          if (stepData.vehicleDetails)
+            quotation.tourDetails.vehicleDetails = {
+              ...quotation.tourDetails.vehicleDetails,
+              ...stepData.vehicleDetails,
+            };
+
+          break;
 
         default:
-          console.error("❌ INVALID STEP NUMBER:", stepNumber);
           throw new ApiError(400, `Invalid step number: ${stepNumber}`);
       }
     }
 
     await quotation.save();
     console.log("✅ Step", stepNumber, "updated successfully!");
-    console.log("========== UPDATE STEP REQUEST END ==========");
 
     return res
       .status(200)
       .json(new ApiResponse(200, quotation, `Step ${stepNumber} updated successfully`));
-      
-  } catch (saveError) {
-    console.error("💥 ERROR during quotation update:", saveError);
-    throw saveError;
+  } catch (error) {
+    console.error("💥 Error during quotation update:", error);
+    throw error;
   }
 });
+
 
 // Delete Quotation
 export const deleteCustomQuotation = asyncHandler(async (req, res) => {
