@@ -110,35 +110,50 @@ const InvoicePDF = ({ invoiceData }) => {
   };
 
   const handleDownloadPDF = async () => {
-    if (!componentRef.current) return;
-    setIsGenerating(true);
-    try {
-      const canvas = await html2canvas(componentRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const ratio = pdfWidth / canvas.width;
-      const imgHeight = canvas.height * ratio;
-      pdf.addImage(
-        canvas.toDataURL("image/png"),
-        "PNG",
-        0,
-        0,
-        pdfWidth,
-        imgHeight
-      );
-      pdf.save(`Invoice-${invoiceData?.invoiceNo || "INV"}.pdf`);
-    } catch (e) {
-      console.error(e);
-      alert("Error generating PDF");
-    } finally {
-      setIsGenerating(false);
+  if (!componentRef.current) return;
+  setIsGenerating(true);
+  try {
+    // Capture the invoice as canvas
+    const canvas = await html2canvas(componentRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    });
+
+    // Create PDF instance
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    // Calculate scaling ratio
+    const ratio = pdfWidth / canvas.width;
+    const imgHeight = canvas.height * ratio;
+
+    // Add captured image to PDF
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pdfWidth, imgHeight);
+
+    // ✅ Add clickable "View Terms & Conditions" link text below invoice
+    if (invoiceData?.companyId?.termsConditions) {
+      const linkText = "View Terms & Conditions";
+      const linkUrl = invoiceData.companyId.termsConditions;
+      const linkX = 20; // distance from left
+      const linkY = pdfHeight - 25; // distance from top (near bottom of page)
+      
+      pdf.setFontSize(10);
+      pdf.setTextColor(21, 101, 192); // blue color
+      pdf.textWithLink(linkText, linkX, linkY, { url: linkUrl });
     }
-  };
+
+    // Save the PDF
+    pdf.save(`Invoice-${invoiceData?.invoiceNo || "INV"}.pdf`);
+  } catch (e) {
+    console.error(e);
+    alert("Error generating PDF");
+  } finally {
+    setIsGenerating(false);
+  }
+};
+
 
   const {
     billingName = "N/A",
@@ -226,9 +241,9 @@ const InvoicePDF = ({ invoiceData }) => {
         {/* Company Info */}
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <img
-            src={invoiceData?.companyId?.logo }
+            src={invoiceData?.companyId?.logo}
             alt="Logo"
-            style={{ width: 100,height:100 ,objectFit: "contain" }}
+            style={{ width: 100, height: 100, objectFit: "contain" }}
           />
           <Box sx={{ textAlign: "right" }}>
             <Typography sx={{ fontWeight: "bold", fontSize: "13px" }}>
@@ -314,96 +329,94 @@ const InvoicePDF = ({ invoiceData }) => {
                 <b>Financial Year:</b> {financialYear}
               </div>
               <div>
-              <div>
-              <b>Advanced Receipt No:</b> {advancedReceiptNo}
+                <b>Advanced Receipt No:</b> {advancedReceiptNo}
               </div>
+              <div>
                 <b>Date:</b> {formatDate(invoiceDate)}
               </div>
               <div>
-                <b>Description</b> {description}
+                <b>Description:</b> {description}
               </div>
-              
             </Box>
           </Box>
         </Box>
 
         {/* Items Table */}
         <TableContainer component={Paper} sx={{ mb: 1 }}>
-  <Table size="small">
-    <TableHead>
-      <TableRow sx={{ bgcolor: "#1565c0" }}>
-        {[
-          "#",
-          "Particulars",
-          "HSN/SAC",
-          "Price ₹",
-          "Disc ₹",
-          "GST ₹",
-          "Amount ₹",
-        ].map((h, i) => (
-          <TableCell
-            key={i}
-            align={i === 0 || i === 1 || i === 2 ? "left" : "right"}
-            sx={{
-              color: "#fff",
-              fontWeight: "bold",
-              fontSize: "10px",
-              py: 0.8,
-              px: 1.5,
-            }}
-          >
-            {h}
-          </TableCell>
-        ))}
-      </TableRow>
-    </TableHead>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: "#1565c0" }}>
+                {[
+                  "#",
+                  "Particulars",
+                  "HSN/SAC",
+                  "Price ₹",
+                  "Disc ₹",
+                  "GST ₹",
+                  "Amount ₹",
+                ].map((h, i) => (
+                  <TableCell
+                    key={i}
+                    align={i === 0 || i === 1 || i === 2 ? "left" : "right"}
+                    sx={{
+                      color: "#fff",
+                      fontWeight: "bold",
+                      fontSize: "10px",
+                      py: 0.8,
+                      px: 1.5,
+                    }}
+                  >
+                    {h}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
 
-    <TableBody>
-      {items.map((item, i) => (
-        <TableRow key={i}>
-          <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
-            {i + 1}
-          </TableCell>
-          <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
-            {item.particulars}
-          </TableCell>
-          <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
-            998552
-          </TableCell>
-          <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
-            ₹{item.basePrice || 0}
-          </TableCell>
-          <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
-            ₹{item.discount || 0}
-          </TableCell>
-          <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
-            ₹{item.taxAmount || 0}
-          </TableCell>
-          <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
-            ₹{item.amount || 0}
-          </TableCell>
-        </TableRow>
-      ))}
+            <TableBody>
+              {items.map((item, i) => (
+                <TableRow key={i}>
+                  <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
+                    {i + 1}
+                  </TableCell>
+                  <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
+                    {item.particulars}
+                  </TableCell>
+                  <TableCell align="left" sx={{ fontSize: "10px", px: 1.5 }}>
+                    998552
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
+                    ₹{item.basePrice || 0}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
+                    ₹{item.discount || 0}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
+                    ₹{item.taxAmount || 0}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: "10px", px: 1.5 }}>
+                    ₹{item.amount || 0}
+                  </TableCell>
+                </TableRow>
+              ))}
 
-      <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-        <TableCell
-          colSpan={6}
-          align="right"
-          sx={{ fontWeight: "bold", fontSize: "10px", px: 1.5 }}
-        >
-          Total
-        </TableCell>
-        <TableCell
-          align="right"
-          sx={{ fontWeight: "bold", fontSize: "10px", px: 1.5 }}
-        >
-          ₹{totalAmount}
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  </Table>
-</TableContainer>
-
+              <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                <TableCell
+                  colSpan={6}
+                  align="right"
+                  sx={{ fontWeight: "bold", fontSize: "10px", px: 1.5 }}
+                >
+                  Total
+                </TableCell>
+                <TableCell
+                  align="right"
+                  sx={{ fontWeight: "bold", fontSize: "10px", px: 1.5 }}
+                >
+                  ₹{totalAmount}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
 
         {/* Summary */}
         <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
@@ -432,10 +445,9 @@ const InvoicePDF = ({ invoiceData }) => {
                   {items.map((item, i) => (
                     <TableRow key={i}>
                       <TableCell>
-                       {!invoiceData?.stateOfSupply?.includes("Uttar Pradesh")
-  ? "IGST"
-  : "CGST / SGST"}
-
+                        {!invoiceData?.stateOfSupply?.includes("Uttar Pradesh")
+                          ? "IGST"
+                          : "CGST / SGST"}
                       </TableCell>
                       <TableCell>
                         ₹{(item.basePrice || 0) - (item.discount || 0)}
@@ -535,83 +547,89 @@ const InvoicePDF = ({ invoiceData }) => {
               Tour Details
             </Typography>
             <Box sx={{ border: "1px solid #1565c0", p: 0.5 }}>
-             <b>Start Date</b>: {formatDate(startDate)} , <b>Starting Point</b> : {invoiceData?.startingPoint}
+              <b>Start Date:</b> {formatDate(startDate)}, <b>Starting Point:</b> {invoiceData?.startingPoint}
               <br />
-              <b>Return Date</b>: {formatDate(returnDate)} , <b>Returning Point </b> : {invoiceData?.dropPoint}
+              <b>Return Date:</b> {formatDate(returnDate)}, <b>Returning Point:</b> {invoiceData?.dropPoint}
               <br />
-              <b>No Of Pax</b>:{noOfPax} || <b>Cab Type</b> : {cabType}
+              <b>No Of Pax:</b> {noOfPax} || <b>Cab Type:</b> {cabType}
               <br />
-              <b>Tour Type</b>: {tourType} 
+              <b>Tour Type:</b> {tourType} 
             </Box>
           </Box>
         </Box>
 
         <Box
-  sx={{
-    display: "flex",
-    justifyContent: "space-between",
-    mt: 1,
-    alignItems: "flex-end",
-  }}
->
-  <Box sx={{ flex: 1 }}>
-    <Typography
-      sx={{
-        bgcolor: "#1565c0",
-        color: "#fff",
-        p: 0.5,
-        fontWeight: "bold",
-        fontSize: "10px",
-      }}
-    >
-      Terms & Conditions
-    </Typography>
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            mt: 1,
+            alignItems: "flex-end",
+          }}
+        >
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              sx={{
+                bgcolor: "#1565c0",
+                color: "#fff",
+                p: 0.5,
+                fontWeight: "bold",
+                fontSize: "10px",
+              }}
+            >
+              Terms & Conditions
+            </Typography>
 
-    <Box sx={{ border: "1px solid #1565c0", p: 0.5 }}>
-      {invoiceData?.companyId?.termsConditions && (
-        <Typography sx={{ fontSize: "10px", mb: 0.5 }}>
-          <a
-            href={invoiceData.companyId.termsConditions}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: "#1565c0",
-              textDecoration: "underline",
-              fontWeight: 500,
-            }}
-          >
-            View Terms & Conditions
-          </a>
-        </Typography>
-      )}
+            <Box
+              sx={{
+                border: "1px solid #1565c0",
+                p: 0.5,
+              }}
+            >
+              {invoiceData?.companyId?.termsConditions && (
+                <Box
+                  sx={{
+                    display: "inline-block",
+                    fontSize: "10px",
+                    color: "#1565c0",
+                    textDecoration: "underline",
+                    fontWeight: 500,
+                    mb: 0.5,
+                    wordBreak: "break-word",
+                    cursor: "pointer",
+                  }}
+                >
+                  View Terms & Conditions
+                </Box>
+              )}
 
-      <Typography sx={{ fontSize: "10px" }}>
-        This is a system-generated invoice. Thank you for your business!
-      </Typography>
-    </Box>
-  </Box>
+              <Typography sx={{ fontSize: "10px" }}>
+                This is a system-generated invoice. Thank you for your business!
+              </Typography>
+            </Box>
+          </Box>
 
           <Box sx={{ textAlign: "center", minWidth: 120 }}>
             {invoiceData?.companyId?.authorizedSignatory?.signatureImage && (
-  <Box
-    component="img"
-    src={invoiceData?.companyId?.authorizedSignatory?.signatureImage}
-    alt="Authorized Signatory"
-    sx={{
-      width: 100,
-      height: 100,
-      mt: 4,
-      objectFit: "contain",
-      display: "block",
-      marginLeft: "auto",
-    }}
-  />
-)}
-
+              <Box
+                component="img"
+                src={
+                  invoiceData?.companyId?.authorizedSignatory?.signatureImage
+                }
+                alt="Authorized Signatory"
+                sx={{
+                  width: 100,
+                  height: 100,
+                  mt: 4,
+                  objectFit: "contain",
+                  display: "block",
+                  marginLeft: "auto",
+                }}
+              />
+            )}
           </Box>
         </Box>
-      </Box>
-    </Box>
+      </Box> 
+    </Box> 
   );
 };
 

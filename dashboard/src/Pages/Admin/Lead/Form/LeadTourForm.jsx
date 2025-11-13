@@ -27,7 +27,15 @@ import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
 import { getLeadOptions,addLeadOption } from "../../../../features/leads/leadSlice"
-import { fetchCountries, fetchStatesByCountry, clearStates } from '../../../../features/location/locationSlice';
+import {
+  fetchCountries,
+  fetchStatesByCountry,
+  fetchAllIndianCities,
+  fetchAllCitiesByCountry,
+  clearStates,
+  clearCities,
+} from '../../../../features/location/locationSlice';
+
 import axios from "../../../../utils/axios"
 
 const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
@@ -40,7 +48,9 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
   // Get location data from Redux store
   const {
     countries,
-    states,             
+    states,
+    cities,
+             
     loading: locationLoading,
   } = useSelector((state) => state.location);
 
@@ -158,6 +168,18 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
 
   const { values, handleChange, setFieldValue, touched, errors } = formik;
 
+  // Improved city loading logic
+  useEffect(() => {
+    if (values.tourType === "Domestic") {
+      dispatch(fetchAllIndianCities());
+    } else if (values.tourType === "International" && values.country) {
+      dispatch(fetchAllCitiesByCountry(values.country));
+    } else {
+      // Clear cities when no valid condition
+      dispatch(clearCities());
+    }
+  }, [values.tourType, values.country, dispatch]);
+
   // Handle tour type change
   const handleTourTypeChange = (e) => {
     const tourType = e.target.value;
@@ -172,6 +194,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
       setFieldValue("country", "");
       setFieldValue("destination", []);
       dispatch(clearStates());
+      dispatch(clearCities());
     }
   };
 
@@ -183,6 +206,8 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     } else {
       setFieldValue("country", country);
       setFieldValue("destination", []); // Clear destination when changing country
+      // Clear cities immediately and fetch new ones
+      dispatch(clearCities());
     }
   };
 
@@ -193,20 +218,25 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     }
   }, [values.country, values.tourType, dispatch]);
 
- const getDestinationOptions = () => {
-  if (values.tourType === "Domestic") {
-    if (locationLoading) return [];
-    return Array.isArray(states) && states.length > 0
-      ? states.map((s) => s.name)
-      : [];
-  } else {
-    if (!values.country || locationLoading) return [];
-    return Array.isArray(states) && states.length > 0
-      ? states.map((s) => s.name)
-      : [];
-  }
-};
+  // Get unique cities to avoid duplicates
+  const getUniqueCities = () => {
+    if (!cities || !Array.isArray(cities)) return [];
+    return [...new Set(cities)]; // Remove duplicates
+  };
 
+  const getDestinationOptions = () => {
+    if (values.tourType === "Domestic") {
+      if (locationLoading) return [];
+      return Array.isArray(states) && states.length > 0
+        ? states.map((s) => s.name)
+        : [];
+    } else {
+      if (!values.country || locationLoading) return [];
+      return Array.isArray(states) && states.length > 0
+        ? states.map((s) => s.name)
+        : [];
+    }
+  };
 
   const calculateAccommodation = async () => {
     try {
@@ -332,6 +362,11 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
+
+  // City loading states
+  const uniqueCities = getUniqueCities();
+  const isCitiesLoading = locationLoading && uniqueCities.length === 0;
+  const hasCities = uniqueCities.length > 0;
 
   return (
     <Box p={3}>
@@ -600,22 +635,26 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
                 onChange={handleChange}
                 error={touched.arrivalCity && Boolean(errors.arrivalCity)}
                 helperText={touched.arrivalCity && errors.arrivalCity}
+                disabled={isCitiesLoading}
               >
-                {getOptionsForField("arrivalCity").map((option) =>
-                  option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-arrival-city"
-                      value=""
-                      onClick={() => handleOpenDialog("arrivalCity")}
-                    >
-                      + Add New
+                {isCitiesLoading ? (
+                  <MenuItem disabled>Loading cities...</MenuItem>
+                ) : hasCities ? (
+                  uniqueCities.map((city, index) => (
+                    <MenuItem key={`arrival-${city}-${index}`} value={city}>
+                      {city}
                     </MenuItem>
-                  ) : (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  )
+                  ))
+                ) : (
+                  <MenuItem disabled>
+                    {values.tourType === "International" && !values.country 
+                      ? "Select a country first" 
+                      : "No cities available"}
+                  </MenuItem>
                 )}
+                <MenuItem value="__add_new" onClick={() => handleOpenDialog("arrivalCity")}>
+                  + Add New
+                </MenuItem>
               </TextField>
             </Grid>
             <Grid size={{xs:12, md:3}}>
@@ -677,22 +716,26 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
                 onChange={handleChange}
                 error={touched.departureCity && Boolean(errors.departureCity)}
                 helperText={touched.departureCity && errors.departureCity}
+                disabled={isCitiesLoading}
               >
-                {getOptionsForField("departureCity").map((option) =>
-                  option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-departure-city"
-                      value=""
-                      onClick={() => handleOpenDialog("departureCity")}
-                    >
-                      + Add New
+                {isCitiesLoading ? (
+                  <MenuItem disabled>Loading cities...</MenuItem>
+                ) : hasCities ? (
+                  uniqueCities.map((city, index) => (
+                    <MenuItem key={`departure-${city}-${index}`} value={city}>
+                      {city}
                     </MenuItem>
-                  ) : (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  )
+                  ))
+                ) : (
+                  <MenuItem disabled>
+                    {values.tourType === "International" && !values.country 
+                      ? "Select a country first" 
+                      : "No cities available"}
+                  </MenuItem>
                 )}
+                <MenuItem value="__add_new" onClick={() => handleOpenDialog("departureCity")}>
+                  + Add New
+                </MenuItem>
               </TextField>
             </Grid>
             <Grid size={{xs:12, md:3}}>

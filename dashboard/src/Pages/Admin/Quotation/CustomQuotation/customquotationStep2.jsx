@@ -10,54 +10,63 @@ import {
   IconButton,
   Alert,
 } from "@mui/material";
-
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useFormik, FieldArray, FormikProvider } from "formik";
 import * as Yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCitiesByState } from "../../../../features/location/locationSlice";
-import { getAllLeads } from "../../../../features/leads/leadSlice";
 
 const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
   const [totalNightsFromLead, setTotalNightsFromLead] = useState(0);
   const [calculatedTotalNights, setCalculatedTotalNights] = useState(0);
   const dispatch = useDispatch();
 
-  const { cities = [], loading, error } = useSelector((state) => state.location);
+  const { cities = [] } = useSelector((state) => state.location);
   const { list: leadList = [] } = useSelector((state) => state.leads);
 
+  // ✅ Fetch only cities for the selected sector
   useEffect(() => {
     if (sector) {
       dispatch(fetchCitiesByState({ countryName: "India", stateName: sector }));
     }
-    dispatch(getAllLeads());
   }, [dispatch, sector]);
 
-  // Find matching lead and get total nights
+  // ✅ Find matching lead — handle tourDestination array or string
   useEffect(() => {
     if (clientName && sector && leadList.length > 0) {
       const lead = leadList.find((lead) => {
-        const nameMatch = lead.personalDetails?.fullName?.trim().toLowerCase() === clientName?.trim().toLowerCase();
-        const sectorMatch = 
-          lead.tourDetails?.tourDestination?.trim().toLowerCase() === sector?.trim().toLowerCase() ||
-          lead.location?.state?.trim().toLowerCase() === sector?.trim().toLowerCase();
-        
+        const nameMatch =
+          lead.personalDetails?.fullName?.trim().toLowerCase() ===
+          clientName?.trim().toLowerCase();
+
+        const tourDestinations = lead.tourDetails?.tourDestination;
+        const sectorLower = sector?.trim().toLowerCase();
+
+        const sectorMatch =
+          (Array.isArray(tourDestinations)
+            ? tourDestinations.some(
+                (dest) => dest?.trim().toLowerCase() === sectorLower
+              )
+            : tourDestinations?.trim?.().toLowerCase() === sectorLower) ||
+          lead.location?.state?.trim().toLowerCase() === sectorLower;
+
         return nameMatch && sectorMatch;
       });
 
       if (lead) {
         const nights = lead.tourDetails?.accommodation?.noOfNights || 0;
         setTotalNightsFromLead(nights);
-        console.log("🔍 Total nights from lead:", nights);
       }
     }
   }, [clientName, sector, leadList]);
 
+  // ✅ Formik setup
   const formik = useFormik({
     initialValues: {
       cities: [
         {
           cityName: "",
+          customCity: "",
           nights: "",
         },
       ],
@@ -66,6 +75,12 @@ const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
       cities: Yup.array().of(
         Yup.object({
           cityName: Yup.string().required("City Name is required"),
+          customCity: Yup.string().when("cityName", {
+            is: "Other",
+            then: (schema) =>
+              schema.required("Please enter your custom city name"),
+            otherwise: (schema) => schema.notRequired(),
+          }),
           nights: Yup.number()
             .typeError("Must be a number")
             .positive("Must be positive")
@@ -75,29 +90,37 @@ const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
       ),
     }),
     onSubmit: (values) => {
-      // Calculate total nights from all cities
-      const totalNights = values.cities.reduce((sum, city) => {
-        return sum + (parseInt(city.nights) || 0);
-      }, 0);
+      const formattedCities = values.cities.map((c) => ({
+        cityName: c.cityName === "Other" ? c.customCity : c.cityName,
+        nights: c.nights,
+      }));
+
+      const totalNights = formattedCities.reduce(
+        (sum, city) => sum + (parseInt(city.nights) || 0),
+        0
+      );
 
       setCalculatedTotalNights(totalNights);
 
-      // Validate if total nights match the lead data
       if (totalNightsFromLead > 0 && totalNights !== totalNightsFromLead) {
-        formik.setFieldError('cities', `Total nights allocated (${totalNights}) does not match required nights (${totalNightsFromLead})`);
+        formik.setFieldError(
+          "cities",
+          `Total nights allocated (${totalNights}) does not match required nights (${totalNightsFromLead})`
+        );
         return;
       }
 
-      console.log("Step 2 Submitted - Cities:", values.cities);
-      onNext(values.cities);
+      console.log("✅ Step 2 Submitted - Cities:", formattedCities);
+      onNext(formattedCities);
     },
   });
 
-  // Calculate total nights whenever cities change
+  // ✅ Recalculate total nights when city nights change
   useEffect(() => {
-    const totalNights = formik.values.cities.reduce((sum, city) => {
-      return sum + (parseInt(city.nights) || 0);
-    }, 0);
+    const totalNights = formik.values.cities.reduce(
+      (sum, city) => sum + (parseInt(city.nights) || 0),
+      0
+    );
     setCalculatedTotalNights(totalNights);
   }, [formik.values.cities]);
 
@@ -108,43 +131,35 @@ const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
         p: 3,
         width: "100%",
         maxWidth: 700,
-        position: "relative",
         margin: "auto",
       }}
     >
-      {/* Title */}
       <Typography variant="h6" fontWeight="bold" gutterBottom>
         Custom Quotation
       </Typography>
 
-      {/* Section Title */}
       <Typography
         variant="subtitle1"
         fontWeight="bold"
         sx={{ borderBottom: "1px solid #ddd", mb: 2 }}
       >
-        Pickup/Drop
+        Pickup / Drop
       </Typography>
 
-      {/* Total Nights Information */}
       {totalNightsFromLead > 0 && (
-        <Alert 
-          severity="info" 
-          sx={{ mb: 2 }}
-        >
-          Total no. of nights allocated for this quotation: <strong>{totalNightsFromLead} nights</strong>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Total nights required for this quotation:{" "}
+          <strong>{totalNightsFromLead} nights</strong>
         </Alert>
       )}
 
-      {/* Nights Validation Alert */}
-      {totalNightsFromLead > 0 && calculatedTotalNights !== totalNightsFromLead && (
-        <Alert 
-          severity="warning" 
-          sx={{ mb: 2 }}
-        >
-          Current total nights: <strong>{calculatedTotalNights}</strong> | Required: <strong>{totalNightsFromLead}</strong>
-        </Alert>
-      )}
+      {totalNightsFromLead > 0 &&
+        calculatedTotalNights !== totalNightsFromLead && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Current total nights: <strong>{calculatedTotalNights}</strong> | Required:{" "}
+            <strong>{totalNightsFromLead}</strong>
+          </Alert>
+        )}
 
       <FormikProvider value={formik}>
         <form onSubmit={formik.handleSubmit}>
@@ -153,22 +168,24 @@ const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
             render={(arrayHelpers) => (
               <>
                 {formik.values.cities.map((city, index) => (
-                  <Grid
-                    container
-                    spacing={2}
-                    key={index}
-                    alignItems="center"
-                    sx={{ mb: 1 }}
-                  >
-                    {/* City Name */}
-                    <Grid size={{ xs: 12, md: 5 }}>
+                  <Grid container spacing={2} key={index} alignItems="center">
+                    {/* City Dropdown */}
+                    <Grid item xs={12} md={5}>
                       <TextField
                         fullWidth
                         select
                         label="City Name"
                         name={`cities[${index}].cityName`}
                         value={city.cityName}
-                        onChange={formik.handleChange}
+                        onChange={(e) => {
+                          formik.handleChange(e);
+                          if (e.target.value !== "Other") {
+                            formik.setFieldValue(
+                              `cities[${index}].customCity`,
+                              ""
+                            );
+                          }
+                        }}
                         onBlur={formik.handleBlur}
                         error={
                           formik.touched.cities?.[index]?.cityName &&
@@ -184,11 +201,33 @@ const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
                             {c.name}
                           </MenuItem>
                         ))}
+                        <MenuItem value="Other">Other (Add Custom City)</MenuItem>
                       </TextField>
+
+                      {/* Custom city input */}
+                      {city.cityName === "Other" && (
+                        <TextField
+                          sx={{ mt: 2 }}
+                          fullWidth
+                          label="Enter Custom City"
+                          name={`cities[${index}].customCity`}
+                          value={city.customCity}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          error={
+                            formik.touched.cities?.[index]?.customCity &&
+                            Boolean(formik.errors.cities?.[index]?.customCity)
+                          }
+                          helperText={
+                            formik.touched.cities?.[index]?.customCity &&
+                            formik.errors.cities?.[index]?.customCity
+                          }
+                        />
+                      )}
                     </Grid>
 
-                    {/* No. of Nights */}
-                    <Grid size={{ xs: 12, md: 5 }}>
+                    {/* Nights Input */}
+                    <Grid item xs={12} md={5}>
                       <TextField
                         fullWidth
                         type="number"
@@ -208,8 +247,8 @@ const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
                       />
                     </Grid>
 
-                    {/* Delete Button */}
-                    <Grid size={{ xs: 12, md: 2 }}>
+                    {/* Delete */}
+                    <Grid item xs={12} md={2}>
                       <IconButton
                         color="error"
                         onClick={() => arrayHelpers.remove(index)}
@@ -221,14 +260,16 @@ const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
                   </Grid>
                 ))}
 
-                {/* Add City Button */}
-                <Box sx={{ mb: 2 }}>
+                <Box sx={{ mt: 2 }}>
                   <Button
                     type="button"
                     variant="contained"
-                    color="primary"
                     onClick={() =>
-                      arrayHelpers.push({ cityName: "", nights: "" })
+                      arrayHelpers.push({
+                        cityName: "",
+                        customCity: "",
+                        nights: "",
+                      })
                     }
                   >
                     Add City
@@ -238,32 +279,27 @@ const CustomQuotationStep2 = ({ sector, clientName, onNext }) => {
             )}
           />
 
-          {/* Current Total Nights Display */}
-          <Box sx={{ mb: 2, p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+          <Box sx={{ my: 2, p: 1, backgroundColor: "#f5f5f5", borderRadius: 1 }}>
             <Typography variant="body2">
               <strong>Current Total Nights:</strong> {calculatedTotalNights}
-              {totalNightsFromLead > 0 && (
-                <span style={{ marginLeft: '10px', color: calculatedTotalNights === totalNightsFromLead ? 'green' : 'orange' }}>
-                  ({calculatedTotalNights === totalNightsFromLead ? '✓ Matched' : 'Not matched'})
-                </span>
-              )}
             </Typography>
           </Box>
 
-          {/* Next Button - Disabled if nights don't match */}
           <Box textAlign="center">
-            <Button 
-              type="submit" 
-              variant="contained" 
+            <Button
+              type="submit"
+              variant="contained"
               color="info"
-              disabled={totalNightsFromLead > 0 && calculatedTotalNights !== totalNightsFromLead}
+              disabled={
+                totalNightsFromLead > 0 &&
+                calculatedTotalNights !== totalNightsFromLead
+              }
             >
               Next
             </Button>
           </Box>
 
-          {/* Validation Error */}
-          {formik.errors.cities && typeof formik.errors.cities === 'string' && (
+          {formik.errors.cities && typeof formik.errors.cities === "string" && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {formik.errors.cities}
             </Alert>

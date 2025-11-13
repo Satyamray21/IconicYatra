@@ -7,10 +7,6 @@ import {
   Button,
   MenuItem,
   Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from "@mui/material";
 import {
   DatePicker,
@@ -21,55 +17,62 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
-// Dynamic Validation Schema based on transport
-const getValidationSchema = (transport) => {
-  return Yup.object({
+const tripTypes = ["One Way", "Round Trip"];
+const vehicleTypesDefault = ["Sedan", "SUV", "Bus", "Tempo Traveller"];
+
+// Validation schema
+const getValidationSchema = (transport) =>
+  Yup.object({
     clientName: Yup.string().required("Client Name is required"),
     vehicleType: Yup.string().required("Vehicle Type is required"),
     tripType: Yup.string().required("Trip Type is required"),
-    totalCost: transport === "No" 
-      ? Yup.number().typeError("Must be a number").notRequired()
-      : Yup.number()
-          .typeError("Must be a number")
-          .required("Total Costing is required"),
+    perDayCost:
+      transport === "No"
+        ? Yup.number().notRequired()
+        : Yup.number()
+            .typeError("Must be a number")
+            .min(0, "Must be positive")
+            .nullable(),
+    ratePerKm:
+      transport === "No"
+        ? Yup.number().notRequired()
+        : Yup.number()
+            .typeError("Must be a number")
+            .min(0, "Must be positive")
+            .nullable(),
+    totalCost:
+      transport === "No"
+        ? Yup.number().nullable()
+        : Yup.number()
+            .typeError("Total Cost must be a number")
+            .required("Total Cost is required"),
   });
-};
 
-const tripTypes = ["One Way", "Round Trip"];
-
-const CustomQuotationStep5 = ({ 
-  clientName, 
-  sector, 
-  arrivalCity, 
-  departureCity, 
-  arrivalDate, 
+const CustomQuotationStep5 = ({
+  clientName,
+  arrivalCity,
+  departureCity,
+  arrivalDate,
   departureDate,
   transport,
-  cities,
-  onNext
+  nights,
+  onNext,
 }) => {
-  const [clients, setClients] = useState(["Client A", "Client B"]);
-  const [vehicleTypes, setVehicleTypes] = useState([
-    "Sedan",
-    "SUV",
-    "Bus",
-    "Tempo Traveller",
-  ]);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [newValue, setNewValue] = useState("");
-  const [fieldType, setFieldType] = useState("");
+  const [vehicleTypes] = useState(vehicleTypesDefault);
 
   const formik = useFormik({
+    enableReinitialize: true,
     initialValues: {
       clientName: clientName || "",
       vehicleType: transport === "No" ? "No Transport" : "",
       tripType: "",
-      noOfDays: "",
+      noOfDays: nights ? nights + 1 : "",
+      perDayCost: "",
       ratePerKm: "",
       kmPerDay: "",
       driverAllowance: "",
       tollParking: "",
-      totalCost: transport === "No" ? "0" : "",
+      totalCost: transport === "No" ? 0 : "",
       pickupDate: arrivalDate || null,
       pickupTime: null,
       pickupLocation: arrivalCity || "",
@@ -79,78 +82,54 @@ const CustomQuotationStep5 = ({
     },
     validationSchema: getValidationSchema(transport),
     onSubmit: (values) => {
-      console.log("Step 5 Submitted:", values);
       onNext(values);
     },
-    enableReinitialize: true,
   });
 
-  // Auto-calculate total cost when relevant fields change (only if transport is Yes)
+  // Auto-calculate noOfDays based on pickup/drop dates
   useEffect(() => {
-    if (transport !== "No") {
-      const noOfDays = parseFloat(formik.values.noOfDays) || 0;
-      const ratePerKm = parseFloat(formik.values.ratePerKm) || 0;
-      const kmPerDay = parseFloat(formik.values.kmPerDay) || 0;
-      const driverAllowance = parseFloat(formik.values.driverAllowance) || 0;
-      const tollParking = parseFloat(formik.values.tollParking) || 0;
-
-      if (noOfDays > 0 && ratePerKm > 0 && kmPerDay > 0) {
-        const distanceCost = noOfDays * ratePerKm * kmPerDay;
-        const totalCost = distanceCost + driverAllowance + tollParking;
-        formik.setFieldValue("totalCost", totalCost.toFixed(2));
-      }
-    } else {
-      // If transport is No, set total cost to 0
-      formik.setFieldValue("totalCost", "0");
+    if (formik.values.pickupDate && formik.values.dropDate) {
+      const start = new Date(formik.values.pickupDate);
+      const end = new Date(formik.values.dropDate);
+      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      formik.setFieldValue("noOfDays", diffDays > 0 ? diffDays : 1);
     }
+  }, [formik.values.pickupDate, formik.values.dropDate]);
+
+  // Auto-calculate totalCost
+  useEffect(() => {
+    if (transport === "No") {
+      formik.setFieldValue("totalCost", 0);
+      return;
+    }
+
+    const {
+      perDayCost,
+      noOfDays,
+      ratePerKm,
+      kmPerDay,
+      driverAllowance,
+      tollParking,
+    } = formik.values;
+
+    let total = 0;
+    const days = parseFloat(noOfDays) || 0;
+
+    if (perDayCost && perDayCost > 0) total += perDayCost * days;
+    else if (ratePerKm && kmPerDay) total += ratePerKm * kmPerDay * days;
+
+    total += parseFloat(driverAllowance || 0) + parseFloat(tollParking || 0);
+
+    formik.setFieldValue("totalCost", total.toFixed(2));
   }, [
     formik.values.noOfDays,
+    formik.values.perDayCost,
     formik.values.ratePerKm,
     formik.values.kmPerDay,
     formik.values.driverAllowance,
     formik.values.tollParking,
-    transport
+    transport,
   ]);
-
-  // Add client name to clients list if it's new
-  useEffect(() => {
-    if (clientName && !clients.includes(clientName)) {
-      setClients((prev) => [...prev, clientName]);
-    }
-  }, [clientName]);
-
-  // Handle dropdown change
-  const handleClientChange = (event) => {
-    if (event.target.value === "addNew") {
-      setFieldType("client");
-      setNewValue("");
-      setOpenDialog(true);
-    } else {
-      formik.handleChange(event);
-    }
-  };
-
-  const handleVehicleChange = (event) => {
-    if (event.target.value === "addNew") {
-      setFieldType("vehicle");
-      setNewValue("");
-      setOpenDialog(true);
-    } else {
-      formik.handleChange(event);
-    }
-  };
-
-  const handleDialogSave = () => {
-    if (newValue.trim() === "") return;
-    if (fieldType === "client") {
-      setClients((prev) => [...prev, newValue]);
-      formik.setFieldValue("clientName", newValue);
-    } else if (fieldType === "vehicle") {
-      setVehicleTypes((prev) => [...prev, newValue]);
-      formik.setFieldValue("vehicleType", newValue);
-    }
-    setOpenDialog(false);
-  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -161,10 +140,10 @@ const CustomQuotationStep5 = ({
           </Typography>
 
           {transport === "No" && (
-            <Paper sx={{ p: 2, mb: 2, backgroundColor: '#fff3cd' }}>
+            <Paper sx={{ p: 2, mb: 2, backgroundColor: "#fff3cd" }}>
               <Typography variant="body2" color="text.secondary">
-                <strong>Note:</strong> Transport is disabled as per previous selection. 
-                Vehicle details are not required.
+                <strong>Note:</strong> Transport is disabled. Vehicle details
+                are not required.
               </Typography>
             </Paper>
           )}
@@ -175,67 +154,39 @@ const CustomQuotationStep5 = ({
               Basic Details
             </Typography>
             <Grid container spacing={2} mt={1}>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
-                  select
                   label="Client Name"
                   name="clientName"
                   value={formik.values.clientName}
-                  onChange={handleClientChange}
-                  error={
-                    formik.touched.clientName &&
-                    Boolean(formik.errors.clientName)
-                  }
-                  helperText={
-                    formik.touched.clientName && formik.errors.clientName
-                  }
-                  required
-                >
-                  {clients.map((client, idx) => (
-                    <MenuItem key={idx} value={client}>
-                      {client}
-                    </MenuItem>
-                  ))}
-                  <MenuItem value="addNew">+ Add New</MenuItem>
-                </TextField>
+                  disabled
+                />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   select
                   label="Vehicle Type"
                   name="vehicleType"
                   value={formik.values.vehicleType}
-                  onChange={handleVehicleChange}
-                  error={
-                    formik.touched.vehicleType &&
-                    Boolean(formik.errors.vehicleType)
-                  }
-                  helperText={
-                    formik.touched.vehicleType && formik.errors.vehicleType
-                  }
+                  onChange={formik.handleChange}
                   disabled={transport === "No"}
-                  required
                 >
                   {transport === "No" ? (
                     <MenuItem value="No Transport">No Transport</MenuItem>
                   ) : (
-                    vehicleTypes.map((type, idx) => (
-                      <MenuItem key={idx} value={type}>
+                    vehicleTypes.map((type) => (
+                      <MenuItem key={type} value={type}>
                         {type}
                       </MenuItem>
                     ))
                   )}
-                  {transport !== "No" && <MenuItem value="addNew">+ Add New</MenuItem>}
                 </TextField>
-                {transport === "No" && (
-                  <Typography variant="caption" color="textSecondary">
-                    Transport disabled as per previous selection
-                  </Typography>
-                )}
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   select
@@ -243,47 +194,54 @@ const CustomQuotationStep5 = ({
                   name="tripType"
                   value={formik.values.tripType}
                   onChange={formik.handleChange}
-                  required
                 >
-                  {tripTypes.map((type, idx) => (
-                    <MenuItem key={idx} value={type}>
+                  {tripTypes.map((type) => (
+                    <MenuItem key={type} value={type}>
                       {type}
                     </MenuItem>
                   ))}
                 </TextField>
               </Grid>
-              
-              {/* Only show these fields if transport is enabled */}
+
               {transport !== "No" && (
                 <>
-                  <Grid size={{ xs: 12, sm: 4 }}>
+                  <Grid item xs={12} sm={4}>
                     <TextField
                       fullWidth
-                      label="No Of Days"
+                      label="No of Days"
                       name="noOfDays"
                       value={formik.values.noOfDays}
-                      onChange={formik.handleChange}
-                      type="number"
+                      disabled
                     />
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 4 }}>
+                  <Grid item xs={12} sm={4}>
                     <TextField
                       fullWidth
-                      label="Rate Per Km"
+                      label="Per Day Cost"
+                      name="perDayCost"
+                      type="number"
+                      value={formik.values.perDayCost}
+                      onChange={formik.handleChange}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Rate per Km"
                       name="ratePerKm"
+                      type="number"
                       value={formik.values.ratePerKm}
                       onChange={formik.handleChange}
-                      type="number"
                     />
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 4 }}>
+                  <Grid item xs={12} sm={4}>
                     <TextField
                       fullWidth
-                      label="Km Per Day"
+                      label="Km per Day"
                       name="kmPerDay"
+                      type="number"
                       value={formik.values.kmPerDay}
                       onChange={formik.handleChange}
-                      type="number"
                     />
                   </Grid>
                 </>
@@ -291,78 +249,70 @@ const CustomQuotationStep5 = ({
             </Grid>
           </Box>
 
-          {/* Cost Details - Only show if transport is enabled */}
+          {/* Cost Details */}
           {transport !== "No" && (
             <Box mb={2}>
               <Typography variant="subtitle1" fontWeight="bold">
                 Cost Details
               </Typography>
               <Grid container spacing={2} mt={1}>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid item xs={12} sm={4}>
                   <TextField
                     fullWidth
                     label="Driver Allowance"
                     name="driverAllowance"
+                    type="number"
                     value={formik.values.driverAllowance}
                     onChange={formik.handleChange}
-                    type="number"
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid item xs={12} sm={4}>
                   <TextField
                     fullWidth
                     label="Toll/Parking"
                     name="tollParking"
+                    type="number"
                     value={formik.values.tollParking}
                     onChange={formik.handleChange}
-                    type="number"
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid item xs={12} sm={4}>
                   <TextField
                     fullWidth
                     label="Total Costing"
                     name="totalCost"
-                    value={formik.values.totalCost}
-                    onChange={formik.handleChange}
-                    error={
-                      formik.touched.totalCost &&
-                      Boolean(formik.errors.totalCost)
-                    }
-                    helperText={
-                      formik.touched.totalCost && formik.errors.totalCost
-                    }
                     type="number"
-                    required
+                    value={formik.values.totalCost}
+                    disabled={transport !== "No"}
                   />
                 </Grid>
               </Grid>
             </Box>
           )}
 
-          {/* Pickup/Drop Details */}
+          {/* Pickup/Drop */}
           <Box mb={2}>
             <Typography variant="subtitle1" fontWeight="bold">
               PickUp/Drop Details
             </Typography>
             <Grid container spacing={2} mt={1}>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid item xs={12} sm={4}>
                 <DatePicker
                   label="Pickup Date"
                   value={formik.values.pickupDate}
                   onChange={(val) => formik.setFieldValue("pickupDate", val)}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
+                  renderInput={(params) => <TextField fullWidth {...params} />}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid item xs={12} sm={4}>
                 <TimePicker
                   label="Pickup Time"
                   value={formik.values.pickupTime}
                   onChange={(val) => formik.setFieldValue("pickupTime", val)}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
+                  renderInput={(params) => <TextField fullWidth {...params} />}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   label="Pickup Location"
@@ -372,23 +322,23 @@ const CustomQuotationStep5 = ({
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid item xs={12} sm={4}>
                 <DatePicker
                   label="Drop Date"
                   value={formik.values.dropDate}
                   onChange={(val) => formik.setFieldValue("dropDate", val)}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
+                  renderInput={(params) => <TextField fullWidth {...params} />}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid item xs={12} sm={4}>
                 <TimePicker
                   label="Drop Time"
                   value={formik.values.dropTime}
                   onChange={(val) => formik.setFieldValue("dropTime", val)}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
+                  renderInput={(params) => <TextField fullWidth {...params} />}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   label="Drop Location"
@@ -400,42 +350,13 @@ const CustomQuotationStep5 = ({
             </Grid>
           </Box>
 
-          {/* Submit */}
           <Box textAlign="center" mt={2}>
-            <Button 
-              type="submit" 
-              variant="contained" 
-              color="primary"
-              disabled={!formik.isValid}
-            >
-              Save & Continue 
+            <Button type="submit" variant="contained" color="primary">
+              Save & Continue
             </Button>
           </Box>
         </form>
       </Box>
-
-      {/* Add New Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>
-          Add New {fieldType === "client" ? "Client" : "Vehicle"}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label={fieldType === "client" ? "Client Name" : "Vehicle Type"}
-            fullWidth
-            value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleDialogSave}>
-            Save & Add
-          </Button>
-        </DialogActions>
-      </Dialog>
     </LocalizationProvider>
   );
 };

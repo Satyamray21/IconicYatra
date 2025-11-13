@@ -29,6 +29,7 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  Divider,
 } from "@mui/material";
 import {
   FormatQuote as FormatQuoteIcon,
@@ -57,9 +58,9 @@ import {
   FormatQuote,
   Delete,
   Add,
+  Download,
+  Error,
 } from "@mui/icons-material";
-import { useParams } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 
 import EmailQuotationDialog from "../VehicleQuotation/Dialog/EmailQuotationDialog";
 import MakePaymentDialog from "../VehicleQuotation/Dialog/MakePaymentDialog";
@@ -69,8 +70,11 @@ import AddBankDialog from "../VehicleQuotation/Dialog/AddBankDialog";
 import EditDialog from "../VehicleQuotation/Dialog/EditDialog";
 import AddServiceDialog from "../VehicleQuotation/Dialog/AddServiceDialog";
 import AddFlightDialog from "../HotelQuotation/Dialog/FlightDialog";
-import { getCustomQuotationById } from "../../../../features/quotation/customQuotationSlice";
-
+import InvoicePDF from "./Dialog/PDF/Invoice";
+import QuotationPDFDialog from "./Dialog/PDF/PreviewPdf";
+import { useDispatch, useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
+import {getCustomQuotationById} from "../../../../features/quotation/customQuotationSlice";
 // Transaction Summary Dialog Component
 const TransactionSummaryDialog = ({ open, onClose }) => {
   const tableHeaders = [
@@ -144,23 +148,103 @@ const TransactionSummaryDialog = ({ open, onClose }) => {
   );
 };
 
-const CustomFinalize = () => {
-  const { id } = useParams();
-  const dispatch = useDispatch();
-  
-  const { 
-    selectedQuotation, 
-    loading, 
-    error 
-  } = useSelector((state) => state.customQuotation);
+// Invoice PDF Dialog Component
+const InvoicePdfDialog = ({ open, onClose, quotation, invoiceData }) => {
+  const [loading, setLoading] = useState(false);
 
+  const handleDownload = () => {
+    const element = document.createElement("a");
+    const file = new Blob([document.getElementById('invoice-content').innerHTML], {type: 'text/html'});
+    element.href = URL.createObjectURL(file);
+    element.download = `invoice-${quotation.reference}.html`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{ sx: { minHeight: "80vh", width: "90vw" } }}
+    >
+      <DialogTitle>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6" component="div" fontWeight="bold">
+            Invoice - {quotation.reference}
+          </Typography>
+          <Box display="flex" gap={1}>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handlePrint}
+              startIcon={<Visibility />}
+            >
+              Print
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleDownload}
+              startIcon={<Download />}
+            >
+              Download
+            </Button>
+          </Box>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ p: 0, position: 'relative' }}>
+        {loading && (
+          <Box 
+            display="flex" 
+            justifyContent="center" 
+            alignItems="center" 
+            height="100%"
+            position="absolute"
+            top={0}
+            left={0}
+            right={0}
+            bottom={0}
+            bgcolor="rgba(255,255,255,0.8)"
+            zIndex={1}
+          >
+            <Box textAlign="center">
+              <CircularProgress size={40} />
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Loading invoice...
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
+        <Box sx={{ height: "70vh", width: "100%", overflow: 'auto' }} id="invoice-content">
+          <InvoicePDF invoiceData={invoiceData} />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+const CustomFinalize = () => {
   // State
+   const dispatch = useDispatch();
   const [activeInfo, setActiveInfo] = useState(null);
   const [openFinalize, setOpenFinalize] = useState(false);
   const [openAddFlight, setOpenAddFlight] = useState(false);
   const [vendor, setVendor] = useState("");
   const [isFinalized, setIsFinalized] = useState(false);
   const [invoiceGenerated, setInvoiceGenerated] = useState(false);
+  const [openInvoiceDialog, setOpenInvoiceDialog] = useState(false);
+  const [openPdfDialog, setOpenPdfDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -174,8 +258,9 @@ const CustomFinalize = () => {
     description: "",
     id: null
   });
-
-  // Initialize quotation state
+const { id } = useParams(); // Get quotation ID from URL params
+  const { selectedQuotation, loading: reduxLoading, error } = useSelector(state => state.customQuotation);
+  // Dynamic quotation state from API
   const [quotation, setQuotation] = useState({
     date: "",
     reference: "",
@@ -199,14 +284,7 @@ const CustomFinalize = () => {
       itinerary: "",
     },
     vehicles: [],
-    pricing: { 
-      discount: "", 
-      gst: "", 
-      total: "",
-      roomCost: "",
-      vehicleCost: "",
-      totalCost: ""
-    },
+    pricing: { discount: "", gst: "", total: "" },
     policies: {
       inclusions: [],
       exclusions: "",
@@ -224,7 +302,11 @@ const CustomFinalize = () => {
       address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
       website: "https://www.iconicyatra.com",
     },
+    hotelPricingData: [],
+    days: [],
   });
+
+  const [invoiceData, setInvoiceData] = useState(null);
 
   const [editDialog, setEditDialog] = useState({
     open: false,
@@ -269,273 +351,269 @@ const CustomFinalize = () => {
     { value: "YES Bank", label: "YES Bank" },
   ]);
 
-  // Safe data access helper function
-  const safeGet = (obj, path, defaultValue = '') => {
-    try {
-      const value = path.split('.').reduce((current, key) => {
-        return current && current[key] !== undefined ? current[key] : undefined;
-      }, obj);
-      return value !== undefined ? value : defaultValue;
-    } catch (error) {
-      console.warn(`Error accessing path ${path}:`, error);
-      return defaultValue;
-    }
-  };
-
-  // Fetch quotation data on component mount
-  useEffect(() => {
-    if (id) {
-      dispatch(getCustomQuotationById(id));
-    }
-  }, [dispatch, id]);
-
-  // Update local state when API data is loaded
-  useEffect(() => {
-    if (selectedQuotation && selectedQuotation.data) {
-      const apiData = selectedQuotation.data;
-      
-      console.log('API Data received:', apiData);
-
-      // Extract all data from API response
-      const tourDetails = safeGet(apiData, 'tourDetails', {});
-      const quotationDetails = safeGet(tourDetails, 'quotationDetails', {});
-      const clientDetails = safeGet(apiData, 'clientDetails', {});
-      const vehicleDetails = safeGet(tourDetails, 'vehicleDetails', {});
-      const policies = safeGet(tourDetails, 'policies', {});
-      const destinations = safeGet(quotationDetails, 'destinations', []);
-      const rooms = safeGet(quotationDetails, 'rooms', {});
-      const taxes = safeGet(quotationDetails, 'taxes', {});
-      const pickupDrop = safeGet(apiData, 'pickupDrop', []);
-
-      // Calculate pricing
-      const roomCost = calculateRoomCost(destinations, rooms);
-      const vehicleCost = safeGet(vehicleDetails, 'costDetails.totalCost', 0);
-      const totalCost = parseFloat(roomCost) + parseFloat(vehicleCost);
-      const gstAmount = taxes.applyGST ? totalCost * 0.18 : 0;
-      const finalTotal = totalCost + gstAmount;
-
-      // Format itinerary days
-      const itineraryData = safeGet(tourDetails, 'itinerary', []);
-      const formattedDays = itineraryData.map((item, index) => ({
-        id: safeGet(item, '_id', index + 1),
-        date: formatDate(safeGet(item, 'date')) || `Day ${index + 1}`,
-        title: safeGet(item, 'dayTitle', `Day ${index + 1}`),
-        description: safeGet(item, 'dayNote', ''),
-        image: safeGet(item, 'image', null)
-      }));
-
-      // Update quotation state with API data
-      setQuotation({
-        date: formatDate(safeGet(apiData, 'createdAt')),
-        reference: safeGet(apiData, 'quotationId'),
-        actions: ["Finalize", "Add Service", "Email Quotation", "Preview PDF", "Make Payment", "Add Flight", "Transaction"],
-        bannerImage: safeGet(tourDetails, 'bannerImage', ''),
-        customer: {
-          name: safeGet(clientDetails, 'clientName'),
-          location: safeGet(clientDetails, 'sector'),
-          phone: "+91 7053900957", // Default as not in API
-          email: "client@example.com", // Default as not in API
-        },
-        pickup: {
-          arrival: `Arrival: ${safeGet(tourDetails, 'arrivalCity')} (${formatDate(safeGet(tourDetails, 'arrivalDate'))})`,
-          departure: `Departure: ${safeGet(tourDetails, 'departureCity')} (${formatDate(safeGet(tourDetails, 'departureDate'))})`,
-        },
-        hotel: {
-          guests: `${safeGet(quotationDetails, 'adults', 0)} Adults, ${safeGet(quotationDetails, 'children', 0)} Children, ${safeGet(quotationDetails, 'kids', 0)} Kids, ${safeGet(quotationDetails, 'infants', 0)} Infants`,
-          rooms: `${safeGet(rooms, 'numberOfRooms', 0)} ${safeGet(rooms, 'roomType', '')} (${safeGet(rooms, 'sharingType', '')})`,
-          mealPlan: safeGet(quotationDetails, 'mealPlan'),
-          destination: generateDestinationText(destinations),
-          itinerary: safeGet(tourDetails, 'initalNotes', 'This is only tentative schedule for sightseeing and travel...'),
-        },
-        vehicles: vehicleDetails.basicsDetails ? [{
-          pickup: { 
-            date: formatDate(safeGet(vehicleDetails, 'pickupDropDetails.pickupDate')),
-            time: formatTime(safeGet(vehicleDetails, 'pickupDropDetails.pickupTime'))
-          },
-          drop: { 
-            date: formatDate(safeGet(vehicleDetails, 'pickupDropDetails.dropDate')),
-            time: formatTime(safeGet(vehicleDetails, 'pickupDropDetails.dropTime'))
-          },
-          vehicleType: safeGet(vehicleDetails, 'basicsDetails.vehicleType'),
-          tripType: safeGet(vehicleDetails, 'basicsDetails.tripType'),
-          noOfDays: safeGet(vehicleDetails, 'basicsDetails.noOfDays'),
-          perDayCost: safeGet(vehicleDetails, 'basicsDetails.perDayCost'),
-        }] : [],
-        pricing: {
-          discount: `₹ ${safeGet(quotationDetails, 'discount', 0)}`,
-          gst: `₹ ${gstAmount.toLocaleString('en-IN')}`,
-          total: `₹ ${finalTotal.toLocaleString('en-IN')}`,
-          roomCost: `₹ ${parseFloat(roomCost).toLocaleString('en-IN')}`,
-          vehicleCost: `₹ ${parseFloat(vehicleCost).toLocaleString('en-IN')}`,
-          totalCost: `₹ ${finalTotal.toLocaleString('en-IN')}`
-        },
-        policies: {
-          inclusions: safeGet(policies, 'inclusionPolicy', []).filter(item => item.trim() !== ''),
-          exclusions: safeGet(policies, 'exclusionPolicy', []).filter(item => item.trim() !== '').join('\n'),
-          paymentPolicy: safeGet(policies, 'paymentPolicy', []).filter(item => item.trim() !== '').join('\n'),
-          cancellationPolicy: safeGet(policies, 'cancellationPolicy', []).filter(item => item.trim() !== '').join('\n'),
-          terms: safeGet(policies, 'termsAndConditions', []).filter(item => item.trim() !== '').join('\n'),
-        },
-        footer: {
-          contact: `${safeGet(clientDetails, 'clientName')} | +91 7053900957`,
-          phone: "+91 7053900957",
-          email: "support@iconicyatra.com",
-          received: "₹ 0",
-          balance: `₹ ${finalTotal.toLocaleString('en-IN')}`,
-          company: "Iconic Yatra",
-          address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
-          website: "https://www.iconicyatra.com",
-        },
-      });
-
-      // Set days from itinerary
-      setDays(formattedDays.length > 0 ? formattedDays : [
-        { id: 1, date: new Date().toLocaleDateString(), title: "Day 1", description: "", image: null }
-      ]);
-    }
-  }, [selectedQuotation]);
-
-  // Helper functions
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    try {
-      return new Date(dateString).toLocaleDateString('en-IN');
-    } catch {
-      return "N/A";
-    }
-  };
-
-  const formatTime = (dateString) => {
-    if (!dateString) return "N/A";
-    try {
-      return new Date(dateString).toLocaleTimeString('en-IN', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      });
-    } catch {
-      return "N/A";
-    }
-  };
-
-  const generateDestinationText = (destinations = []) => {
-    if (!destinations || destinations.length === 0) return "N/A";
-    return destinations.map(dest => 
-      `${safeGet(dest, 'nights', 0)}N ${safeGet(dest, 'cityName', 'Unknown')}`
-    ).join(", ");
-  };
-
-  const calculateRoomCost = (destinations = [], rooms = {}) => {
-    if (!destinations || destinations.length === 0) return 0;
-    
-    const roomType = safeGet(rooms, 'roomType', 'standard');
-    let total = 0;
-    
-    destinations.forEach(dest => {
-      const price = safeGet(dest, `prices.${roomType}`, 0);
-      const nights = safeGet(dest, 'nights', 0);
-      total += price * nights;
-    });
-    
-    return total;
-  };
-
-  const generateHotelPricingData = (destinations = []) => {
-    if (!destinations || destinations.length === 0) {
-      return [
-        {
-          destination: "No destinations",
-          nights: "-",
-          standard: "-",
-          deluxe: "-",
-          superior: "-",
-        }
-      ];
-    }
-
-    const destinationRows = destinations.map(dest => ({
-      destination: safeGet(dest, 'cityName', 'Unknown'),
-      nights: `${safeGet(dest, 'nights', 0)} N`,
-      standard: safeGet(dest, 'standardHotels', []).join(', ') || '-',
-      deluxe: safeGet(dest, 'deluxeHotels', []).join(', ') || '-',
-      superior: safeGet(dest, 'superiorHotels', []).join(', ') || '-',
-    }));
-
-    // Calculate totals
-    const totalNights = destinations.reduce((sum, dest) => sum + safeGet(dest, 'nights', 0), 0);
-    const standardTotal = destinations.reduce((sum, dest) => sum + (safeGet(dest, 'prices.standard', 0) * safeGet(dest, 'nights', 0)), 0);
-    const deluxeTotal = destinations.reduce((sum, dest) => sum + (safeGet(dest, 'prices.deluxe', 0) * safeGet(dest, 'nights', 0)), 0);
-    const superiorTotal = destinations.reduce((sum, dest) => sum + (safeGet(dest, 'prices.superior', 0) * safeGet(dest, 'nights', 0)), 0);
-
-    return [
-      ...destinationRows,
-      {
-        destination: "Quotation Cost",
-        nights: "-",
-        standard: `₹ ${standardTotal.toLocaleString('en-IN')}`,
-        deluxe: `₹ ${deluxeTotal.toLocaleString('en-IN')}`,
-        superior: `₹ ${superiorTotal.toLocaleString('en-IN')}`,
-      },
-      {
-        destination: "Total Quotation Cost",
-        nights: `${totalNights} N`,
-        standard: `₹ ${standardTotal.toLocaleString('en-IN')}`,
-        deluxe: `₹ ${deluxeTotal.toLocaleString('en-IN')}`,
-        superior: `₹ ${superiorTotal.toLocaleString('en-IN')}`,
-      }
-    ];
-  };
-
   const taxOptions = [
     { value: "gst5", label: "GST 5%", rate: 5 },
     { value: "gst18", label: "GST 18%", rate: 18 },
     { value: "non", label: "Non", rate: 0 },
   ];
 
-  const hotelPricingData = generateHotelPricingData(safeGet(selectedQuotation, 'data.tourDetails.quotationDetails.destinations', []));
+  // Format date function
 
-  // Show loading state
-  if (loading) {
+  // Format date with time
+
+
+  // Fetch quotation data (simulate API call)
+ 
+
+
+  // Fetch quotation data from actual API
+  useEffect(() => {
+    const fetchQuotationData = async () => {
+      try {
+        if (id) {
+          // Dispatch the thunk to fetch quotation by ID
+          const result = await dispatch(getCustomQuotationById(id)).unwrap();
+          
+          // Transform the API response to component format
+          const transformedData = transformApiData(result);
+          if (transformedData) {
+            setQuotation(transformedData);
+            setDays(transformedData.days);
+          }
+        } else {
+          setSnackbar({
+            open: true,
+            message: "No quotation ID provided",
+            severity: "error"
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching quotation data:", error);
+        setSnackbar({
+          open: true,
+          message: error || "Failed to load quotation data",
+          severity: "error"
+        });
+      }
+    };
+
+    fetchQuotationData();
+  }, [dispatch, id]);
+
+  // Update the transformApiData function to handle the actual API response structure
+  const transformApiData = (apiData) => {
+    if (!apiData) return null;
+
+    const { clientDetails, tourDetails, quotationId, createdAt, pickupDrop } = apiData;
+    const { quotationDetails, arrivalCity, departureCity, arrivalDate, departureDate, itinerary, policies, vehicleDetails } = tourDetails;
+
+    // Calculate total guests
+    const totalGuests = quotationDetails.adults + quotationDetails.children + quotationDetails.kids + quotationDetails.infants;
+    
+    // Format destinations
+    const destinationString = quotationDetails.destinations?.map(dest => 
+      `${dest.nights}N ${dest.cityName}`
+    ).join(', ') || '';
+
+    // Transform hotel pricing data
+    const hotelPricingData = quotationDetails.destinations?.map(dest => ({
+      destination: dest.cityName,
+      nights: `${dest.nights} N`,
+      standard: dest.standardHotels?.join(', ') || '-',
+      deluxe: dest.deluxeHotels?.join(', ') || '-',
+      superior: dest.superiorHotels?.join(', ') || '-',
+    })) || [];
+
+    // Add summary rows to hotel pricing data
+    if (quotationDetails.destinations?.length > 0) {
+      const totalNights = quotationDetails.destinations.reduce((sum, dest) => sum + dest.nights, 0);
+      const totalStandard = quotationDetails.destinations.reduce((sum, dest) => sum + (dest.prices?.standard || 0), 0);
+      const totalDeluxe = quotationDetails.destinations.reduce((sum, dest) => sum + (dest.prices?.deluxe || 0), 0);
+      const totalSuperior = quotationDetails.destinations.reduce((sum, dest) => sum + (dest.prices?.superior || 0), 0);
+
+      hotelPricingData.push(
+        {
+          destination: "Quotation Cost",
+          nights: "-",
+          standard: `₹ ${totalStandard.toLocaleString()}`,
+          deluxe: `₹ ${totalDeluxe.toLocaleString()}`,
+          superior: `₹ ${totalSuperior.toLocaleString()}`,
+        },
+        {
+          destination: "Total Quotation Cost",
+          nights: `${totalNights} N`,
+          standard: `₹ ${totalStandard.toLocaleString()}`,
+          deluxe: `₹ ${totalDeluxe.toLocaleString()}`,
+          superior: `₹ ${totalSuperior.toLocaleString()}`,
+        }
+      );
+    }
+
+    // Transform itinerary days
+    const transformedDays = itinerary?.map((day, index) => ({
+      id: index + 1,
+      date: formatDate(arrivalDate), // You might want to calculate actual dates based on day number
+      title: day.dayTitle || `Day ${index + 1}`,
+      description: day.dayNote || '',
+      image: day.image ? { preview: day.image, name: 'Itinerary Image' } : null
+    })) || [];
+
+    // Format pickup/drop details
+    const arrivalText = `Arrival: ${arrivalCity} (${formatDate(arrivalDate)}) at Airport`;
+    const departureText = `Departure: ${departureCity} (${formatDate(departureDate)}) from Airport`;
+
+    // If vehicle details exist, use them
+    let vehicleArrival = arrivalText;
+    let vehicleDeparture = departureText;
+    if (vehicleDetails) {
+      vehicleArrival = `Arrival: ${vehicleDetails.pickupLocation} (${formatDateTime(vehicleDetails.pickupDate)})`;
+      vehicleDeparture = `Departure: ${vehicleDetails.dropLocation} (${formatDateTime(vehicleDetails.dropDate)})`;
+    }
+
+    return {
+      date: formatDate(createdAt),
+      reference: quotationId,
+      actions: ["Finalize", "Add Service", "Email Quotation", "Preview PDF", "Make Payment", "Add Flight", "Transaction"],
+      bannerImage: tourDetails.bannerImage || "",
+      customer: {
+        name: clientDetails.clientName,
+        location: clientDetails.sector,
+        phone: "+91 7053900957", // You might want to get this from API if available
+        email: "customer@example.com", // You might want to get this from API if available
+      },
+      pickup: {
+        arrival: vehicleArrival,
+        departure: vehicleDeparture,
+      },
+      hotel: {
+        guests: `${totalGuests} Guests (${quotationDetails.adults} Adults, ${quotationDetails.children} Children)`,
+        rooms: `${quotationDetails.rooms.numberOfRooms} ${quotationDetails.rooms.roomType} (${quotationDetails.rooms.sharingType})`,
+        mealPlan: quotationDetails.mealPlan,
+        destination: destinationString,
+        itinerary: tourDetails.initalNotes || "This is only tentative schedule for sightseeing and travel...",
+      },
+      vehicles: vehicleDetails ? [{
+        pickup: { 
+          date: formatDate(vehicleDetails.pickupDate), 
+          time: formatDateTime(vehicleDetails.pickupTime).split(', ')[1] 
+        },
+        drop: { 
+          date: formatDate(vehicleDetails.dropDate), 
+          time: formatDateTime(vehicleDetails.dropTime).split(', ')[1] 
+        },
+      }] : [],
+      pricing: { 
+        discount: `₹ ${quotationDetails.discount || 0}`, 
+        gst: `₹ ${quotationDetails.taxes?.applyGST ? 'Calculated' : 0}`, 
+        total: `₹ ${quotationDetails.destinations?.reduce((sum, dest) => sum + (dest.totalCost || 0), 0) || 0}` 
+      },
+      policies: {
+        inclusions: policies.inclusionPolicy || [],
+        exclusions: policies.exclusionPolicy?.join('\n') || "No exclusions specified",
+        paymentPolicy: policies.paymentPolicy?.join('\n') || "No payment policy specified",
+        cancellationPolicy: policies.cancellationPolicy?.join('\n') || "No cancellation policy specified",
+        terms: policies.termsAndConditions?.join('\n') || "No terms and conditions specified",
+      },
+      footer: {
+        contact: `${clientDetails.clientName} | +91 7053900957`,
+        phone: "+91 7053900957",
+        email: "info@iconicyatra.com",
+        received: "₹ 0",
+        balance: "₹ 0",
+        company: "Iconic Yatra",
+        address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
+        website: "https://www.iconicyatra.com",
+      },
+      hotelPricingData,
+      days: transformedDays,
+    };
+  };
+
+  // Format date function
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN');
+  };
+
+  // Format date with time
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  // Add loading state handling
+  if (reduxLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress />
         <Typography variant="h6" sx={{ ml: 2 }}>
-          Loading quotation...
+          Loading quotation data...
         </Typography>
       </Box>
     );
   }
 
-  // Show error state
-  if (error) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <Alert severity="error" sx={{ width: '100%', maxWidth: 500 }}>
-          <Typography variant="h6">Error loading quotation</Typography>
-          <Typography>{error}</Typography>
-          <Button 
-            variant="contained" 
-            sx={{ mt: 2 }}
-            onClick={() => dispatch(getCustomQuotationById(id))}
-          >
-            Retry
-          </Button>
-        </Alert>
-      </Box>
-    );
-  }
 
-  // If no quotation data is available yet, show a message
-  if (!selectedQuotation || !selectedQuotation.data) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <Alert severity="info" sx={{ width: '100%', maxWidth: 500 }}>
-          <Typography variant="h6">No quotation data available</Typography>
-          <Typography>Please check if the quotation ID is correct.</Typography>
-        </Alert>
-      </Box>
-    );
-  }
+
+  // Generate invoice data
+  const generateInvoiceData = () => {
+    return {
+      company: {
+        name: quotation.footer.company,
+        address: quotation.footer.address,
+        phone: quotation.footer.phone,
+        email: quotation.footer.email,
+        state: "9 - Uttar Pradesh",
+        gstin: "09EYCPK8832C1ZC",
+      },
+      customer: {
+        name: quotation.customer.name,
+        mobile: quotation.customer.phone,
+        email: quotation.customer.email,
+        state: "28 - Andhra Pradesh (Old)",
+        gstin: "28ABCDE1234F1Z2",
+      },
+      invoice: {
+        number: `INV-${quotation.reference}`,
+        date: new Date().toLocaleDateString("en-IN"),
+        dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN"),
+        placeOfSupply: "9 - Uttar Pradesh",
+      },
+      items: [
+        {
+          id: 1,
+          particulars: "Hotel Booking Services",
+          hsnSac: "998314",
+          price: 2500,
+          amount: 2500,
+        },
+        {
+          id: 2,
+          particulars: "Transportation Services",
+          hsnSac: "996411",
+          price: 840,
+          amount: 840,
+        },
+      ],
+      summary: {
+        subTotal: 3340,
+        total: 3340,
+        received: 1500,
+        balance: 1840,
+      },
+      description: `Travel services for ${quotation.hotel.destination} - ${quotation.hotel.guests}`,
+      terms: "Payment due within 15 days. Thanks for choosing our services.",
+    };
+  };
 
   // Dialog handlers
   const handleEmailOpen = () => setOpenEmailDialog(true);
@@ -767,9 +845,8 @@ const CustomFinalize = () => {
       ...prev,
       {
         id: newDayId,
-        date: new Date().toLocaleDateString(),
-        title: `Day ${newDayId}`,
-        description: "",
+        date: new Date().toLocaleDateString('en-IN'),
+        title: `About Day ${newDayId}`,
         image: null,
       },
     ]);
@@ -783,15 +860,47 @@ const CustomFinalize = () => {
     }
   };
 
+  // PDF Dialog Handlers - FIXED VERSION
   const handlePreviewPdf = () => {
-    console.log("Preview PDF clicked");
+    console.log("Opening PDF dialog...");
+    setOpenPdfDialog(true);
+  };
+
+  const handleClosePdfDialog = () => {
+    console.log("Closing PDF dialog...");
+    setOpenPdfDialog(false);
   };
 
   const handleViewInvoice = () => {
-    console.log("View Invoice clicked");
+    setOpenInvoiceDialog(true);
+  };
+
+  // Generate Invoice Function
+  const handleGenerateInvoice = () => {
+    console.log("Generating invoice...");
+    
+    setSnackbar({
+      open: true,
+      message: "Generating invoice...",
+      severity: "info"
+    });
+
+    const generatedInvoiceData = generateInvoiceData();
+    setInvoiceData(generatedInvoiceData);
+
+    setTimeout(() => {
+      setInvoiceGenerated(true);
+      setOpenInvoiceDialog(true);
+      setSnackbar({
+        open: true,
+        message: "Invoice generated successfully!",
+        severity: "success"
+      });
+    }, 1500);
   };
 
   const handleActionClick = (action) => {
+    console.log("Action clicked:", action);
     switch (action) {
       case "Finalize":
         handleFinalizeOpen();
@@ -858,7 +967,7 @@ const CustomFinalize = () => {
       if (mode === 'add') {
         const newDay = {
           id: Date.now(),
-          date: new Date().toLocaleDateString(),
+          date: new Date().toLocaleDateString('en-IN'),
           title,
           description,
           image: null
@@ -898,6 +1007,10 @@ const CustomFinalize = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  const handleCloseInvoiceDialog = () => {
+    setOpenInvoiceDialog(false);
+  };
+
   // UI Data
   const infoMap = {
     call: `📞 ${quotation.footer.phone}`,
@@ -926,7 +1039,7 @@ const CustomFinalize = () => {
     {
       title: "Inclusion Policy",
       icon: <CheckCircle sx={{ mr: 0.5, color: "success.main" }} />,
-      content: quotation.policies.inclusions.length > 0 ? (
+      content: (
         <List dense>
           {quotation.policies.inclusions.map((i, k) => (
             <ListItem key={k}>
@@ -934,8 +1047,6 @@ const CustomFinalize = () => {
             </ListItem>
           ))}
         </List>
-      ) : (
-        <Typography variant="body2">No inclusions specified</Typography>
       ),
       field: "policies.inclusions",
       isArray: true,
@@ -943,19 +1054,19 @@ const CustomFinalize = () => {
     {
       title: "Exclusion Policy",
       icon: <Cancel sx={{ mr: 0.5, color: "error.main" }} />,
-      content: quotation.policies.exclusions || "No exclusions specified",
+      content: quotation.policies.exclusions,
       field: "policies.exclusions",
     },
     {
       title: "Payment Policy",
       icon: <Payment sx={{ mr: 0.5, color: "primary.main" }} />,
-      content: quotation.policies.paymentPolicy || "No payment policy specified",
+      content: quotation.policies.paymentPolicy,
       field: "policies.paymentPolicy",
     },
     {
       title: "Cancellation & Refund",
       icon: <Warning sx={{ mr: 0.5, color: "warning.main" }} />,
-      content: quotation.policies.cancellationPolicy || "No cancellation policy specified",
+      content: quotation.policies.cancellationPolicy,
       field: "policies.cancellationPolicy",
     },
   ];
@@ -1011,7 +1122,7 @@ const CustomFinalize = () => {
             variant="contained"
             color="success"
             startIcon={<Receipt />}
-            onClick={handlePreviewPdf}
+            onClick={handleGenerateInvoice}
           >
             Generate Invoice
           </Button>
@@ -1030,7 +1141,7 @@ const CustomFinalize = () => {
 
       <Grid container spacing={2}>
         {/* Sidebar */}
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{xs:12, md:3}}>
           <Box sx={{ position: "sticky", top: 0 }}>
             <Card>
               <CardContent>
@@ -1092,7 +1203,7 @@ const CustomFinalize = () => {
         </Grid>
 
         {/* Main Content */}
-        <Grid size={{ xs: 12, md: 9 }}>
+        <Grid size={{xs:12, md:9}}>
           <Card>
             <CardContent>
               <Box
@@ -1426,16 +1537,16 @@ const CustomFinalize = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {hotelPricingData.map((row, index) => (
+                      {quotation.hotelPricingData.map((row, index) => (
                         <TableRow
                           key={index}
                           sx={{
                             backgroundColor:
-                              index >= hotelPricingData.length - 2
+                              index >= quotation.hotelPricingData.length - 2
                                 ? "grey.50"
                                 : "inherit",
                             fontWeight:
-                              index === hotelPricingData.length - 1
+                              index === quotation.hotelPricingData.length - 1
                                 ? "bold"
                                 : "normal",
                           }}
@@ -1452,81 +1563,10 @@ const CustomFinalize = () => {
                 </TableContainer>
               </Box>
 
-              {/* Vehicle Details */}
-              {quotation.vehicles.length > 0 && (
-                <Box mt={3}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        Vehicle Details
-                      </Typography>
-                      {quotation.vehicles.map((vehicle, index) => (
-                        <Box key={index} mb={2}>
-                          <Typography variant="body2">
-                            <strong>Vehicle Type:</strong> {vehicle.vehicleType}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Trip Type:</strong> {vehicle.tripType}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>No. of Days:</strong> {vehicle.noOfDays}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Per Day Cost:</strong> ₹ {parseFloat(vehicle.perDayCost).toLocaleString('en-IN')}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Pickup:</strong> {vehicle.pickup.date} at {vehicle.pickup.time}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Drop:</strong> {vehicle.drop.date} at {vehicle.drop.time}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Total Vehicle Cost:</strong> {quotation.pricing.vehicleCost}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </Box>
-              )}
-
-              {/* Cost Summary */}
-              <Box mt={3}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Cost Summary
-                    </Typography>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">Room Cost:</Typography>
-                      <Typography variant="body2">{quotation.pricing.roomCost}</Typography>
-                    </Box>
-                    {quotation.vehicles.length > 0 && (
-                      <Box display="flex" justifyContent="space-between" mb={1}>
-                        <Typography variant="body2">Vehicle Cost:</Typography>
-                        <Typography variant="body2">{quotation.pricing.vehicleCost}</Typography>
-                      </Box>
-                    )}
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">Discount:</Typography>
-                      <Typography variant="body2">{quotation.pricing.discount}</Typography>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">GST:</Typography>
-                      <Typography variant="body2">{quotation.pricing.gst}</Typography>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body1" fontWeight="bold">Total Cost:</Typography>
-                      <Typography variant="body1" fontWeight="bold">{quotation.pricing.total}</Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Box>
-
               {/* Policies */}
               <Grid container spacing={2} mt={1}>
                 {Policies.map((p, i) => (
-                  <Grid size={{ xs: 12 }} key={i}>
+                  <Grid size={{xs:12}} key={i}>
                     <Card variant="outlined">
                       <CardContent>
                         <Box
@@ -1599,7 +1639,7 @@ const CustomFinalize = () => {
                       </IconButton>
                     </Box>
                     <Typography variant="body2">
-                      {quotation.policies.terms || "No terms and conditions specified"}
+                      {quotation.policies.terms}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -1697,7 +1737,7 @@ const CustomFinalize = () => {
         accountType={accountType}
         setAccountType={setAccountType}
         accountName={accountName}
-        setAccountName={setAccountName}
+        setAccountName={accountName}
         accountOptions={accountOptions}
         onAddBankOpen={handleAddBankOpen}
         onConfirm={handleBankConfirm}
@@ -1747,6 +1787,23 @@ const CustomFinalize = () => {
         open={openTransactionDialog}
         onClose={() => setOpenTransactionDialog(false)}
       />
+
+      {/* Invoice PDF Dialog */}
+      <InvoicePdfDialog
+        open={openInvoiceDialog}
+        onClose={handleCloseInvoiceDialog}
+        quotation={quotation}
+        invoiceData={invoiceData}
+      />
+
+      {/* Preview PDF Dialog - Using imported component */}
+      {QuotationPDFDialog && (
+        <QuotationPDFDialog
+          open={openPdfDialog}
+          onClose={handleClosePdfDialog}
+          quotation={quotation}
+        />
+      )}
 
       {/* Itinerary Dialog */}
       <Dialog open={itineraryDialog.open} onClose={handleCloseItineraryDialog} maxWidth="md" fullWidth>
