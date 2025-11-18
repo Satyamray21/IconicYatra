@@ -17,6 +17,8 @@ import {
   TableRow,
   Divider,
   Button,
+  Card,
+  CardContent,
 } from "@mui/material";
 import { useFormik } from "formik";
 import * as yup from "yup";
@@ -24,7 +26,9 @@ import { useDispatch } from "react-redux";
 import { createCustomQuotation } from "../../../../features/quotation/customQuotationSlice";
 import { toast } from "react-toastify";
 
-// ✅ Validation Schema
+// ==============================================
+// VALIDATION SCHEMA
+// ==============================================
 const validationSchema = yup.object({
   adult: yup.number().min(0, "Must be positive").required("Required"),
   child: yup.number().min(0, "Must be positive"),
@@ -39,17 +43,20 @@ const validationSchema = yup.object({
   discount: yup.number().min(0),
   gstOn: yup.string().required("Required"),
   taxPercent: yup.number().min(0).max(100),
+  superiorMattressCost: yup.number().min(0),
+  deluxeMattressCost: yup.number().min(0),
 });
 
 const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
   const dispatch = useDispatch();
   const { clientDetails, pickupDrop, tourDetails } = formData;
   const cities = pickupDrop || [];
+
   const leadTourDetails = leadData?.tourDetails;
   const leadMembers = leadTourDetails?.members;
   const leadAccommodation = leadTourDetails?.accommodation;
 
-  // ✅ Initialize City Prices
+  // Initialize city hotel pricing structure
   const initializeCityPrices = (cities) => {
     return cities.reduce((acc, city, index) => {
       acc[index] = {
@@ -62,6 +69,9 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
     }, {});
   };
 
+  // ==============================================
+  // FORMIK INITIAL VALUES
+  // ==============================================
   const formik = useFormik({
     initialValues: {
       adult: leadMembers?.adults || 0,
@@ -73,12 +83,15 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
       roomType: leadAccommodation?.hotelType?.[0] || "",
       sharingType: leadAccommodation?.sharingType || "",
       cityPrices: initializeCityPrices(cities),
+      superiorMattressCost: 0,
+      deluxeMattressCost: 0,
       marginPercent: 0,
       marginAmount: 0,
       discount: 0,
       gstOn: "Full",
       taxPercent: 0,
     },
+
     validationSchema,
     onSubmit: async (values) => {
       try {
@@ -107,14 +120,18 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
                 roomType: values.roomType,
                 sharingType: values.sharingType,
               },
-              companyMargin: {
-                marginPercent: values.marginPercent || 0,
-                marginAmount: values.marginAmount || 0,
+              mattress: {
+                superiorMattressCost: values.superiorMattressCost,
+                deluxeMattressCost: values.deluxeMattressCost,
               },
-              discount: values.discount || 0,
+              companyMargin: {
+                marginPercent: values.marginPercent,
+                marginAmount: values.marginAmount,
+              },
+              discount: values.discount,
               taxes: {
-                gstOn: values.gstOn || "None",
-                taxPercent: values.taxPercent || 0,
+                gstOn: values.gstOn,
+                taxPercent: values.taxPercent,
               },
             },
           },
@@ -133,7 +150,9 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
     },
   });
 
-  // ✅ Calculate Totals
+  // ==============================================
+  // TOTAL CALCULATIONS
+  // ==============================================
   const calculateTotals = () => {
     const totals = {
       totalNights: 0,
@@ -143,8 +162,10 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
 
     cities.forEach((city, index) => {
       const nights = parseInt(city.nights) || 0;
-      const standardPrice = parseFloat(formik.values.cityPrices?.[index]?.standardPrice) || 0;
-      const deluxePrice = parseFloat(formik.values.cityPrices?.[index]?.deluxePrice) || 0;
+      const standardPrice =
+        parseFloat(formik.values.cityPrices?.[index]?.standardPrice) || 0;
+      const deluxePrice =
+        parseFloat(formik.values.cityPrices?.[index]?.deluxePrice) || 0;
 
       totals.totalNights += nights;
       totals.totalStandard += standardPrice * nights;
@@ -155,66 +176,225 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
   };
 
   const totals = calculateTotals();
- const previousStepTotalCost = Number(
-  formData?.tourDetails?.vehicleDetails?.costDetails?.totalCost ||
-  formData?.data?.tourDetails?.vehicleDetails?.costDetails?.totalCost ||
-  0
-);
 
+  // Vehicle cost
+  const previousStepTotalCost = Number(
+    formData?.tourDetails?.vehicleDetails?.costDetails?.totalCost ||
+      formData?.data?.tourDetails?.vehicleDetails?.costDetails?.totalCost ||
+      0
+  );
 
- 
+  // Mattress calculations
+  const superiorMattressTotal =
+    totals.totalNights *
+    formik.values.superiorMattressCost *
+    formik.values.noOfRooms;
 
-  const totalStandardWithRooms = totals.totalStandard * (formik.values.noOfRooms || 1);
-  const totalDeluxeWithRooms = totals.totalDeluxe * (formik.values.noOfRooms || 1);
+  const deluxeMattressTotal =
+    totals.totalNights *
+    formik.values.deluxeMattressCost *
+    formik.values.noOfRooms;
+
+  const totalStandardWithRooms =
+    totals.totalStandard * formik.values.noOfRooms + superiorMattressTotal;
+  const totalDeluxeWithRooms =
+    totals.totalDeluxe * formik.values.noOfRooms + deluxeMattressTotal;
+
   const totalStandardPackage = totalStandardWithRooms + previousStepTotalCost;
   const totalDeluxePackage = totalDeluxeWithRooms + previousStepTotalCost;
 
+  // ==============================================
+  // MARGIN & DISCOUNT CALCULATIONS
+  // ==============================================
+  const baseWithoutMarginStandard = totalStandardPackage;
+  const baseWithoutMarginDeluxe = totalDeluxePackage;
+
+  const standardWithMargin =
+    baseWithoutMarginStandard +
+    (formik.values.marginPercent / 100) * baseWithoutMarginStandard +
+    Number(formik.values.marginAmount);
+
+  const deluxeWithMargin =
+    baseWithoutMarginDeluxe +
+    (formik.values.marginPercent / 100) * baseWithoutMarginDeluxe +
+    Number(formik.values.marginAmount);
+
+  // ==============================================
+  // GST CALCULATIONS (5 / 12 / 18 / 28)
+  // ==============================================
+  const gstPercent = Number(formik.values.taxPercent || 0);
+
+  const standardTaxable =
+    standardWithMargin - Number(formik.values.discount);
+  const deluxeTaxable =
+    deluxeWithMargin - Number(formik.values.discount);
+
+  const standardGST = (gstPercent / 100) * standardTaxable;
+  const deluxeGST = (gstPercent / 100) * deluxeTaxable;
+
+  const finalStandardTotal = standardTaxable + standardGST;
+  const finalDeluxeTotal = deluxeTaxable + deluxeGST;
+
+  // ==============================================
+  // UI STARTS
+  // ==============================================
   return (
-    <Box sx={{ maxWidth: 1200, margin: "0 auto", p: 3 }}>
+    <Box sx={{ maxWidth: 1300, margin: "0 auto", p: 3 }}>
       <form onSubmit={formik.handleSubmit}>
         <Typography variant="h4" align="center" gutterBottom>
           Custom Quotation
         </Typography>
 
-        {/* ===== Client Summary ===== */}
+        {/* CLIENT SUMMARY */}
         <Paper sx={{ p: 2, mb: 3, backgroundColor: "#f5f5f5" }}>
-          <Typography variant="h6" gutterBottom>Client Summary</Typography>
+          <Typography variant="h6" gutterBottom>
+            Client Summary
+          </Typography>
           <Grid container spacing={2}>
-            <Grid item xs={6} sm={3}><Typography><strong>Client:</strong> {clientDetails?.clientName || "N/A"}</Typography></Grid>
-            <Grid item xs={6} sm={3}><Typography><strong>Sector:</strong> {clientDetails?.sector || "N/A"}</Typography></Grid>
-            <Grid item xs={6} sm={3}><Typography><strong>Arrival:</strong> {tourDetails?.arrivalCity || "N/A"}</Typography></Grid>
-            <Grid item xs={6} sm={3}><Typography><strong>Departure:</strong> {tourDetails?.departureCity || "N/A"}</Typography></Grid>
+            <Grid item xs={6} sm={3}>
+              <Typography>
+                <strong>Client:</strong> {clientDetails?.clientName || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Typography>
+                <strong>Sector:</strong> {clientDetails?.sector || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Typography>
+                <strong>Arrival:</strong> {tourDetails?.arrivalCity || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Typography>
+                <strong>Departure:</strong> {tourDetails?.departureCity || "N/A"}
+              </Typography>
+            </Grid>
           </Grid>
         </Paper>
 
-        {/* ===== Quotation Details ===== */}
+        {/* QUOTATION DETAILS */}
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>Quotation Details</Typography>
+          <Typography variant="h6" gutterBottom>
+            Quotation Details
+          </Typography>
           <Grid container spacing={2}>
-            <Grid item xs={6} sm={3}><TextField label="Adults" name="adult" type="number" fullWidth {...formik.getFieldProps("adult")} /></Grid>
-            <Grid item xs={6} sm={3}><TextField label="Children" name="child" type="number" fullWidth {...formik.getFieldProps("child")} /></Grid>
-            <Grid item xs={6} sm={3}><TextField label="Kids (W/O Mattress)" name="kid" type="number" fullWidth {...formik.getFieldProps("kid")} /></Grid>
-            <Grid item xs={6} sm={3}><TextField label="Infants" name="infants" type="number" fullWidth {...formik.getFieldProps("infants")} /></Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Adults"
+                name="adult"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("adult")}
+              />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Children"
+                name="child"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("child")}
+              />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Kids (W/O Mattress)"
+                name="kid"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("kid")}
+              />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Infants"
+                name="infants"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("infants")}
+              />
+            </Grid>
 
-            <Grid item xs={6} sm={3}><TextField label="Meal Plan" name="mediPlan" fullWidth {...formik.getFieldProps("mediPlan")} /></Grid>
-            <Grid item xs={6} sm={3}><TextField label="No. of Rooms" name="noOfRooms" type="number" fullWidth {...formik.getFieldProps("noOfRooms")} /></Grid>
-            <Grid item xs={6} sm={3}><TextField label="Room Type" name="roomType" fullWidth {...formik.getFieldProps("roomType")} /></Grid>
-            <Grid item xs={6} sm={3}><TextField label="Sharing Type" name="sharingType" fullWidth {...formik.getFieldProps("sharingType")} /></Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Meal Plan"
+                name="mediPlan"
+                fullWidth
+                {...formik.getFieldProps("mediPlan")}
+              />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="No. of Rooms"
+                name="noOfRooms"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("noOfRooms")}
+              />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Room Type"
+                name="roomType"
+                fullWidth
+                {...formik.getFieldProps("roomType")}
+              />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Sharing Type"
+                name="sharingType"
+                fullWidth
+                {...formik.getFieldProps("sharingType")}
+              />
+            </Grid>
           </Grid>
         </Paper>
 
-        {/* ===== City Prices Table ===== */}
+        {/* MATTRESS COST */}
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>Destinations & Prices</Typography>
+          <Typography variant="h6" gutterBottom>
+            Mattress Cost (Per Night)
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Superior Mattress (Per Night)"
+                name="superiorMattressCost"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("superiorMattressCost")}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Deluxe Mattress (Per Night)"
+                name="deluxeMattressCost"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("deluxeMattressCost")}
+              />
+            </Grid>
+          </Grid>
+        </Paper>
+
+        {/* CITY PRICES */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Destinations & Prices
+          </Typography>
           <TableContainer component={Paper} variant="outlined">
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Destination</TableCell>
                   <TableCell>Nights</TableCell>
-                  <TableCell>Standard Hotel Name</TableCell>
+                  <TableCell>Standard Hotel</TableCell>
                   <TableCell>Standard Price</TableCell>
-                  <TableCell>Deluxe Hotel Name</TableCell>
+                  <TableCell>Deluxe Hotel</TableCell>
                   <TableCell>Deluxe Price</TableCell>
                 </TableRow>
               </TableHead>
@@ -223,64 +403,215 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
                   <TableRow key={index}>
                     <TableCell>{city.cityName}</TableCell>
                     <TableCell>{city.nights}</TableCell>
-                    <TableCell><TextField fullWidth size="small" {...formik.getFieldProps(`cityPrices[${index}].standardHotelName`)} /></TableCell>
-                    <TableCell><TextField fullWidth size="small" type="number" {...formik.getFieldProps(`cityPrices[${index}].standardPrice`)} /></TableCell>
-                    <TableCell><TextField fullWidth size="small" {...formik.getFieldProps(`cityPrices[${index}].deluxeHotelName`)} /></TableCell>
-                    <TableCell><TextField fullWidth size="small" type="number" {...formik.getFieldProps(`cityPrices[${index}].deluxePrice`)} /></TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        {...formik.getFieldProps(
+                          `cityPrices[${index}].standardHotelName`
+                        )}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="number"
+                        {...formik.getFieldProps(
+                          `cityPrices[${index}].standardPrice`
+                        )}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        {...formik.getFieldProps(
+                          `cityPrices[${index}].deluxeHotelName`
+                        )}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="number"
+                        {...formik.getFieldProps(
+                          `cityPrices[${index}].deluxePrice`
+                        )}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
 
-          {/* ===== Totals ===== */}
-          <Box sx={{ mt: 2, p: 2, backgroundColor: "#f5f5f5", borderRadius: 1 }}>
-            <Typography variant="h6">Totals</Typography>
-            <Typography>Total Nights: {totals.totalNights}</Typography>
-           <Typography>Vehicle Total Cost: ₹{previousStepTotalCost.toFixed(2)}</Typography>
-
-            <Divider sx={{ my: 1 }} />
-
-            <Typography variant="subtitle1"><strong>Standard Package</strong></Typography>
-            <Typography>Base Total: ₹{totals.totalStandard.toFixed(2)}</Typography>
-            <Typography>× Rooms ({formik.values.noOfRooms}): ₹{totalStandardWithRooms.toFixed(2)}</Typography>
-            <Typography variant="h6" color="primary">
-              ➤ Total Standard Package: ₹{totalStandardPackage.toFixed(2)}
+          {/* ===================================== BEAUTIFIED TOTAL SECTION ===================================== */}
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h5" fontWeight="bold" gutterBottom>
+              Pricing Summary
             </Typography>
 
-            <Divider sx={{ my: 2 }} />
+            <Divider sx={{ mb: 3 }} />
 
-            <Typography variant="subtitle1"><strong>Deluxe Package</strong></Typography>
-            <Typography>Base Total: ₹{totals.totalDeluxe.toFixed(2)}</Typography>
-            <Typography>× Rooms ({formik.values.noOfRooms}): ₹{totalDeluxeWithRooms.toFixed(2)}</Typography>
-            <Typography variant="h6" color="secondary">
-              ➤ Total Deluxe Package: ₹{totalDeluxePackage.toFixed(2)}
-            </Typography>
+            <Grid container spacing={3}>
+              {/* STANDARD PACKAGE CARD */}
+              <Grid item xs={12} md={6}>
+                <Card sx={{ borderLeft: "6px solid #1976d2" }}>
+                  <CardContent>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: "bold", color: "#1976d2" }}
+                    >
+                      STANDARD PACKAGE
+                    </Typography>
+
+                    <Typography sx={{ mt: 1 }}>
+                      <strong>Base Cost (No Margin):</strong>{" "}
+                      ₹{baseWithoutMarginStandard.toFixed(2)}
+                    </Typography>
+
+                    <Typography>
+                      <strong>After Margin:</strong>{" "}
+                      ₹{standardWithMargin.toFixed(2)}
+                    </Typography>
+
+                    <Typography>
+                      <strong>After Discount:</strong>{" "}
+                      ₹{standardTaxable.toFixed(2)}
+                    </Typography>
+
+                    <Typography>
+                      <strong>GST ({gstPercent}%):</strong>{" "}
+                      ₹{standardGST.toFixed(2)}
+                    </Typography>
+
+                    <Divider sx={{ my: 1 }} />
+
+                    <Typography
+                      variant="h6"
+                      sx={{ color: "green", fontWeight: "bold" }}
+                    >
+                      Final Total: ₹{finalStandardTotal.toFixed(2)}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* DELUXE PACKAGE CARD */}
+              <Grid item xs={12} md={6}>
+                <Card sx={{ borderLeft: "6px solid #9c27b0" }}>
+                  <CardContent>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: "bold", color: "#9c27b0" }}
+                    >
+                      DELUXE PACKAGE
+                    </Typography>
+
+                    <Typography sx={{ mt: 1 }}>
+                      <strong>Base Cost (No Margin):</strong>{" "}
+                      ₹{baseWithoutMarginDeluxe.toFixed(2)}
+                    </Typography>
+
+                    <Typography>
+                      <strong>After Margin:</strong>{" "}
+                      ₹{deluxeWithMargin.toFixed(2)}
+                    </Typography>
+
+                    <Typography>
+                      <strong>After Discount:</strong>{" "}
+                      ₹{deluxeTaxable.toFixed(2)}
+                    </Typography>
+
+                    <Typography>
+                      <strong>GST ({gstPercent}%):</strong>{" "}
+                      ₹{deluxeGST.toFixed(2)}
+                    </Typography>
+
+                    <Divider sx={{ my: 1 }} />
+
+                    <Typography
+                      variant="h6"
+                      sx={{ color: "green", fontWeight: "bold" }}
+                    >
+                      Final Total: ₹{finalDeluxeTotal.toFixed(2)}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           </Box>
         </Paper>
 
-        {/* ===== Company Margin & Taxes ===== */}
+        {/* MARGIN & TAXES */}
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>Company Margin / Taxes</Typography>
+          <Typography variant="h6" gutterBottom>
+            Company Margin / Taxes
+          </Typography>
           <Grid container spacing={2}>
-            <Grid item xs={6} sm={3}><TextField label="Margin (%)" name="marginPercent" type="number" fullWidth {...formik.getFieldProps("marginPercent")} /></Grid>
-            <Grid item xs={6} sm={3}><TextField label="Margin Amount" name="marginAmount" type="number" fullWidth {...formik.getFieldProps("marginAmount")} /></Grid>
-            <Grid item xs={6} sm={3}><TextField label="Discount" name="discount" type="number" fullWidth {...formik.getFieldProps("discount")} /></Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Margin (%)"
+                name="marginPercent"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("marginPercent")}
+              />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Margin Amount"
+                name="marginAmount"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("marginAmount")}
+              />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Discount"
+                name="discount"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("discount")}
+              />
+            </Grid>
             <Grid item xs={6} sm={3}>
               <FormControl fullWidth>
                 <InputLabel>GST On</InputLabel>
-                <Select name="gstOn" value={formik.values.gstOn} onChange={formik.handleChange}>
+                <Select
+                  name="gstOn"
+                  value={formik.values.gstOn}
+                  onChange={formik.handleChange}
+                >
                   <MenuItem value="Full">Full</MenuItem>
                   <MenuItem value="Partial">Partial</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={6} sm={3}><TextField label="Tax (%)" name="taxPercent" type="number" fullWidth {...formik.getFieldProps("taxPercent")} /></Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField
+                label="Tax (%)"
+                name="taxPercent"
+                type="number"
+                fullWidth
+                {...formik.getFieldProps("taxPercent")}
+              />
+            </Grid>
           </Grid>
         </Paper>
 
+        {/* SUBMIT BUTTON */}
         <Box sx={{ textAlign: "center", mt: 4 }}>
-          <Button type="submit" variant="contained" size="large" sx={{ px: 6, py: 1.5 }} disabled={loading}>
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            sx={{ px: 6, py: 1.5 }}
+            disabled={loading}
+          >
             {loading ? "Creating..." : "Submit Quotation"}
           </Button>
         </Box>
