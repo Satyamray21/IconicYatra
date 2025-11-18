@@ -2,7 +2,14 @@ import mongoose from "mongoose";
 import { itinerarySchema } from "../../common/dayWise.js";
 import { vehicleDetailsSchema } from "../../common/vehicleDetails.js";
 import { policySchema } from "../../common/policy.js";
-
+const packageCalculationSchema = new mongoose.Schema({
+  baseCost: { type: Number, default: 0 },
+  afterMargin: { type: Number, default: 0 },
+  afterDiscount: { type: Number, default: 0 },
+  gstAmount: { type: Number, default: 0 },
+  gstPercentage: { type: Number, default: 0 },
+  finalTotal: { type: Number, default: 0 }
+});
 const customQuotationSchema = new mongoose.Schema(
   {
     clientDetails: {
@@ -77,7 +84,11 @@ const customQuotationSchema = new mongoose.Schema(
           },
           applyGST: { type: Boolean, default: false },
         },
-
+        packageCalculations: {
+          standard: packageCalculationSchema,
+          deluxe: packageCalculationSchema,
+          superior: packageCalculationSchema,
+        },
         signatureDetails: {
           regardsText: { type: String, default: "Best Regards" },
           signedBy: { type: String },

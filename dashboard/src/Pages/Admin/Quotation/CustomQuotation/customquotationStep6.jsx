@@ -45,6 +45,8 @@ const validationSchema = yup.object({
   taxPercent: yup.number().min(0).max(100),
   superiorMattressCost: yup.number().min(0),
   deluxeMattressCost: yup.number().min(0),
+  regardsText: yup.string(),
+  signedBy: yup.string(),
 });
 
 const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
@@ -90,11 +92,64 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
       discount: 0,
       gstOn: "Full",
       taxPercent: 0,
+      regardsText: "Best Regards",
+      signedBy: "",
     },
 
     validationSchema,
     onSubmit: async (values) => {
       try {
+        // Calculate package totals (same as in the UI)
+        const totals = calculateTotals(values);
+        const previousStepTotalCost = Number(
+          formData?.tourDetails?.vehicleDetails?.costDetails?.totalCost ||
+          formData?.data?.tourDetails?.vehicleDetails?.costDetails?.totalCost ||
+          0
+        );
+
+        // Mattress calculations
+        const superiorMattressTotal =
+          totals.totalNights *
+          values.superiorMattressCost *
+          values.noOfRooms;
+
+        const deluxeMattressTotal =
+          totals.totalNights *
+          values.deluxeMattressCost *
+          values.noOfRooms;
+
+        const totalStandardWithRooms =
+          totals.totalStandard * values.noOfRooms + superiorMattressTotal;
+        const totalDeluxeWithRooms =
+          totals.totalDeluxe * values.noOfRooms + deluxeMattressTotal;
+
+        const totalStandardPackage = totalStandardWithRooms + previousStepTotalCost;
+        const totalDeluxePackage = totalDeluxeWithRooms + previousStepTotalCost;
+
+        // Margin & Discount calculations
+        const baseWithoutMarginStandard = totalStandardPackage;
+        const baseWithoutMarginDeluxe = totalDeluxePackage;
+
+        const standardWithMargin =
+          baseWithoutMarginStandard +
+          (values.marginPercent / 100) * baseWithoutMarginStandard +
+          Number(values.marginAmount);
+
+        const deluxeWithMargin =
+          baseWithoutMarginDeluxe +
+          (values.marginPercent / 100) * baseWithoutMarginDeluxe +
+          Number(values.marginAmount);
+
+        // GST calculations
+        const gstPercent = Number(values.taxPercent || 0);
+        const standardTaxable = standardWithMargin - Number(values.discount);
+        const deluxeTaxable = deluxeWithMargin - Number(values.discount);
+        const standardGST = (gstPercent / 100) * standardTaxable;
+        const deluxeGST = (gstPercent / 100) * deluxeTaxable;
+
+        const finalStandardTotal = standardTaxable + standardGST;
+        const finalDeluxeTotal = deluxeTaxable + deluxeGST;
+
         const finalData = {
           ...formData,
           tourDetails: {
@@ -133,9 +188,43 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
                 gstOn: values.gstOn,
                 taxPercent: values.taxPercent,
               },
+              // ✅ NEW: Package Calculations added here
+              packageCalculations: {
+                standard: {
+                  baseCost: baseWithoutMarginStandard,
+                  afterMargin: standardWithMargin,
+                  afterDiscount: standardTaxable,
+                  gstAmount: standardGST,
+                  gstPercentage: gstPercent,
+                  finalTotal: finalStandardTotal,
+                },
+                deluxe: {
+                  baseCost: baseWithoutMarginDeluxe,
+                  afterMargin: deluxeWithMargin,
+                  afterDiscount: deluxeTaxable,
+                  gstAmount: deluxeGST,
+                  gstPercentage: gstPercent,
+                  finalTotal: finalDeluxeTotal,
+                },
+                superior: {
+                  baseCost: 0,
+                  afterMargin: 0,
+                  afterDiscount: 0,
+                  gstAmount: 0,
+                  gstPercentage: 0,
+                  finalTotal: 0,
+                },
+              },
+              // ✅ FIX: Add signatureDetails to prevent validation error
+              signatureDetails: {
+                regardsText: values.regardsText,
+                signedBy: values.signedBy,
+              },
             },
           },
         };
+
+        console.log("📦 Final Data with Package Calculations:", finalData);
 
         if (onSubmit) {
           await onSubmit(finalData);
@@ -151,9 +240,9 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
   });
 
   // ==============================================
-  // TOTAL CALCULATIONS
+  // TOTAL CALCULATIONS (Extracted to reusable function)
   // ==============================================
-  const calculateTotals = () => {
+  const calculateTotals = (values = formik.values) => {
     const totals = {
       totalNights: 0,
       totalStandard: 0,
@@ -163,9 +252,9 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
     cities.forEach((city, index) => {
       const nights = parseInt(city.nights) || 0;
       const standardPrice =
-        parseFloat(formik.values.cityPrices?.[index]?.standardPrice) || 0;
+        parseFloat(values.cityPrices?.[index]?.standardPrice) || 0;
       const deluxePrice =
-        parseFloat(formik.values.cityPrices?.[index]?.deluxePrice) || 0;
+        parseFloat(values.cityPrices?.[index]?.deluxePrice) || 0;
 
       totals.totalNights += nights;
       totals.totalStandard += standardPrice * nights;
@@ -598,6 +687,33 @@ const CustomQuotationForm = ({ formData, leadData, onSubmit, loading }) => {
                 type="number"
                 fullWidth
                 {...formik.getFieldProps("taxPercent")}
+              />
+            </Grid>
+          </Grid>
+        </Paper>
+
+        {/* SIGNATURE DETAILS */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Signature Details
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Regards Text"
+                name="regardsText"
+                fullWidth
+                {...formik.getFieldProps("regardsText")}
+                helperText="Closing text (e.g., Best Regards, Sincerely)"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Signed By"
+                name="signedBy"
+                fullWidth
+                {...formik.getFieldProps("signedBy")}
+                helperText="Name of the person signing the quotation"
               />
             </Grid>
           </Grid>
