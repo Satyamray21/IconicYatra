@@ -39,26 +39,26 @@ const CustomQuotation = ({ onNext }) => {
     },
   });
 
-  // ✅ Ensure unique client names
+  // ✅ FIXED: Load ALL client names
   const clientOptions = [
     ...new Set(
       leadList
-        .map((lead) => lead.personalDetails?.fullName)
+        .map((lead) => lead?.personalDetails?.fullName)
         .filter(Boolean)
     ),
   ];
 
-  // ✅ Fix: flatten array destinations into string list
+  // ✅ FIXED: Load sector based on selected client
   const sectorOptions = [
     ...new Set(
       leadList
         .filter(
-          (lead) =>
-            lead.personalDetails?.fullName === formik.values.clientName
+          (lead) => lead?.personalDetails?.fullName === formik.values.clientName
         )
         .flatMap((lead) => {
-          const destinations = lead.tourDetails?.tourDestination;
-          const state = lead.location?.state;
+          const destinations = lead?.tourDetails?.tourDestination;
+          const state = lead?.location?.state;
+
           if (Array.isArray(destinations)) return destinations;
           if (typeof destinations === "string") return [destinations];
           if (state) return [state];
@@ -114,6 +114,7 @@ const CustomQuotation = ({ onNext }) => {
             </RadioGroup>
           </Grid>
 
+          {/* Client Name Dropdown */}
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
@@ -125,18 +126,26 @@ const CustomQuotation = ({ onNext }) => {
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               error={
-                formik.touched.clientName && Boolean(formik.errors.clientName)
+                formik.touched.clientName &&
+                Boolean(formik.errors.clientName)
               }
-              helperText={formik.touched.clientName && formik.errors.clientName}
+              helperText={
+                formik.touched.clientName && formik.errors.clientName
+              }
             >
-              {clientOptions.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {c}
-                </MenuItem>
-              ))}
+              {clientOptions.length > 0 ? (
+                clientOptions.map((name) => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>No clients available</MenuItem>
+              )}
             </TextField>
           </Grid>
 
+          {/* Sector Dropdown */}
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
@@ -150,14 +159,19 @@ const CustomQuotation = ({ onNext }) => {
               error={formik.touched.sector && Boolean(formik.errors.sector)}
               helperText={formik.touched.sector && formik.errors.sector}
             >
-              {sectorOptions.map((s) => (
-                <MenuItem key={s} value={s}>
-                  {s}
-                </MenuItem>
-              ))}
+              {sectorOptions.length > 0 ? (
+                sectorOptions.map((s) => (
+                  <MenuItem key={s} value={s}>
+                    {s}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>Select client first</MenuItem>
+              )}
             </TextField>
           </Grid>
 
+          {/* Submit Button */}
           <Grid item xs={12}>
             <Box textAlign="center" sx={{ mt: 3 }}>
               <Button

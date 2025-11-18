@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Grid,
+  MenuItem,
   Paper,
   Radio,
   RadioGroup,
@@ -14,39 +15,54 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { getAllLeads } from "../../../../features/leads/leadSlice";
 import { useDispatch, useSelector } from "react-redux";
 
-const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
+const TourDetailsForm = ({ clientName, sector, cities = [], onNext }) => {
+  // debugging
+  // console.log("Step 3 - Received cities:", cities);
+
   const [selectedLead, setSelectedLead] = useState(null);
   const [initialValuesSet, setInitialValuesSet] = useState(false);
   const dispatch = useDispatch();
   const { list: leadList = [] } = useSelector((state) => state.leads);
 
-  // Find matching lead
-  const findMatchingLead = (clientName, sector) => {
-    if (!clientName || !sector) return null;
-    const sectorLower = sector.trim().toLowerCase();
-    return leadList.find((lead) => {
-      const nameMatch =
-        lead.personalDetails?.fullName?.trim().toLowerCase() ===
-        clientName.trim().toLowerCase();
+  useEffect(() => {
+    dispatch(getAllLeads());
+  }, [dispatch]);
 
-      const tourDestinations = lead.tourDetails?.tourDestination;
-      const sectorMatch =
-        (Array.isArray(tourDestinations)
-          ? tourDestinations.some(
-              (dest) => dest?.trim().toLowerCase() === sectorLower
-            )
-          : tourDestinations?.trim()?.toLowerCase() === sectorLower) ||
-        lead.location?.state?.trim().toLowerCase() === sectorLower;
+  // Find matching lead (defensive with arrays)
+  useEffect(() => {
+    if (!clientName || !sector || !Array.isArray(leadList)) {
+      setSelectedLead(null);
+      return;
+    }
+
+    const sectorLower = sector.trim().toLowerCase();
+
+    const lead = leadList.find((l) => {
+      const nameMatch =
+        !!l?.personalDetails?.fullName &&
+        l.personalDetails.fullName.trim().toLowerCase() === clientName.trim().toLowerCase();
+
+      // handle tourDestination when it's array or string
+      const tourDest = l?.tourDetails?.tourDestination;
+      let tourMatch = false;
+      if (Array.isArray(tourDest)) {
+        tourMatch = tourDest.some((d) => !!d && d.toString().trim().toLowerCase() === sectorLower);
+      } else if (typeof tourDest === "string") {
+        tourMatch = tourDest.trim().toLowerCase() === sectorLower;
+      }
+
+      const stateMatch =
+        !!l?.location?.state && l.location.state.trim().toLowerCase() === sectorLower;
+
+      const sectorMatch = tourMatch || stateMatch;
 
       return nameMatch && sectorMatch;
     });
-  };
 
-  useEffect(() => {
-    const matched = findMatchingLead(clientName, sector);
-    if (matched) setSelectedLead(matched);
+    setSelectedLead(lead || null);
   }, [clientName, sector, leadList]);
 
   const formik = useFormik({
@@ -77,64 +93,54 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
       departureDate: Yup.date().nullable(),
     }),
     onSubmit: (values) => {
-      const formData = new FormData();
-      formData.append("quotationId", quotationId);
-      formData.append("stepNumber", 3);
-      formData.append(
-        "stepData",
-        JSON.stringify({
-          ...values,
-          quotationDetails: {
-            adults: 1,
-            children: 0,
-            kids: 0,
-            infants: 0,
-            mealPlan: "N/A",
-            destinations: [],
-            rooms: {
-              numberOfRooms: 1,
-              roomType: "Standard",
-              sharingType: "Single",
-              showCostPerAdult: false,
-            },
-            companyMargin: { marginPercent: 0, marginAmount: 0 },
-            discount: 0,
-            taxes: { gstOn: "None", applyGST: false },
-            signatureDetails: { regardsText: "Best Regards", signedBy: "" },
+      const step3Data = {
+        ...values,
+        quotationDetails: {
+          adults: 1,
+          children: 0,
+          kids: 0,
+          infants: 0,
+          mealPlan: "N/A",
+          destinations: [],
+          rooms: {
+            numberOfRooms: 1,
+            roomType: "Standard",
+            sharingType: "Single",
+            showCostPerAdult: false,
           },
-        })
-      );
+          companyMargin: { marginPercent: 0, marginAmount: 0 },
+          discount: 0,
+          taxes: { gstOn: "None", applyGST: false },
+          signatureDetails: { regardsText: "Best Regards", signedBy: "" },
+        },
+      };
 
-      if (values.bannerImage) {
-        formData.append("bannerImage", values.bannerImage);
-      }
-
-      onNext(formData);
+      // console.log("Step 3 Submitted:", step3Data);
+      onNext(step3Data);
     },
   });
 
-  // Auto-fill from lead data
+  // Auto-fill from lead data only once when lead is found
   useEffect(() => {
-    if (selectedLead && !initialValuesSet) {
-      const leadData = selectedLead.tourDetails?.pickupDrop || {};
-      formik.setValues((prev) => ({
-        ...prev,
-        arrivalCity: leadData.arrivalCity || prev.arrivalCity,
-        departureCity: leadData.departureCity || prev.departureCity,
-        arrivalDate: leadData.arrivalDate
-          ? new Date(leadData.arrivalDate)
-          : prev.arrivalDate,
-        departureDate: leadData.departureDate
-          ? new Date(leadData.departureDate)
-          : prev.departureDate,
-        transport:
-          selectedLead.tourDetails?.accommodation?.transport === false
-            ? "No"
-            : "Yes",
-      }));
-      setInitialValuesSet(true);
-    }
-  }, [selectedLead, initialValuesSet]);
+    if (!selectedLead || initialValuesSet) return;
+
+    const leadData = selectedLead.tourDetails?.pickupDrop || selectedLead.tourDetails || {};
+    const arrivalDate = leadData.arrivalDate ? new Date(leadData.arrivalDate) : null;
+    const departureDate = leadData.departureDate ? new Date(leadData.departureDate) : null;
+
+    formik.setValues({
+      ...formik.values,
+      arrivalCity: leadData.arrivalCity || leadData.arrivalLocation || formik.values.arrivalCity || "",
+      departureCity: leadData.departureCity || leadData.departureLocation || formik.values.departureCity || "",
+      arrivalDate,
+      departureDate,
+      transport:
+        selectedLead.tourDetails?.accommodation?.transport === false ? "No" : formik.values.transport || "Yes",
+    });
+
+    setInitialValuesSet(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLead]);
 
   return (
     <Paper sx={{ p: 3, maxWidth: 900, mx: "auto" }}>
@@ -150,15 +156,11 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
               fullWidth
               label="Arrival City"
               name="arrivalCity"
-              value={formik.values.arrivalCity}
+              value={formik.values.arrivalCity || ""}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              error={
-                formik.touched.arrivalCity && Boolean(formik.errors.arrivalCity)
-              }
-              helperText={
-                formik.touched.arrivalCity && formik.errors.arrivalCity
-              }
+              error={formik.touched.arrivalCity && Boolean(formik.errors.arrivalCity)}
+              helperText={formik.touched.arrivalCity && formik.errors.arrivalCity}
             />
           </Grid>
 
@@ -168,16 +170,11 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
               fullWidth
               label="Departure City"
               name="departureCity"
-              value={formik.values.departureCity}
+              value={formik.values.departureCity || ""}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              error={
-                formik.touched.departureCity &&
-                Boolean(formik.errors.departureCity)
-              }
-              helperText={
-                formik.touched.departureCity && formik.errors.departureCity
-              }
+              error={formik.touched.departureCity && Boolean(formik.errors.departureCity)}
+              helperText={formik.touched.departureCity && formik.errors.departureCity}
             />
           </Grid>
 
@@ -190,13 +187,8 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
               value={formik.values.quotationTitle}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              error={
-                formik.touched.quotationTitle &&
-                Boolean(formik.errors.quotationTitle)
-              }
-              helperText={
-                formik.touched.quotationTitle && formik.errors.quotationTitle
-              }
+              error={formik.touched.quotationTitle && Boolean(formik.errors.quotationTitle)}
+              helperText={formik.touched.quotationTitle && formik.errors.quotationTitle}
             />
           </Grid>
 
@@ -212,13 +204,13 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               error={formik.touched.notes && Boolean(formik.errors.notes)}
-              helperText={`${formik.values.notes.length}/300`}
+              helperText={`${formik.values.notes?.length || 0}/300`}
             />
           </Grid>
 
           {/* Banner Image */}
           <Grid item xs={12} md={6}>
-            <Typography>Banner Image (860px X 400px)</Typography>
+            <Typography>Banner Image (For best view - 860px X 400px)</Typography>
             <Button variant="outlined" component="label" fullWidth>
               Choose File
               <input
@@ -226,9 +218,7 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
                 type="file"
                 accept="image/*"
                 name="bannerImage"
-                onChange={(e) =>
-                  formik.setFieldValue("bannerImage", e.currentTarget.files[0])
-                }
+                onChange={(e) => formik.setFieldValue("bannerImage", e.currentTarget.files[0])}
               />
             </Button>
             {formik.values.bannerImage && (
@@ -241,12 +231,8 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
           {/* Transport */}
           <Grid item xs={12} md={6}>
             <Typography variant="subtitle1">Transport</Typography>
-            <RadioGroup
-              row
-              name="transport"
-              value={formik.values.transport}
-              onChange={formik.handleChange}
-            >
+            {/* Use "Yes"/"No" values */}
+            <RadioGroup row name="transport" value={formik.values.transport} onChange={formik.handleChange}>
               <FormControlLabel value="Yes" control={<Radio />} label="Yes" />
               <FormControlLabel value="No" control={<Radio />} label="No" />
             </RadioGroup>
@@ -263,12 +249,8 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
                   <TextField
                     {...params}
                     fullWidth
-                    error={
-                      formik.touched.validFrom && Boolean(formik.errors.validFrom)
-                    }
-                    helperText={
-                      formik.touched.validFrom && formik.errors.validFrom
-                    }
+                    error={formik.touched.validFrom && Boolean(formik.errors.validFrom)}
+                    helperText={formik.touched.validFrom && formik.errors.validFrom}
                   />
                 )}
               />
@@ -283,12 +265,8 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
                   <TextField
                     {...params}
                     fullWidth
-                    error={
-                      formik.touched.validTill && Boolean(formik.errors.validTill)
-                    }
-                    helperText={
-                      formik.touched.validTill && formik.errors.validTill
-                    }
+                    error={formik.touched.validTill && Boolean(formik.errors.validTill)}
+                    helperText={formik.touched.validTill && formik.errors.validTill}
                   />
                 )}
               />
@@ -303,13 +281,8 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
                   <TextField
                     {...params}
                     fullWidth
-                    error={
-                      formik.touched.arrivalDate &&
-                      Boolean(formik.errors.arrivalDate)
-                    }
-                    helperText={
-                      formik.touched.arrivalDate && formik.errors.arrivalDate
-                    }
+                    error={formik.touched.arrivalDate && Boolean(formik.errors.arrivalDate)}
+                    helperText={formik.touched.arrivalDate && formik.errors.arrivalDate}
                   />
                 )}
               />
@@ -320,28 +293,17 @@ const TourDetailsForm = ({ clientName, sector, quotationId, onNext }) => {
                 label="Departure Date"
                 value={formik.values.departureDate}
                 onChange={(date) => formik.setFieldValue("departureDate", date)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    fullWidth
-                    error={
-                      formik.touched.departureDate &&
-                      Boolean(formik.errors.departureDate)
-                    }
-                    helperText={
-                      formik.touched.departureDate &&
-                      formik.errors.departureDate
-                    }
-                  />
-                )}
+                renderInput={(params) => <TextField {...params} fullWidth />}
               />
             </Grid>
           </LocalizationProvider>
 
-          <Grid item xs={12} textAlign="center" mt={2}>
-            <Button type="submit" variant="contained" color="primary">
-              Save & Continue
-            </Button>
+          <Grid item xs={12}>
+            <Box textAlign="center">
+              <Button type="submit" variant="contained" color="primary">
+                Save & Continue
+              </Button>
+            </Box>
           </Grid>
         </Grid>
       </form>
