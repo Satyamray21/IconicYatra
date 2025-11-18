@@ -225,25 +225,33 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
           break;
 
         case 5:
-          quotation.tourDetails.vehicleDetails = {
-            basicsDetails: {
-              clientName: stepData.clientName,
-              vehicleType: stepData.vehicleType,
-              tripType: stepData.tripType,
-              noOfDays: stepData.noOfDays,
-              perDayCost: stepData.perDayCost || stepData.totalCost || "0",
-            },
-            costDetails: { totalCost: stepData.totalCost || "0" },
-            pickupDropDetails: {
-              pickupDate: stepData.pickupDate || "",
-              pickupTime: stepData.pickupTime || "",
-              pickupLocation: stepData.pickupLocation || "",
-              dropDate: stepData.dropDate || "",
-              dropTime: stepData.dropTime || "",
-              dropLocation: stepData.dropLocation || "",
-            },
-          };
-          break;
+  console.log("🚗 STEP 5 RECEIVED DATA:", stepData);
+
+  // StepData comes as nested objects exactly matching schema
+  quotation.tourDetails.vehicleDetails = {
+    basicsDetails: {
+      clientName: stepData.basicsDetails?.clientName,
+      vehicleType: stepData.basicsDetails?.vehicleType,
+      tripType: stepData.basicsDetails?.tripType,
+      noOfDays: stepData.basicsDetails?.noOfDays,
+      perDayCost: stepData.basicsDetails?.perDayCost,
+    },
+
+    costDetails: {
+      totalCost: stepData.costDetails?.totalCost,
+    },
+
+    pickupDropDetails: {
+      pickupDate: stepData.pickupDropDetails?.pickupDate,
+      pickupTime: stepData.pickupDropDetails?.pickupTime,
+      pickupLocation: stepData.pickupDropDetails?.pickupLocation,
+      dropDate: stepData.pickupDropDetails?.dropDate,
+      dropTime: stepData.pickupDropDetails?.dropTime,
+      dropLocation: stepData.pickupDropDetails?.dropLocation,
+    },
+  };
+  break;
+
 
         case 6:
           console.log("🧾 Step 6 - Final Quotation Merge");

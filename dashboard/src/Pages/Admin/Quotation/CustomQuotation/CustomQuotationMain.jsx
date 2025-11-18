@@ -217,16 +217,22 @@ const CustomQuotationMain = () => {
   };
 
   const handleStep5 = async (data) => {
-    setFormData((prev) => ({
-      ...prev,
-      tourDetails: {
-        ...prev.tourDetails,
-        vehicleDetails: data,
-      },
-    }));
-    await saveStep(5, data);
-    setStep(6);
-  };
+  // Store in formData state correctly
+  setFormData((prev) => ({
+    ...prev,
+    tourDetails: {
+      ...prev.tourDetails,
+      vehicleDetails: data,
+    },
+  }));
+
+  // 🔥 Send ONLY the vehicleDetails object
+  await saveStep(5, data);
+
+  setStep(6);
+};
+
+
 
   const handleFinalSubmit = async (finalData) => {
     setFormData((prev) => ({ ...prev, ...finalData }));
