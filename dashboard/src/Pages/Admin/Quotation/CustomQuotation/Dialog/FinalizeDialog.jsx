@@ -12,30 +12,48 @@ import {
   Radio,
 } from "@mui/material";
 import { Formik, Form } from "formik";
-
-const quotationOptions = [
-  {
-    label: "Standard",
-    hotel: "Sikkim resto Aritar(5N)",
-    cost: "₹ 60,900",
-  },
-  {
-    label: "Deluxe",
-    hotel: "Sikkim resto Aritar(5N)",
-    cost: "₹ 63,100",
-  },
-  {
-    label: "Superior",
-    hotel: "Sikkim resto Aritar(5N)",
-    cost: "₹ 55,400",
-  },
-];
+import { useSelector } from "react-redux";
 
 const FinalizeDialog = ({ open, onClose, onConfirm }) => {
   const [selectedOption, setSelectedOption] = useState("");
 
+  const { selectedQuotation } = useSelector(
+    (state) => state.customQuotation
+  );
+
+  // SAFELY extract pricing
+
+  const standardCost =
+    selectedQuotation?.tourDetails?.quotationDetails?.packageCalculations
+      ?.standard?.finalTotal ?? "N/A";
+
+  const deluxeCost =
+    selectedQuotation?.tourDetails?.quotationDetails?.packageCalculations
+      ?.deluxe?.finalTotal ?? "N/A";
+
+  // Extract hotel names
+  const standardHotel =
+    selectedQuotation?.tourDetails?.quotationDetails?.destinations?.[0]
+      ?.standardHotels?.[0] ?? "N/A";
+
+  const deluxeHotel =
+    selectedQuotation?.tourDetails?.quotationDetails?.destinations?.[0]
+      ?.deluxeHotels?.[0] ?? "N/A";
+
+  const quotationOptions = [
+    {
+      label: "Standard",
+      hotel: standardHotel,
+      cost: `₹ ${standardCost}`,
+    },
+    {
+      label: "Deluxe",
+      hotel: deluxeHotel,
+      cost: `₹ ${deluxeCost}`,
+    },
+  ];
+
   const handleSubmit = (values) => {
-    console.log("Finalized quotation:", values);
     onConfirm(values);
   };
 
@@ -44,11 +62,9 @@ const FinalizeDialog = ({ open, onClose, onConfirm }) => {
       <DialogTitle sx={{ fontWeight: 600, color: "#1976d2" }}>
         Finalize Quotation
       </DialogTitle>
-      <Formik
-        initialValues={{ quotation: "" }}
-        onSubmit={handleSubmit}
-      >
-        {({ setFieldValue, values }) => (
+
+      <Formik initialValues={{ quotation: "" }} onSubmit={handleSubmit}>
+        {({ setFieldValue }) => (
           <Form>
             <DialogContent>
               <Typography
@@ -62,8 +78,9 @@ const FinalizeDialog = ({ open, onClose, onConfirm }) => {
               <Grid container spacing={2}>
                 {quotationOptions.map((option) => {
                   const isSelected = selectedOption === option.label;
+
                   return (
-                    <Grid size={{xs:12, md:4}} key={option.label}>
+                    <Grid size={{ xs: 12, md: 4 }} key={option.label}>
                       <Box
                         onClick={() => {
                           setSelectedOption(option.label);
@@ -78,9 +95,7 @@ const FinalizeDialog = ({ open, onClose, onConfirm }) => {
                           cursor: "pointer",
                           textAlign: "center",
                           transition: "0.2s",
-                          "&:hover": {
-                            borderColor: "#1976d2",
-                          },
+                          "&:hover": { borderColor: "#1976d2" },
                         }}
                       >
                         <Box
@@ -101,10 +116,7 @@ const FinalizeDialog = ({ open, onClose, onConfirm }) => {
                           />
                           <Typography
                             variant="subtitle1"
-                            sx={{
-                              color: "#ff9800",
-                              fontWeight: 600,
-                            }}
+                            sx={{ color: "#ff9800", fontWeight: 600 }}
                           >
                             {option.label}
                           </Typography>
@@ -118,11 +130,10 @@ const FinalizeDialog = ({ open, onClose, onConfirm }) => {
                         >
                           » {option.hotel}
                         </Typography>
+
                         <Typography variant="body2" color="text.secondary">
                           Total Cost:{" "}
-                          <span style={{ fontWeight: 600 }}>
-                            {option.cost}
-                          </span>
+                          <span style={{ fontWeight: 600 }}>{option.cost}</span>
                         </Typography>
                       </Box>
                     </Grid>
@@ -140,13 +151,12 @@ const FinalizeDialog = ({ open, onClose, onConfirm }) => {
                 sx={{
                   textTransform: "none",
                   backgroundColor: selectedOption ? "#64b5f6" : "#bbdefb",
-                  "&:hover": {
-                    backgroundColor: "#2196f3",
-                  },
+                  "&:hover": { backgroundColor: "#2196f3" },
                 }}
               >
                 Confirm
               </Button>
+
               <Button
                 variant="contained"
                 onClick={onClose}
