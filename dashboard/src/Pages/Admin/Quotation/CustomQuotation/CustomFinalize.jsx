@@ -488,7 +488,7 @@ if (vehicleDetails && vehicleDetails.pickupDropDetails) {
         departure: vehicleDeparture,
       },
       hotel: {
-        guests: `${totalGuests} Guests (${quotationDetails.adults} Adults, ${quotationDetails.children} Children)`,
+        guests: `${totalGuests} Guests (${quotationDetails.adults} Adults, ${quotationDetails.children} Children ,${quotationDetails.kids} Kids , ${quotationDetails.infants} Infants)`,
         rooms: `${quotationDetails.rooms.numberOfRooms} ${quotationDetails.rooms.roomType} (${quotationDetails.rooms.sharingType})`,
         mealPlan: quotationDetails.mealPlan,
         destination: destinationString,
