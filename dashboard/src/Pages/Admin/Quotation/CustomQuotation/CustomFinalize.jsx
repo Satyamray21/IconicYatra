@@ -455,15 +455,22 @@ const { id } = useParams(); // Get quotation ID from URL params
 
     // Format pickup/drop details
     const arrivalText = `Arrival: ${arrivalCity} (${formatDate(arrivalDate)}) at Airport`;
-    const departureText = `Departure: ${departureCity} (${formatDate(departureDate)}) from Airport`;
+const departureText = `Departure: ${departureCity} (${formatDate(departureDate)}) from Airport`;
 
-    // If vehicle details exist, use them
-    let vehicleArrival = arrivalText;
-    let vehicleDeparture = departureText;
-    if (vehicleDetails) {
-      vehicleArrival = `Arrival: ${vehicleDetails.pickupLocation} (${formatDateTime(vehicleDetails.pickupDate)})`;
-      vehicleDeparture = `Departure: ${vehicleDetails.dropLocation} (${formatDateTime(vehicleDetails.dropDate)})`;
-    }
+// If vehicle details exist, use them with time
+let vehicleArrival = arrivalText;
+let vehicleDeparture = departureText;
+if (vehicleDetails && vehicleDetails.pickupDropDetails) {
+  const pickupDetails = vehicleDetails.pickupDropDetails;
+  const dropDetails = vehicleDetails.pickupDropDetails;
+  
+  // Format pickup date and time
+  const pickupDateTime = `${formatDate(pickupDetails.pickupDate)} at ${formatTime(pickupDetails.pickupTime)}`;
+  const dropDateTime = `${formatDate(dropDetails.dropDate)} at ${formatTime(dropDetails.dropTime)}`;
+  
+  vehicleArrival = `Arrival: ${pickupDetails.pickupLocation} (${pickupDateTime})`;
+  vehicleDeparture = `Departure: ${dropDetails.dropLocation} (${dropDateTime})`;
+}
 
     return {
       date: formatDate(createdAt),
