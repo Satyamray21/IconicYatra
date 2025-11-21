@@ -489,7 +489,8 @@ if (vehicleDetails && vehicleDetails.pickupDropDetails) {
       },
       hotel: {
         guests: `${totalGuests} Guests (${quotationDetails.adults} Adults, ${quotationDetails.children} Children ,${quotationDetails.kids} Kids , ${quotationDetails.infants} Infants)`,
-        rooms: `${quotationDetails.rooms.numberOfRooms} ${quotationDetails.rooms.roomType} (${quotationDetails.rooms.sharingType})`,
+        rooms: `${quotationDetails.rooms.numberOfRooms}  (${quotationDetails.rooms.sharingType})`,
+        hotelType:`${quotationDetails.rooms.roomType}`,
         mealPlan: quotationDetails.mealPlan,
         destination: destinationString,
         itinerary: tourDetails.initalNotes || "This is only tentative schedule for sightseeing and travel...",
@@ -1280,6 +1281,9 @@ const formatTime = (timeString) => {
         <strong>Rooms:</strong> {quotation.hotel.rooms}
       </Typography>
       <Typography variant="body2">
+        <strong>Hotel Type:</strong> {quotation.hotel.hotelType}
+      </Typography>
+      <Typography variant="body2">
         <strong>Meal Plan:</strong> {quotation.hotel.mealPlan}
       </Typography>
       <Typography variant="body2">
@@ -1692,6 +1696,9 @@ const formatTime = (timeString) => {
                   </Typography>
                   <Typography variant="body2" sx={{ flex: 1, mr: 2 }}>
                     No of Rooms : {quotation.hotel.rooms}
+                  </Typography>
+                  <Typography variant="body2" sx={{ flex: 1, mr: 2 }}>
+                    Hotel Type : {quotation.hotel.hotelType}
                   </Typography>
                   <Typography variant="body2" sx={{ flex: 1, mr: 2 }}>
                     Meal Plan : {quotation.hotel.mealPlan}
