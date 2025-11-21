@@ -357,12 +357,7 @@ const { id } = useParams(); // Get quotation ID from URL params
     { value: "non", label: "Non", rate: 0 },
   ];
 
-  // Format date function
-
-  // Format date with time
-
-
-  // Fetch quotation data (simulate API call)
+  
  
 
 
@@ -549,7 +544,22 @@ const { id } = useParams(); // Get quotation ID from URL params
       hour12: true
     });
   };
-
+// Add this near your other helper functions
+const formatTime = (timeString) => {
+  if (!timeString) return "N/A";
+  // If it's already in a readable format, return as is
+  if (timeString.includes(':')) return timeString;
+  // Otherwise try to parse it
+  try {
+    return new Date(`1970-01-01T${timeString}`).toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch {
+    return timeString;
+  }
+};
   // Add loading state handling
   if (reduxLoading) {
     return (
@@ -1095,6 +1105,7 @@ const { id } = useParams(); // Get quotation ID from URL params
       field: "hotel.guests",
     },
   ];
+const tour = transformApiData?.data?.tourDetails; 
 
   return (
     <Box sx={{ backgroundColor: 'white', minHeight: '100vh' }}>
@@ -1185,18 +1196,98 @@ const { id } = useParams(); // Get quotation ID from URL params
                 >
                   Margin & Taxes (B2C)
                 </Typography>
-                {Accordions.map((a, i) => (
-                  <Accordion key={i}>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography color="primary" fontWeight="bold">
-                        {a.title}
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Typography variant="body2">Details go here.</Typography>
-                    </AccordionDetails>
-                  </Accordion>
-                ))}
+                <Typography>
+  {Accordions.map((a, i) => (
+  <Accordion key={i}>
+    <AccordionSummary expandIcon={<ExpandMore />}>
+      <Typography color="primary" fontWeight="bold">
+        {a.title}
+      </Typography>
+    </AccordionSummary>
+
+    <AccordionDetails>
+  {a.title === "Vehicle Details" ? (
+    <Box>
+      {selectedQuotation?.tourDetails?.vehicleDetails ? (
+        <>
+          <Typography variant="body2">
+            <strong>Vehicle Type:</strong> {selectedQuotation.tourDetails.vehicleDetails.basicsDetails?.vehicleType || 'N/A'}
+          </Typography>
+
+          <Typography variant="body2">
+            <strong>Per Day Cost:</strong> ₹{selectedQuotation.tourDetails.vehicleDetails.basicsDetails?.perDayCost || 'N/A'}
+          </Typography>
+
+          <Typography variant="body2">
+            <strong>Trip Type:</strong> {selectedQuotation.tourDetails.vehicleDetails.basicsDetails?.tripType || 'N/A'}
+          </Typography>
+
+          <Typography variant="body2">
+            <strong>Number of Days:</strong> {selectedQuotation.tourDetails.vehicleDetails.basicsDetails?.noOfDays || 'N/A'}
+          </Typography>
+
+          <Typography variant="body2" mt={1}>
+            <strong>Total Cost:</strong> ₹{selectedQuotation.tourDetails.vehicleDetails.costDetails?.totalCost || 'N/A'}
+          </Typography>
+
+          <Divider sx={{ my: 1 }} />
+
+          <Typography variant="body2" fontWeight="bold" mt={1}>
+            Pickup Details:
+          </Typography>
+          <Typography variant="body2">
+            <strong>Date:</strong> {formatDate(selectedQuotation.tourDetails.vehicleDetails.pickupDropDetails?.pickupDate)}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Time:</strong> {selectedQuotation.tourDetails.vehicleDetails.pickupDropDetails?.pickupTime || 'N/A'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Location:</strong> {selectedQuotation.tourDetails.vehicleDetails.pickupDropDetails?.pickupLocation || 'N/A'}
+          </Typography>
+
+          <Typography variant="body2" fontWeight="bold" mt={1}>
+            Drop Details:
+          </Typography>
+          <Typography variant="body2">
+            <strong>Date:</strong> {formatDate(selectedQuotation.tourDetails.vehicleDetails.pickupDropDetails?.dropDate)}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Time:</strong> {selectedQuotation.tourDetails.vehicleDetails.pickupDropDetails?.dropTime || 'N/A'}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Location:</strong> {selectedQuotation.tourDetails.vehicleDetails.pickupDropDetails?.dropLocation || 'N/A'}
+          </Typography>
+        </>
+      ) : (
+        <Typography variant="body2" color="textSecondary">
+          No vehicle details available
+        </Typography>
+      )}
+    </Box>
+  ) : a.title === "Hotel Details" ? (
+    <Box>
+      <Typography variant="body2">
+        <strong>Guests:</strong> {quotation.hotel.guests}
+      </Typography>
+      <Typography variant="body2">
+        <strong>Rooms:</strong> {quotation.hotel.rooms}
+      </Typography>
+      <Typography variant="body2">
+        <strong>Meal Plan:</strong> {quotation.hotel.mealPlan}
+      </Typography>
+      <Typography variant="body2">
+        <strong>Destination:</strong> {quotation.hotel.destination}
+      </Typography>
+    </Box>
+  ) : (
+    <Typography variant="body2">Details go here.</Typography>
+  )}
+</AccordionDetails>
+  </Accordion>
+))}
+
+</Typography>
+
               </CardContent>
             </Card>
           </Box>
