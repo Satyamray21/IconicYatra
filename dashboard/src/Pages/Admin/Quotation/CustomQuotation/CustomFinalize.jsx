@@ -510,13 +510,13 @@ const { id } = useParams(); // Get quotation ID from URL params
         terms: policies.termsAndConditions?.join('\n') || "No terms and conditions specified",
       },
       footer: {
-        contact: `${clientDetails.clientName} | +91 7053900957`,
+        contact: `Amit Jaiswal`,
         phone: "+91 7053900957",
         email: "info@iconicyatra.com",
         received: "₹ 0",
         balance: "₹ 0",
         company: "Iconic Yatra",
-        address: "Office No 15, Bhawani Market Sec 27, Noida, Uttar Pradesh – 201301",
+        address: "B 25 2nd Floor Sector 64 ,Noida,Uttar Pardesh ,India",
         website: "https://www.iconicyatra.com",
       },
       hotelPricingData,
@@ -1105,7 +1105,7 @@ const formatTime = (timeString) => {
       field: "hotel.guests",
     },
   ];
-const tour = transformApiData?.data?.tourDetails; 
+
 
   return (
     <Box sx={{ backgroundColor: 'white', minHeight: '100vh' }}>
@@ -1277,6 +1277,93 @@ const tour = transformApiData?.data?.tourDetails;
       </Typography>
       <Typography variant="body2">
         <strong>Destination:</strong> {quotation.hotel.destination}
+      </Typography>
+    </Box>
+  ) : a.title === "Company Margin" ? (
+    <Box>
+      {selectedQuotation?.tourDetails?.quotationDetails?.companyMargin ? (
+        <>
+          <Typography variant="body2" gutterBottom>
+            <strong>Margin Percentage:</strong> {selectedQuotation.tourDetails.quotationDetails.companyMargin.marginPercent}%
+          </Typography>
+          
+          {/* Standard Package Margin */}
+          <Box sx={{ mt: 2, p: 1, backgroundColor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="subtitle2" color="primary" gutterBottom>
+              Standard Package Margin
+            </Typography>
+            <Typography variant="body2">
+              <strong>Base Cost:</strong> ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.standard?.baseCost?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Margin Amount:</strong> ₹{
+                (selectedQuotation.tourDetails.quotationDetails.companyMargin.marginAmount > 0 
+                  ? selectedQuotation.tourDetails.quotationDetails.companyMargin.marginAmount
+                  : (selectedQuotation.tourDetails.quotationDetails.packageCalculations.standard?.baseCost * selectedQuotation.tourDetails.quotationDetails.companyMargin.marginPercent) / 100
+                ).toLocaleString(undefined, { maximumFractionDigits: 2 })
+              }
+            </Typography>
+            <Typography variant="body2">
+              <strong>After Margin:</strong> ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.standard?.afterMargin?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2">
+              <strong>After Discount:</strong> ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.standard?.afterDiscount?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Final Total:</strong> ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.standard?.finalTotal?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}
+            </Typography>
+          </Box>
+
+          {/* Deluxe Package Margin */}
+          <Box sx={{ mt: 2, p: 1, backgroundColor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="subtitle2" color="primary" gutterBottom>
+              Deluxe Package Margin
+            </Typography>
+            <Typography variant="body2">
+              <strong>Base Cost:</strong> ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.deluxe?.baseCost?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Margin Amount:</strong> ₹{
+                (selectedQuotation.tourDetails.quotationDetails.companyMargin.marginAmount > 0 
+                  ? selectedQuotation.tourDetails.quotationDetails.companyMargin.marginAmount
+                  : (selectedQuotation.tourDetails.quotationDetails.packageCalculations.deluxe?.baseCost * selectedQuotation.tourDetails.quotationDetails.companyMargin.marginPercent) / 100
+                ).toLocaleString(undefined, { maximumFractionDigits: 2 })
+              }
+            </Typography>
+            <Typography variant="body2">
+              <strong>After Margin:</strong> ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.deluxe?.afterMargin?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2">
+              <strong>After Discount:</strong> ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.deluxe?.afterDiscount?.toLocaleString() || '0'}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Final Total:</strong> ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.deluxe?.finalTotal?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}
+            </Typography>
+          </Box>
+
+          {/* GST Information */}
+          {selectedQuotation.tourDetails.quotationDetails.taxes.applyGST && (
+            <Box sx={{ mt: 2, p: 1, backgroundColor: 'warning.light', borderRadius: 1 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                GST Information
+              </Typography>
+              <Typography variant="body2">
+                <strong>GST Applied On:</strong> {selectedQuotation.tourDetails.quotationDetails.taxes.gstOn}
+              </Typography>
+              <Typography variant="body2">
+                <strong>GST Percentage:</strong> {selectedQuotation.tourDetails.quotationDetails.packageCalculations.standard?.gstPercentage || 0}%
+              </Typography>
+            </Box>
+          )}
+        </>
+      ) : (
+        <Typography variant="body2">No margin details available</Typography>
+      )}
+    </Box>
+  ) : a.title === "Agent Margin" ? (
+    <Box>
+      <Typography variant="body2">
+        Agent margin details would be displayed here if available in the API response.
       </Typography>
     </Box>
   ) : (
