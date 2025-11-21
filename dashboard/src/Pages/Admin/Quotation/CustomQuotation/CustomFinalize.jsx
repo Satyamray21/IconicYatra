@@ -1700,53 +1700,102 @@ const formatTime = (timeString) => {
               </Box>
 
               {/* Hotel Pricing Table */}
-              <Box mt={3}>
-                <TableContainer component={Paper} variant="outlined">
-                  <Table>
-                    <TableHead sx={{ backgroundColor: "primary.light" }}>
-                      <TableRow>
-                        {[
-                          "Destination",
-                          "Nights",
-                          "Standard",
-                          "Deluxe",
-                          "Superior",
-                        ].map((h) => (
-                          <TableCell
-                            key={h}
-                            sx={{ color: "white", fontWeight: "bold" }}
-                          >
-                            {h}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {quotation.hotelPricingData.map((row, index) => (
-                        <TableRow
-                          key={index}
-                          sx={{
-                            backgroundColor:
-                              index >= quotation.hotelPricingData.length - 2
-                                ? "grey.50"
-                                : "inherit",
-                            fontWeight:
-                              index === quotation.hotelPricingData.length - 1
-                                ? "bold"
-                                : "normal",
-                          }}
-                        >
-                          <TableCell>{row.destination}</TableCell>
-                          <TableCell>{row.nights}</TableCell>
-                          <TableCell>{row.standard}</TableCell>
-                          <TableCell>{row.deluxe}</TableCell>
-                          <TableCell>{row.superior}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
+                      <Box mt={3}>
+  <TableContainer component={Paper} variant="outlined">
+    <Table>
+      <TableHead sx={{ backgroundColor: "primary.light" }}>
+        <TableRow>
+          {[
+            "Destination",
+            "Nights",
+            "Standard",
+            "Deluxe",
+            "Superior",
+          ].map((h) => (
+            <TableCell
+              key={h}
+              sx={{ color: "white", fontWeight: "bold" }}
+            >
+              {h}
+            </TableCell>
+          ))}
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {quotation.hotelPricingData
+          .filter((row, index) => index < quotation.hotelPricingData.length - 2) // Remove the last two summary rows
+          .map((row, index) => (
+            <TableRow key={index}>
+              <TableCell>{row.destination}</TableCell>
+              <TableCell>{row.nights}</TableCell>
+              <TableCell>{row.standard}</TableCell>
+              <TableCell>{row.deluxe}</TableCell>
+              <TableCell>{row.superior}</TableCell>
+            </TableRow>
+          ))}
+        
+        {/* Show Total Nights */}
+        <TableRow sx={{ backgroundColor: 'grey.100' }}>
+          <TableCell sx={{ fontWeight: 'bold' }}>Total Nights</TableCell>
+          <TableCell sx={{ fontWeight: 'bold' }}>
+            {selectedQuotation?.tourDetails?.quotationDetails?.destinations?.reduce((total, dest) => total + dest.nights, 0) || 0} N
+          </TableCell>
+          <TableCell colSpan={3}></TableCell>
+        </TableRow>
+
+        {/* Add Total Cost After Discount Row */}
+        <TableRow sx={{ backgroundColor: 'grey.50' }}>
+          <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>
+            Total Cost After Discount
+          </TableCell>
+          <TableCell sx={{ fontWeight: 'bold' }}>
+            ₹{selectedQuotation?.tourDetails?.quotationDetails?.packageCalculations?.standard?.afterDiscount?.toLocaleString() || '0'}
+          </TableCell>
+          <TableCell sx={{ fontWeight: 'bold' }}>
+            ₹{selectedQuotation?.tourDetails?.quotationDetails?.packageCalculations?.deluxe?.afterDiscount?.toLocaleString() || '0'}
+          </TableCell>
+          <TableCell sx={{ fontWeight: 'bold' }}>
+            ₹{selectedQuotation?.tourDetails?.quotationDetails?.packageCalculations?.superior?.afterDiscount?.toLocaleString() || '0'}
+          </TableCell>
+        </TableRow>
+
+        {/* Add GST Row if applicable */}
+        {selectedQuotation?.tourDetails?.quotationDetails?.taxes?.applyGST && (
+          <TableRow sx={{ backgroundColor: 'warning.50' }}>
+            <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>
+              GST ({selectedQuotation.tourDetails.quotationDetails.packageCalculations.standard?.gstPercentage || 0}%)
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>
+              ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.standard?.gstAmount?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>
+              ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.deluxe?.gstAmount?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}
+            </TableCell>
+            <TableCell sx={{ fontWeight: 'bold' }}>
+              ₹{selectedQuotation.tourDetails.quotationDetails.packageCalculations.superior?.gstAmount?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}
+            </TableCell>
+          </TableRow>
+        )}
+
+        {/* Add Final Total Row */}
+        <TableRow sx={{ backgroundColor: 'success.50', fontWeight: 'bold' }}>
+          <TableCell colSpan={2} sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+            Final Total (Incl. GST)
+          </TableCell>
+          <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem', color: 'success.main' }}>
+            ₹{selectedQuotation?.tourDetails?.quotationDetails?.packageCalculations?.standard?.finalTotal?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}
+          </TableCell>
+          <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem', color: 'success.main' }}>
+            ₹{selectedQuotation?.tourDetails?.quotationDetails?.packageCalculations?.deluxe?.finalTotal?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}
+          </TableCell>
+          <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem', color: 'success.main' }}>
+            ₹{selectedQuotation?.tourDetails?.quotationDetails?.packageCalculations?.superior?.finalTotal?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  </TableContainer>
+</Box>
 
               {/* Policies */}
               <Grid container spacing={2} mt={1}>
