@@ -108,6 +108,14 @@ export const createLead = asyncHandler(async (req, res) => {
   const arrivalLocationToSave = handleAddMoreValue(arrivalLocation);
   const departureCityToSave = handleAddMoreValue(departureCity);
   const departureLocationToSave = handleAddMoreValue(departureLocation);
+  // ⭐ Ensure tourDestination is always an ARRAY
+const tourDestinationToSave = Array.isArray(tourDestination)
+  ? tourDestination
+  : typeof tourDestination === "string"
+  ? tourDestination.includes("-")
+      ? tourDestination.split("-").map((d) => d.trim())
+      : [tourDestination]
+  : [];
 
   // ✅ Handle addMore for arrays
   const servicesRequiredToSave = handleAddMoreArray(servicesRequired);
@@ -117,7 +125,7 @@ export const createLead = asyncHandler(async (req, res) => {
     saveAddMoreValue("source", sourceToSave),
     saveAddMoreValue("agentName", agentNameToSave),
     saveAddMoreValue("referredBy", referredByToSave),
-    saveAddMoreValue("tourDestination", tourDestination),
+    saveAddMoreValue("tourDestination", tourDestinationToSave),
     saveAddMoreValue("servicesRequired", servicesRequiredToSave),
     saveAddMoreValue("arrivalCity", arrivalCityToSave),
     saveAddMoreValue("arrivalLocation", arrivalLocationToSave),
@@ -186,7 +194,7 @@ export const createLead = asyncHandler(async (req, res) => {
 
   const tourDetails = {
     tourType,
-    tourDestination,
+     tourDestination: tourDestinationToSave,
     servicesRequired: Array.isArray(servicesRequired)
       ? servicesRequired
       : [servicesRequired],

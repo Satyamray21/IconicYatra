@@ -1,4 +1,4 @@
-import React,{useEffect} from "react";
+import React, { useEffect } from "react";
 import {
   Box,
   Grid,
@@ -19,6 +19,7 @@ import {
   Alert,
   CircularProgress,
   Autocomplete,
+  createFilterOptions,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers";
 import { useFormik } from "formik";
@@ -26,7 +27,7 @@ import * as Yup from "yup";
 import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
-import { getLeadOptions,addLeadOption } from "../../../../features/leads/leadSlice"
+import { getLeadOptions, addLeadOption } from "../../../../features/leads/leadSlice";
 import {
   fetchCountries,
   fetchStatesByCountry,
@@ -34,25 +35,21 @@ import {
   fetchAllCitiesByCountry,
   clearStates,
   clearCities,
-} from '../../../../features/location/locationSlice';
+} from "../../../../features/location/locationSlice";
 
-import axios from "../../../../utils/axios"
+import axios from "../../../../utils/axios";
 
 const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
-    console.log("✅ LeadTourForm props:", { onComplete, leadData, isSubmitting });
+  console.log("✅ LeadTourForm props:", { onComplete, leadData, isSubmitting });
 
   const location = useLocation();
   const dispatch = useDispatch();
   const { options, loading: optionsLoading, error } = useSelector((state) => state.leads);
-  
+
   // Get location data from Redux store
-  const {
-    countries,
-    states,
-    cities,
-             
-    loading: locationLoading,
-  } = useSelector((state) => state.location);
+  const { countries, states, cities, loading: locationLoading } = useSelector(
+    (state) => state.location
+  );
 
   const [openDialog, setOpenDialog] = React.useState(false);
   const [currentField, setCurrentField] = React.useState("");
@@ -111,28 +108,19 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     },
     validationSchema: Yup.object({
       destination: Yup.array()
-  .of(Yup.string().required("Destination required"))
-  .min(1, "At least one destination required"),
+        .of(Yup.string().required("Destination required"))
+        .min(1, "At least one destination required"),
       services: Yup.string().required("Required"),
-      adults: Yup.number()
-        .required("Required")
-        .min(1, "At least 1 adult")
-        .integer("Must be a whole number"),
+      adults: Yup.number().required("Required").min(1, "At least 1 adult").integer("Must be a whole number"),
       children: Yup.number().integer("Must be a whole number"),
       kidsWithoutMattress: Yup.number().integer("Must be a whole number"),
       infants: Yup.number().integer("Must be a whole number"),
       arrivalDate: Yup.date().required("Required"),
       departureDate: Yup.date()
         .required("Required")
-        .min(
-          Yup.ref("arrivalDate"),
-          "Departure date must be after arrival date"
-        ),
+        .min(Yup.ref("arrivalDate"), "Departure date must be after arrival date"),
       sharingType: Yup.string().required("Required"),
-      noOfRooms: Yup.number()
-        .required("Required")
-        .min(1, "At least 1 room")
-        .integer("Must be a whole number"),
+      noOfRooms: Yup.number().required("Required").min(1, "At least 1 room").integer("Must be a whole number"),
       noOfMattress: Yup.number().integer("Must be a whole number"),
       noOfNights: Yup.number().integer("Must be a whole number"),
       country: Yup.string().when("tourType", {
@@ -148,14 +136,10 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
         ...values,
         transport: values.transport === "Yes",
         servicesRequired: [values.services],
-        hotelType: [values.hotelType], 
+        hotelType: [values.hotelType],
         tourDestination: values.destination,
-        arrivalDate: values.arrivalDate
-          ? dayjs(values.arrivalDate).format("YYYY-MM-DD")
-          : null,
-        departureDate: values.departureDate
-          ? dayjs(values.departureDate).format("YYYY-MM-DD")
-          : null,
+        arrivalDate: values.arrivalDate ? dayjs(values.arrivalDate).format("YYYY-MM-DD") : null,
+        departureDate: values.departureDate ? dayjs(values.departureDate).format("YYYY-MM-DD") : null,
       };
 
       if (typeof onComplete === "function") {
@@ -163,12 +147,12 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
       } else {
         console.error("❌ onComplete is not a function");
       }
-    }
+    },
   });
 
   const { values, handleChange, setFieldValue, touched, errors } = formik;
 
-  // Improved city loading logic
+  // Improved city loading logic (keeps your original behaviour)
   useEffect(() => {
     if (values.tourType === "Domestic") {
       dispatch(fetchAllIndianCities());
@@ -180,11 +164,21 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     }
   }, [values.tourType, values.country, dispatch]);
 
+  // =========================
+  // PERFORMANCE: memoize unique cities + limit filter results
+  // =========================
+  const uniqueCities = React.useMemo(() => {
+    if (!cities || !Array.isArray(cities)) return [];
+    return [...new Set(cities)];
+  }, [cities]);
+
+  const filterOptions = createFilterOptions({ limit: 50 });
+
   // Handle tour type change
   const handleTourTypeChange = (e) => {
     const tourType = e.target.value;
     formik.handleChange(e);
-    
+
     if (tourType === "Domestic") {
       // For domestic tours, set country to India and fetch Indian states
       setFieldValue("country", "India");
@@ -218,23 +212,13 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     }
   }, [values.country, values.tourType, dispatch]);
 
-  // Get unique cities to avoid duplicates
-  const getUniqueCities = () => {
-    if (!cities || !Array.isArray(cities)) return [];
-    return [...new Set(cities)]; // Remove duplicates
-  };
-
   const getDestinationOptions = () => {
     if (values.tourType === "Domestic") {
       if (locationLoading) return [];
-      return Array.isArray(states) && states.length > 0
-        ? states.map((s) => s.name)
-        : [];
+      return Array.isArray(states) && states.length > 0 ? states.map((s) => s.name) : [];
     } else {
       if (!values.country || locationLoading) return [];
-      return Array.isArray(states) && states.length > 0
-        ? states.map((s) => s.name)
-        : [];
+      return Array.isArray(states) && states.length > 0 ? states.map((s) => s.name) : [];
     }
   };
 
@@ -252,10 +236,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
         noOfRooms: values.noOfRooms,
       };
 
-      const { data } = await axios.post(
-        "/accommodation/calculate-accommodation",
-        { members, accommodation }
-      );
+      const { data } = await axios.post("/accommodation/calculate-accommodation", { members, accommodation });
 
       if (data.success) {
         setFieldValue("noOfRooms", data.data.autoCalculatedRooms);
@@ -270,14 +251,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
     if (values.sharingType && values.noOfRooms) {
       calculateAccommodation();
     }
-  }, [
-    values.sharingType,
-    values.noOfRooms,
-    values.adults,
-    values.children,
-    values.kidsWithoutMattress,
-    values.infants,
-  ]);
+  }, [values.sharingType, values.noOfRooms, values.adults, values.children, values.kidsWithoutMattress, values.infants]);
 
   useEffect(() => {
     if (values.arrivalDate && values.departureDate) {
@@ -345,16 +319,11 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
   };
 
   const getOptionsForField = (fieldName) => {
-    const filteredOptions = options
-      ?.filter((opt) => opt.fieldName === fieldName)
-      .map((opt) => ({ value: opt.value, label: opt.value }));
+    const filteredOptions = options?.filter((opt) => opt.fieldName === fieldName).map((opt) => ({ value: opt.value, label: opt.value }));
 
     return [
       ...(filteredOptions || []),
-      ...(customItems[fieldName] || []).map((opt) => ({
-        value: opt,
-        label: opt,
-      })),
+      ...(customItems[fieldName] || []).map((opt) => ({ value: opt, label: opt })),
       { value: "__add_new", label: "+ Add New" },
     ];
   };
@@ -364,7 +333,6 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
   };
 
   // City loading states
-  const uniqueCities = getUniqueCities();
   const isCitiesLoading = locationLoading && uniqueCities.length === 0;
   const hasCities = uniqueCities.length > 0;
 
@@ -377,14 +345,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
         <Dialog open={openDialog} onClose={handleCloseDialog}>
           <DialogTitle>Add New {currentField}</DialogTitle>
           <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label={`New ${currentField}`}
-              fullWidth
-              value={addMore}
-              onChange={(e) => setNewItem(e.target.value)}
-            />
+            <TextField autoFocus margin="dense" label={`New ${currentField}`} fullWidth value={addMore} onChange={(e) => setNewItem(e.target.value)} />
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog}>Cancel</Button>
@@ -395,17 +356,8 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
         </Dialog>
 
         {/* Snackbar for notifications */}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={6000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-          <Alert
-            onClose={handleCloseSnackbar}
-            severity={snackbar.severity}
-            sx={{ width: "100%" }}
-          >
+        <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: "top", horizontal: "right" }}>
+          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
             {snackbar.message}
           </Alert>
         </Snackbar>
@@ -425,33 +377,20 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
               Failed to load lead options: {error}
             </Alert>
           )}
-          
+
           <Grid container spacing={2}>
-            <Grid size={{xs:12, md:6}}>
+            <Grid item xs={12} md={6}>
               <FormControl>
                 <FormLabel>Tour Type</FormLabel>
-                <RadioGroup
-                  row
-                  name="tourType"
-                  value={values.tourType}
-                  onChange={handleTourTypeChange} // Use the new handler
-                >
-                  <FormControlLabel
-                    value="Domestic"
-                    control={<Radio />}
-                    label="Domestic"
-                  />
-                  <FormControlLabel
-                    value="International"
-                    control={<Radio />}
-                    label="International"
-                  />
+                <RadioGroup row name="tourType" value={values.tourType} onChange={handleTourTypeChange /* Use the new handler */}>
+                  <FormControlLabel value="Domestic" control={<Radio />} label="Domestic" />
+                  <FormControlLabel value="International" control={<Radio />} label="International" />
                 </RadioGroup>
               </FormControl>
             </Grid>
 
             {/* Country Field - Different behavior for Domestic vs International */}
-            <Grid size={{xs:12, md:6}}>
+            <Grid item xs={12} md={6}>
               {values.tourType === "International" ? (
                 <TextField
                   select
@@ -459,67 +398,58 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
                   name="country"
                   label="Country *"
                   value={values.country}
-                  onChange={handleCountryChange} // Use the new handler
+                  onChange={handleCountryChange /* Use the new handler */}
                   error={touched.country && Boolean(errors.country)}
                   helperText={touched.country && errors.country}
                   disabled={locationLoading}
                 >
                   {locationLoading ? (
                     <MenuItem disabled>Loading countries...</MenuItem>
+                  ) : countries && countries.length > 0 ? (
+                    countries.map((country) => (
+                      <MenuItem key={country.name} value={country.name}>
+                        {country.name}
+                      </MenuItem>
+                    ))
                   ) : (
-                    countries && countries.length > 0 ? (
-                      countries.map((country) => (
-                        <MenuItem key={country.name} value={country.name}>
-                          {country.name}
-                        </MenuItem>
-                      ))
-                    ) : (
-                      <MenuItem disabled>No countries available</MenuItem>
-                    )
+                    <MenuItem disabled>No countries available</MenuItem>
                   )}
                   <MenuItem value="__add_new">+ Add New</MenuItem>
                 </TextField>
               ) : (
-                <TextField
-                  fullWidth
-                  label="Country"
-                  value="India"
-                  disabled
-                  helperText="Domestic tours are within India"
-                />
+                <TextField fullWidth label="Country" value="India" disabled helperText="Domestic tours are within India" />
               )}
             </Grid>
 
             {/* Tour Destination - Shows states of selected country */}
-            <Grid size={{ xs: 12, md: 6 }}>
-  <Autocomplete
-    multiple
-    freeSolo
-    options={getDestinationOptions()}
-    value={values.destination}
-    onChange={(e, newValue) => setFieldValue("destination", newValue)}
-    onKeyDown={(e) => {
-      if (e.key === "Enter" && e.target.value.trim()) {
-        e.preventDefault();
-        if (!values.destination.includes(e.target.value.trim())) {
-          setFieldValue("destination", [...values.destination, e.target.value.trim()]);
-        }
-      }
-    }}
-    renderInput={(params) => (
-      <TextField
-        {...params}
-        label="Tour Destination *"
-        placeholder="Type or select destination"
-        error={touched.destination && Boolean(errors.destination)}
-        helperText={touched.destination && errors.destination}
-      />
-    )}
-  />
-</Grid>
+            <Grid item xs={12} md={6}>
+              <Autocomplete
+                multiple
+                freeSolo
+                options={getDestinationOptions()}
+                value={values.destination}
+                onChange={(e, newValue) => setFieldValue("destination", newValue)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && e.target.value.trim()) {
+                    e.preventDefault();
+                    if (!values.destination.includes(e.target.value.trim())) {
+                      setFieldValue("destination", [...values.destination, e.target.value.trim()]);
+                    }
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Tour Destination *"
+                    placeholder="Type or select destination"
+                    error={touched.destination && Boolean(errors.destination)}
+                    helperText={touched.destination && errors.destination}
+                  />
+                )}
+              />
+            </Grid>
 
-
-            <Grid size={{xs:12, md:6}}>
+            <Grid item xs={12} md={6}>
               <TextField
                 select
                 fullWidth
@@ -532,11 +462,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
               >
                 {getOptionsForField("services").map((option) =>
                   option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-service"
-                      value=""
-                      onClick={() => handleOpenDialog("services")}
-                    >
+                    <MenuItem key="add-new-service" value="" onClick={() => handleOpenDialog("services")}>
                       + Add New
                     </MenuItem>
                   ) : (
@@ -548,57 +474,17 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
               </TextField>
             </Grid>
 
-            <Grid size={{xs:12, md:3}}>
-              <TextField
-                fullWidth
-                name="adults"
-                label="No of Adults *"
-                type="number"
-                value={values.adults}
-                onChange={handleChange}
-                error={touched.adults && Boolean(errors.adults)}
-                helperText={touched.adults && errors.adults}
-              />
+            <Grid item xs={12} md={3}>
+              <TextField fullWidth name="adults" label="No of Adults *" type="number" value={values.adults} onChange={handleChange} error={touched.adults && Boolean(errors.adults)} helperText={touched.adults && errors.adults} />
             </Grid>
-            <Grid size={{xs:12, md:3}}>
-              <TextField
-                fullWidth
-                name="children"
-                label="No of Children (6-12)"
-                type="number"
-                value={values.children}
-                onChange={handleChange}
-                error={touched.children && Boolean(errors.children)}
-                helperText={touched.children && errors.children}
-              />
+            <Grid item xs={12} md={3}>
+              <TextField fullWidth name="children" label="No of Children (6-12)" type="number" value={values.children} onChange={handleChange} error={touched.children && Boolean(errors.children)} helperText={touched.children && errors.children} />
             </Grid>
-            <Grid size={{xs:12, md:3}}>
-              <TextField
-                fullWidth
-                name="kidsWithoutMattress"
-                label="No of Kids (2-5)"
-                type="number"
-                value={values.kidsWithoutMattress}
-                onChange={handleChange}
-                error={
-                  touched.kidsWithoutMattress && Boolean(errors.kidsWithoutMattress)
-                }
-                helperText={
-                  touched.kidsWithoutMattress && errors.kidsWithoutMattress
-                }
-              />
+            <Grid item xs={12} md={3}>
+              <TextField fullWidth name="kidsWithoutMattress" label="No of Kids (2-5)" type="number" value={values.kidsWithoutMattress} onChange={handleChange} error={touched.kidsWithoutMattress && Boolean(errors.kidsWithoutMattress)} helperText={touched.kidsWithoutMattress && errors.kidsWithoutMattress} />
             </Grid>
-            <Grid size={{xs:12, md:3}}>
-              <TextField
-                fullWidth
-                name="infants"
-                label="No of Infants"
-                type="number"
-                value={values.infants}
-                onChange={handleChange}
-                error={touched.infants && Boolean(errors.infants)}
-                helperText={touched.infants && errors.infants}
-              />
+            <Grid item xs={12} md={3}>
+              <TextField fullWidth name="infants" label="No of Infants" type="number" value={values.infants} onChange={handleChange} error={touched.infants && Boolean(errors.infants)} helperText={touched.infants && errors.infants} />
             </Grid>
           </Grid>
         </Box>
@@ -609,55 +495,54 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
             Pickup/Drop
           </Typography>
           <Grid container spacing={2}>
-            <Grid size={{xs:12, md:3}}>
+            <Grid item xs={12} md={3}>
               <DatePicker
                 label="Arrival Date *"
                 value={values.arrivalDate}
                 onChange={(val) => setFieldValue("arrivalDate", val)}
-                
+                renderInput={(params) => (
+                  <TextField fullWidth {...params} error={touched.arrivalDate && Boolean(errors.arrivalDate)} helperText={touched.arrivalDate && errors.arrivalDate} />
+                )}
+              />
+            </Grid>
+
+            {/* ARRIVAL CITY — optimized Autocomplete (keeps full city list but prevents UI freeze) */}
+            <Grid item xs={12} md={3}>
+              <Autocomplete
+                disablePortal
+                filterOptions={filterOptions}
+                options={[...uniqueCities, "__add_new"]}
+                loading={isCitiesLoading}
+                value={values.arrivalCity || ""}
+                onChange={(e, val) => {
+                  if (val === "__add_new") {
+                    handleOpenDialog("arrivalCity");
+                  } else {
+                    setFieldValue("arrivalCity", val || "");
+                  }
+                }}
+                getOptionLabel={(option) => (option === "__add_new" ? "+ Add New" : String(option || ""))}
                 renderInput={(params) => (
                   <TextField
-                    fullWidth
                     {...params}
-                    error={touched.arrivalDate && Boolean(errors.arrivalDate)}
-                    helperText={touched.arrivalDate && errors.arrivalDate}
+                    label="Arrival City"
+                    error={touched.arrivalCity && Boolean(errors.arrivalCity)}
+                    helperText={touched.arrivalCity && errors.arrivalCity}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isCitiesLoading ? <CircularProgress size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
                   />
                 )}
               />
             </Grid>
-            <Grid size={{xs:12, md:3}}>
-              <TextField
-                select
-                fullWidth
-                name="arrivalCity"
-                label="Arrival City"
-                value={values.arrivalCity}
-                onChange={handleChange}
-                error={touched.arrivalCity && Boolean(errors.arrivalCity)}
-                helperText={touched.arrivalCity && errors.arrivalCity}
-                disabled={isCitiesLoading}
-              >
-                {isCitiesLoading ? (
-                  <MenuItem disabled>Loading cities...</MenuItem>
-                ) : hasCities ? (
-                  uniqueCities.map((city, index) => (
-                    <MenuItem key={`arrival-${city}-${index}`} value={city}>
-                      {city}
-                    </MenuItem>
-                  ))
-                ) : (
-                  <MenuItem disabled>
-                    {values.tourType === "International" && !values.country 
-                      ? "Select a country first" 
-                      : "No cities available"}
-                  </MenuItem>
-                )}
-                <MenuItem value="__add_new" onClick={() => handleOpenDialog("arrivalCity")}>
-                  + Add New
-                </MenuItem>
-              </TextField>
-            </Grid>
-            <Grid size={{xs:12, md:3}}>
+
+            <Grid item xs={12} md={3}>
               <TextField
                 select
                 fullWidth
@@ -665,18 +550,12 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
                 label="Arrival Location"
                 value={values.arrivalLocation}
                 onChange={handleChange}
-                error={
-                  touched.arrivalLocation && Boolean(errors.arrivalLocation)
-                }
+                error={touched.arrivalLocation && Boolean(errors.arrivalLocation)}
                 helperText={touched.arrivalLocation && errors.arrivalLocation}
               >
                 {getOptionsForField("arrivalLocation").map((option) =>
                   option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-arrival-location"
-                      value=""
-                      onClick={() => handleOpenDialog("arrivalLocation")}
-                    >
+                    <MenuItem key="add-new-arrival-location" value="" onClick={() => handleOpenDialog("arrivalLocation")}>
                       + Add New
                     </MenuItem>
                   ) : (
@@ -688,57 +567,55 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
               </TextField>
             </Grid>
 
-            <Grid size={{xs:12, md:3}}>
+            <Grid item xs={12} md={3}>
               <DatePicker
                 label="Departure Date *"
                 value={values.departureDate}
                 onChange={(val) => setFieldValue("departureDate", val)}
                 minDate={values.arrivalDate || dayjs()}
                 renderInput={(params) => (
+                  <TextField fullWidth {...params} error={touched.departureDate && Boolean(errors.departureDate)} helperText={touched.departureDate && errors.departureDate} />
+                )}
+              />
+            </Grid>
+
+            {/* DEPARTURE CITY — optimized Autocomplete */}
+            <Grid item xs={12} md={3}>
+              <Autocomplete
+                disablePortal
+                filterOptions={filterOptions}
+                options={[...uniqueCities, "__add_new"]}
+                loading={isCitiesLoading}
+                value={values.departureCity || ""}
+                onChange={(e, val) => {
+                  if (val === "__add_new") {
+                    handleOpenDialog("departureCity");
+                  } else {
+                    setFieldValue("departureCity", val || "");
+                  }
+                }}
+                getOptionLabel={(option) => (option === "__add_new" ? "+ Add New" : String(option || ""))}
+                renderInput={(params) => (
                   <TextField
-                    fullWidth
                     {...params}
-                    error={
-                      touched.departureDate && Boolean(errors.departureDate)
-                    }
-                    helperText={touched.departureDate && errors.departureDate}
+                    label="Departure City"
+                    error={touched.departureCity && Boolean(errors.departureCity)}
+                    helperText={touched.departureCity && errors.departureCity}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isCitiesLoading ? <CircularProgress size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
                   />
                 )}
               />
             </Grid>
-            <Grid size={{xs:12, md:3}}>
-              <TextField
-                select
-                fullWidth
-                name="departureCity"
-                label="Departure City"
-                value={values.departureCity}
-                onChange={handleChange}
-                error={touched.departureCity && Boolean(errors.departureCity)}
-                helperText={touched.departureCity && errors.departureCity}
-                disabled={isCitiesLoading}
-              >
-                {isCitiesLoading ? (
-                  <MenuItem disabled>Loading cities...</MenuItem>
-                ) : hasCities ? (
-                  uniqueCities.map((city, index) => (
-                    <MenuItem key={`departure-${city}-${index}`} value={city}>
-                      {city}
-                    </MenuItem>
-                  ))
-                ) : (
-                  <MenuItem disabled>
-                    {values.tourType === "International" && !values.country 
-                      ? "Select a country first" 
-                      : "No cities available"}
-                  </MenuItem>
-                )}
-                <MenuItem value="__add_new" onClick={() => handleOpenDialog("departureCity")}>
-                  + Add New
-                </MenuItem>
-              </TextField>
-            </Grid>
-            <Grid size={{xs:12, md:3}}>
+
+            <Grid item xs={12} md={3}>
               <TextField
                 select
                 fullWidth
@@ -746,20 +623,12 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
                 label="Departure Location"
                 value={values.departureLocation}
                 onChange={handleChange}
-                error={
-                  touched.departureLocation && Boolean(errors.departureLocation)
-                }
-                helperText={
-                  touched.departureLocation && errors.departureLocation
-                }
+                error={touched.departureLocation && Boolean(errors.departureLocation)}
+                helperText={touched.departureLocation && errors.departureLocation}
               >
                 {getOptionsForField("departureLocation").map((option) =>
                   option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-departure-location"
-                      value=""
-                      onClick={() => handleOpenDialog("departureLocation")}
-                    >
+                    <MenuItem key="add-new-departure-location" value="" onClick={() => handleOpenDialog("departureLocation")}>
                       + Add New
                     </MenuItem>
                   ) : (
@@ -778,7 +647,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
             Accommodation & Facility
           </Typography>
           <Grid container spacing={2}>
-            <Grid size={{xs:12, md:3}}>
+            <Grid item xs={12} md={3}>
               <TextField
                 select
                 fullWidth
@@ -791,11 +660,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
               >
                 {getOptionsForField("hotelType").map((option) =>
                   option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-hotel-type"
-                      value=""
-                      onClick={() => handleOpenDialog("hotelType")}
-                    >
+                    <MenuItem key="add-new-hotel-type" value="" onClick={() => handleOpenDialog("hotelType")}>
                       + Add New
                     </MenuItem>
                   ) : (
@@ -806,7 +671,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
                 )}
               </TextField>
             </Grid>
-            <Grid size={{xs:12, md:3}}>
+            <Grid item xs={12} md={3}>
               <TextField
                 select
                 fullWidth
@@ -819,11 +684,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
               >
                 {getOptionsForField("mealPlan").map((option) =>
                   option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-meal-plan"
-                      value=""
-                      onClick={() => handleOpenDialog("mealPlan")}
-                    >
+                    <MenuItem key="add-new-meal-plan" value="" onClick={() => handleOpenDialog("mealPlan")}>
                       + Add New
                     </MenuItem>
                   ) : (
@@ -834,25 +695,16 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
                 )}
               </TextField>
             </Grid>
-            <Grid size={{xs:12, md:3}}>
+            <Grid item xs={12} md={3}>
               <FormControl>
                 <FormLabel>Transport</FormLabel>
-                <RadioGroup
-                  row
-                  name="transport"
-                  value={values.transport}
-                  onChange={handleChange}
-                >
-                  <FormControlLabel
-                    value="Yes"
-                    control={<Radio />}
-                    label="Yes"
-                  />
+                <RadioGroup row name="transport" value={values.transport} onChange={handleChange}>
+                  <FormControlLabel value="Yes" control={<Radio />} label="Yes" />
                   <FormControlLabel value="No" control={<Radio />} label="No" />
                 </RadioGroup>
               </FormControl>
             </Grid>
-            <Grid size={{xs:12, md:3}}>
+            <Grid item xs={12} md={3}>
               <TextField
                 select
                 fullWidth
@@ -865,11 +717,7 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
               >
                 {getOptionsForField("sharingType").map((option) =>
                   option.value === "__add_new" ? (
-                    <MenuItem
-                      key="add-new-sharing-type"
-                      value=""
-                      onClick={() => handleOpenDialog("sharingType")}
-                    >
+                    <MenuItem key="add-new-sharing-type" value="" onClick={() => handleOpenDialog("sharingType")}>
                       + Add New
                     </MenuItem>
                   ) : (
@@ -880,63 +728,24 @@ const LeadTourForm = ({ leadData, onComplete, isSubmitting }) => {
                 )}
               </TextField>
             </Grid>
-            <Grid size={{xs:4}}>
-              <TextField
-                fullWidth
-                name="noOfRooms"
-                label="No of Rooms *"
-                type="number"
-                value={values.noOfRooms}
-                onChange={handleChange}
-                error={touched.noOfRooms && Boolean(errors.noOfRooms)}
-                helperText={touched.noOfRooms && errors.noOfRooms}
-              />
+            <Grid item xs={4}>
+              <TextField fullWidth name="noOfRooms" label="No of Rooms *" type="number" value={values.noOfRooms} onChange={handleChange} error={touched.noOfRooms && Boolean(errors.noOfRooms)} helperText={touched.noOfRooms && errors.noOfRooms} />
             </Grid>
-            <Grid size={{xs:4}}>
-              <TextField
-                fullWidth
-                name="noOfMattress"
-                label="No of Mattress"
-                type="number"
-                value={values.noOfMattress}
-                onChange={handleChange}
-                error={touched.noOfMattress && Boolean(errors.noOfMattress)}
-                helperText={touched.noOfMattress && errors.noOfMattress}
-              />
+            <Grid item xs={4}>
+              <TextField fullWidth name="noOfMattress" label="No of Mattress" type="number" value={values.noOfMattress} onChange={handleChange} error={touched.noOfMattress && Boolean(errors.noOfMattress)} helperText={touched.noOfMattress && errors.noOfMattress} />
             </Grid>
-            <Grid size={{xs:4}}>
-              <TextField
-                fullWidth
-                name="noOfNights"
-                label="No of Nights"
-                type="number"
-                value={values.noOfNights}
-                disabled
-              />
+            <Grid item xs={4}>
+              <TextField fullWidth name="noOfNights" label="No of Nights" type="number" value={values.noOfNights} disabled />
             </Grid>
           </Grid>
         </Box>
 
         <Box mt={3}>
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            name="requirementNote"
-            label="Requirement Note"
-            value={values.requirementNote}
-            onChange={handleChange}
-          />
+          <TextField fullWidth multiline rows={4} name="requirementNote" label="Requirement Note" value={values.requirementNote} onChange={handleChange} />
         </Box>
 
         <Box mt={2} display="flex" justifyContent="center">
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
-          >
+          <Button type="submit" variant="contained" color="primary" disabled={isSubmitting} startIcon={isSubmitting ? <CircularProgress size={20} /> : null}>
             {isSubmitting ? "Submitting..." : "Submit"}
           </Button>
         </Box>
