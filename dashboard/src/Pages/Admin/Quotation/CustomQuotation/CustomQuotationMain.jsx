@@ -70,21 +70,30 @@ const CustomQuotationMain = () => {
   };
 
   // Save helper
-  const saveStep = async (stepNumber, stepData) => {
-    try {
-      let currentQuotationId = quotationId || localStorage.getItem("currentQuotationId");
-      if (!currentQuotationId) {
-        toast.error("Quotation ID not found. Please start from step 1.");
-        return;
-      }
+ const saveStep = async (stepNumber, stepData) => {
+  try {
+    let currentQuotationId = quotationId || localStorage.getItem("currentQuotationId");
 
-      await dispatch(updateQuotationStep({ quotationId: currentQuotationId, stepNumber, stepData })).unwrap();
-      console.log("✅ Step", stepNumber, "saved successfully");
-    } catch (err) {
-      console.error("❌ Step save failed:", err);
-      toast.error(err?.message || "Step save failed");
+    if (!currentQuotationId) {
+      toast.error("Quotation ID not found. Please start from step 1.");
+      return;
     }
-  };
+
+    // Just pass the data through - let the thunk handle appending
+    await dispatch(
+      updateQuotationStep({
+        quotationId: currentQuotationId,
+        stepNumber,
+        stepData,
+      })
+    ).unwrap();
+
+  } catch (err) {
+    console.error(err);
+    toast.error("Step save failed");
+  }
+};
+
 
   // Step handlers...
   const handleStep1 = async (data) => {
@@ -195,20 +204,36 @@ const CustomQuotationMain = () => {
   };
 
   const handleStep3 = async (data) => {
-    setFormData((prev) => ({
-      ...prev,
-      tourDetails: {
-        ...prev.tourDetails,
-        ...data,
-        arrivalCity: prev.tourDetails?.arrivalCity || data.arrivalCity || "TBD",
-        departureCity: prev.tourDetails?.departureCity || data.departureCity || "TBD",
-        arrivalDate: prev.tourDetails?.arrivalDate || data.arrivalDate || new Date().toISOString(),
-        departureDate: prev.tourDetails?.departureDate || data.departureDate || new Date().toISOString(),
-      },
-    }));
-    await saveStep(3, data);
-    setStep(4);
-  };
+  // Update local state first
+  setFormData((prev) => ({
+    ...prev,
+    tourDetails: {
+      ...prev.tourDetails,
+      ...data,
+    },
+  }));
+
+  // If data is already FormData (from Step3 component), use it directly
+  // If it's a regular object, convert to FormData
+  let stepData;
+  
+  if (data instanceof FormData) {
+    stepData = data;
+  } else {
+    const fd = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === "bannerImage" && value instanceof File) {
+        fd.append("bannerImage", value);
+      } else {
+        fd.append(key, value);
+      }
+    });
+    stepData = fd;
+  }
+
+  await saveStep(3, stepData);
+  setStep(4);
+};
 
   const handleStep4 = async (data) => {
     setFormData((prev) => ({ ...prev, quotationDetails: data }));

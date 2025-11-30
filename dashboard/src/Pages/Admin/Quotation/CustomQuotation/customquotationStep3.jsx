@@ -92,32 +92,38 @@ const TourDetailsForm = ({ clientName, sector, cities = [], onNext }) => {
       arrivalDate: Yup.date().nullable().required("Arrival Date is required"),
       departureDate: Yup.date().nullable(),
     }),
-    onSubmit: (values) => {
-      const step3Data = {
-        ...values,
-        quotationDetails: {
-          adults: 1,
-          children: 0,
-          kids: 0,
-          infants: 0,
-          mealPlan: "N/A",
-          destinations: [],
-          rooms: {
-            numberOfRooms: 1,
-            roomType: "Standard",
-            sharingType: "Single",
-            showCostPerAdult: false,
-          },
-          companyMargin: { marginPercent: 0, marginAmount: 0 },
-          discount: 0,
-          taxes: { gstOn: "None", applyGST: false },
-          signatureDetails: { regardsText: "Best Regards", signedBy: "" },
-        },
-      };
+   onSubmit: (values) => {
+  const formData = new FormData();
 
-      // console.log("Step 3 Submitted:", step3Data);
-      onNext(step3Data);
-    },
+  // REQUIRED by backend
+  formData.append("quotationId", window.localStorage.getItem("quotationId")); // <-- or from props
+  formData.append("stepNumber", 3);
+  formData.append("stepData", JSON.stringify({
+    arrivalCity: values.arrivalCity,
+    departureCity: values.departureCity,
+    arrivalDate: values.arrivalDate,
+    departureDate: values.departureDate,
+    quotationTitle: values.quotationTitle,
+    notes: values.notes,
+    transport: values.transport,
+    validFrom: values.validFrom,
+    validTill: values.validTill
+  }));
+
+  // Banner file
+  if (values.bannerImage instanceof File) {
+    formData.append("bannerImage", values.bannerImage);
+  }
+
+  console.log("FINAL Step 3 FormData:");
+  for (let pair of formData.entries()) {
+    console.log(pair[0], pair[1]);
+  }
+
+  onNext(formData);
+}
+
+
   });
 
   // Auto-fill from lead data only once when lead is found

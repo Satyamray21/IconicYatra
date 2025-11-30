@@ -135,6 +135,7 @@ export const updateCustomQuotation = asyncHandler(async (req, res) => {
 });
 
 // Step-wise Update
+// Step-wise Update
 export const updateQuotationStep = asyncHandler(async (req, res) => {
   console.log("🔄 ========== UPDATE STEP REQUEST START ==========");
 
@@ -165,29 +166,46 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
   if (!quotation) throw new ApiError(404, `Quotation not found: ${quotationId}`);
 
   console.log("✅ Found Quotation:", quotation.quotationId);
+  console.log("📝 Processing Step:", stepNumber);
 
   try {
     // ✅ STEP 3 - Tour Details (with Banner Image)
-    if (stepNumber === 3) {
-      console.log("🖼 Step 3 - Updating Tour Details + Banner Image");
+  if (stepNumber === 3) {
+  console.log("🖼 Step 3 - Updating Tour Details + Banner Image");
 
-      let bannerUrl = quotation.tourDetails?.bannerImage || null;
+  let bannerUrl = quotation.tourDetails?.bannerImage || null;
 
-      // Upload new banner if file exists
-      if (files.bannerImage && files.bannerImage[0]) {
-        console.log("☁️ Uploading new banner image...");
-        const uploaded = await uploadOnCloudinary(files.bannerImage[0].path);
-        if (uploaded?.url) bannerUrl = uploaded.url;
-      } else if (stepData.bannerImage && typeof stepData.bannerImage === "string") {
-        bannerUrl = stepData.bannerImage; // keep existing url if already sent
-      }
+  // Upload new banner if provided
+  if (files.bannerImage?.[0]) {
+    const uploaded = await uploadOnCloudinary(files.bannerImage[0].path);
+    if (uploaded?.url) bannerUrl = uploaded.url;
+  }
 
-      quotation.tourDetails = {
-        ...quotation.tourDetails,
-        ...stepData,
-        bannerImage: bannerUrl,
-      };
+  // 🔥 Update ONLY Step 3 fields
+  const fieldsToUpdate = {
+    arrivalCity: stepData.arrivalCity,
+    departureCity: stepData.departureCity,
+    arrivalDate: stepData.arrivalDate,
+    departureDate: stepData.departureDate,
+    quotationTitle: stepData.quotationTitle,
+    notes: stepData.notes,
+    transport: stepData.transport,
+    validFrom: stepData.validFrom,
+    validTill: stepData.validTill,
+    bannerImage: bannerUrl
+  };
+
+  // 🔥 Update only provided keys
+  Object.keys(fieldsToUpdate).forEach(key => {
+    if (fieldsToUpdate[key] !== undefined) {
+      quotation.tourDetails[key] = fieldsToUpdate[key];
     }
+  });
+
+  console.log("✅ Step 3 updated without overwriting nested objects");
+}
+
+
 
     // ✅ STEP 4 - Itinerary with Multiple Images
     else if (stepNumber === 4) {
@@ -211,7 +229,7 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
     }
 
     // ✅ STEP 1, 2, 5, 6 - Standard updates
-    else {
+    else if ([1, 2, 5, 6].includes(stepNumber)) {
       switch (stepNumber) {
         case 1:
           quotation.clientDetails = stepData;
@@ -306,10 +324,11 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
             };
 
           break;
-
-        default:
-          throw new ApiError(400, `Invalid step number: ${stepNumber}`);
       }
+    }
+    // ✅ Handle invalid step numbers
+    else {
+      throw new ApiError(400, `Invalid step number: ${stepNumber}`);
     }
 
     await quotation.save();
