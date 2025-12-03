@@ -1,8 +1,13 @@
+// CustomQuotationMain.jsx
 import React, { useState, useEffect } from "react";
 import { Box, Button, Typography, Paper } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { createCustomQuotation, updateQuotationStep } from "../../../../features/quotation/customQuotationSlice";
+import {
+  createCustomQuotation,
+  updateQuotationStep,
+  getCustomQuotationById, // <-- using option A as you confirmed
+} from "../../../../features/quotation/customQuotationSlice";
 import { getAllLeads } from "../../../../features/leads/leadSlice";
 
 // Step components
@@ -22,13 +27,13 @@ const CustomQuotationMain = () => {
   const { list: leadList = [] } = useSelector((state) => state.leads);
   const [quotationId, setQuotationId] = useState(null);
 
+  // Ensure the initial state shape matches backend shape (tourDetails.vehicleDetails)
   const [formData, setFormData] = useState({
     clientDetails: {},
     pickupDrop: [],
-    tourDetails: {},
+    tourDetails: { vehicleDetails: {} },
     quotationDetails: {},
     itinerary: [],
-    vehicleDetails: {},
   });
 
   useEffect(() => {
@@ -37,7 +42,10 @@ const CustomQuotationMain = () => {
     if (savedQuotationId) {
       setQuotationId(savedQuotationId);
       console.log("📋 Restored quotationId from localStorage:", savedQuotationId);
+      // load from backend to populate formData
+      loadQuotation(savedQuotationId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   // Robust findMatchingLead (handles arrays/strings safely)
@@ -69,33 +77,60 @@ const CustomQuotationMain = () => {
     );
   };
 
-  // Save helper
- const saveStep = async (stepNumber, stepData) => {
-  try {
-    let currentQuotationId = quotationId || localStorage.getItem("currentQuotationId");
+  // ------------------ Backend sync helpers ------------------
+  const loadQuotation = async (qid) => {
+    if (!qid) return;
+    try {
+      setLoading(true);
+      const res = await dispatch(getCustomQuotationById(qid)).unwrap();
+      // The thunk might return an object with `data` field or the raw payload.
+      const payload = res?.data ?? res;
 
-    if (!currentQuotationId) {
-      toast.error("Quotation ID not found. Please start from step 1.");
-      return;
+      // normalize into local state shape
+      setFormData({
+        clientDetails: payload.clientDetails || {},
+        pickupDrop: payload.pickupDrop || [],
+        tourDetails: payload.tourDetails || { vehicleDetails: {} },
+        quotationDetails: payload.quotationDetails || {},
+        itinerary: (payload.tourDetails && payload.tourDetails.itinerary) || payload.itinerary || [],
+      });
+
+      setQuotationId(payload.quotationId || qid);
+      localStorage.setItem("currentQuotationId", payload.quotationId || qid);
+    } catch (err) {
+      console.error("Failed to load quotation:", err);
+      toast.error("Could not load quotation data from server.");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Just pass the data through - let the thunk handle appending
-    await dispatch(
-      updateQuotationStep({
-        quotationId: currentQuotationId,
-        stepNumber,
-        stepData,
-      })
-    ).unwrap();
+  // Save helper
+  const saveStep = async (stepNumber, stepData) => {
+    try {
+      let currentQuotationId = quotationId || localStorage.getItem("currentQuotationId");
 
-  } catch (err) {
-    console.error(err);
-    toast.error("Step save failed");
-  }
-};
+      if (!currentQuotationId) {
+        toast.error("Quotation ID not found. Please start from step 1.");
+        return;
+      }
 
+      // Just pass the data through - let the thunk handle appending
+      await dispatch(
+        updateQuotationStep({
+          quotationId: currentQuotationId,
+          stepNumber,
+          stepData,
+        })
+      ).unwrap();
+    } catch (err) {
+      console.error(err);
+      toast.error("Step save failed");
+      throw err; // rethrow so callers can react (we await saveStep and then reload)
+    }
+  };
 
-  // Step handlers...
+  // ------------------ Step handlers ------------------
   const handleStep1 = async (data) => {
     if (!data.clientName || !data.sector) {
       toast.error("Client Name and Sector are required.");
@@ -176,8 +211,13 @@ const CustomQuotationMain = () => {
 
     try {
       const created = await dispatch(createCustomQuotation(initialQuotationData)).unwrap();
-      setQuotationId(created.quotationId);
-      localStorage.setItem("currentQuotationId", created.quotationId);
+      const createdQid = created?.quotationId ?? created?.data?.quotationId;
+      setQuotationId(createdQid);
+      localStorage.setItem("currentQuotationId", createdQid);
+
+      // Immediately load the quotation from backend to populate formData
+      await loadQuotation(createdQid);
+
       setStep(2);
     } catch (err) {
       console.error("❌ Quotation creation failed:", err);
@@ -188,6 +228,7 @@ const CustomQuotationMain = () => {
   };
 
   const handleStep2 = async (data) => {
+    // update local state first for responsiveness
     setFormData((prev) => ({
       ...prev,
       pickupDrop: data,
@@ -199,71 +240,95 @@ const CustomQuotationMain = () => {
         departureDate: data?.[0]?.departureDate || prev.tourDetails?.departureDate,
       },
     }));
-    await saveStep(2, data);
-    setStep(3);
+
+    try {
+      await saveStep(2, data);
+      // reload the quotation so local state matches backend (important for subsequent steps)
+      const currentQuotationId = quotationId || localStorage.getItem("currentQuotationId");
+      await loadQuotation(currentQuotationId);
+      setStep(3);
+    } catch (err) {
+      // saveStep already shows toast; keep user on same step
+      console.error("Step 2 save/load failed:", err);
+    }
   };
 
   const handleStep3 = async (data) => {
-  // Update local state first
-  setFormData((prev) => ({
-    ...prev,
-    tourDetails: {
-      ...prev.tourDetails,
-      ...data,
-    },
-  }));
+    // Update local state first
+    setFormData((prev) => ({
+      ...prev,
+      tourDetails: {
+        ...prev.tourDetails,
+        ...data,
+      },
+    }));
 
-  // If data is already FormData (from Step3 component), use it directly
-  // If it's a regular object, convert to FormData
-  let stepData;
-  
-  if (data instanceof FormData) {
-    stepData = data;
-  } else {
-    const fd = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (key === "bannerImage" && value instanceof File) {
-        fd.append("bannerImage", value);
-      } else {
-        fd.append(key, value);
-      }
-    });
-    stepData = fd;
-  }
+    // If data is FormData (file upload) use directly, else keep object
+    let stepData = data;
+    if (!(data instanceof FormData)) {
+      const fd = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === "bannerImage" && value instanceof File) {
+          fd.append("bannerImage", value);
+        } else {
+          fd.append(key, value);
+        }
+      });
+      stepData = fd;
+    }
 
-  await saveStep(3, stepData);
-  setStep(4);
-};
+    try {
+      await saveStep(3, stepData);
+      const currentQuotationId = quotationId || localStorage.getItem("currentQuotationId");
+      await loadQuotation(currentQuotationId);
+      setStep(4);
+    } catch (err) {
+      console.error("Step 3 save/load failed:", err);
+    }
+  };
 
   const handleStep4 = async (data) => {
     setFormData((prev) => ({ ...prev, quotationDetails: data }));
-    await saveStep(4, data);
-    setStep(5);
+
+    try {
+      await saveStep(4, data);
+      const currentQuotationId = quotationId || localStorage.getItem("currentQuotationId");
+      await loadQuotation(currentQuotationId); // Important so Step 5 receives latest vehicleDetails
+      setStep(5);
+    } catch (err) {
+      console.error("Step 4 save/load failed:", err);
+    }
   };
 
   const handleStep5 = async (data) => {
-  // Store in formData state correctly
-  setFormData((prev) => ({
-    ...prev,
-    tourDetails: {
-      ...prev.tourDetails,
-      vehicleDetails: data,
-    },
-  }));
+    // Store in formData state correctly
+    setFormData((prev) => ({
+      ...prev,
+      tourDetails: {
+        ...prev.tourDetails,
+        vehicleDetails: data,
+      },
+    }));
 
-  // 🔥 Send ONLY the vehicleDetails object
-  await saveStep(5, data);
-
-  setStep(6);
-};
-
-
+    try {
+      await saveStep(5, data);
+      const currentQuotationId = quotationId || localStorage.getItem("currentQuotationId");
+      await loadQuotation(currentQuotationId); // reload so step6 has latest data
+      setStep(6);
+    } catch (err) {
+      console.error("Step 5 save/load failed:", err);
+    }
+  };
 
   const handleFinalSubmit = async (finalData) => {
     setFormData((prev) => ({ ...prev, ...finalData }));
-    await saveStep(6, finalData);
-    localStorage.removeItem("currentQuotationId");
-    toast.success("Custom Quotation saved successfully!");
+    try {
+      await saveStep(6, finalData);
+      localStorage.removeItem("currentQuotationId");
+      toast.success("Custom Quotation saved successfully!");
+    } catch (err) {
+      console.error("Final submit failed:", err);
+    }
   };
 
   const renderStepIndicator = () => (

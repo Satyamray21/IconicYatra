@@ -18,7 +18,7 @@ personalDetails:{
     emailId:{
         type:String,
         required:true,
-        unique:true
+       
     },
     title:{
         type:String,
@@ -27,7 +27,7 @@ personalDetails:{
     },
     dateOfBirth:{
         type:String,
-        required:true
+        
     }
 },
 location:{

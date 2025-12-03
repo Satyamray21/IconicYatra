@@ -28,7 +28,10 @@ const CustomQuotationStep4 = ({
   clientName,
   sector,
   cities,
+  arrivalCity,  
+  departureCity,
   onNext
+
 }) => {
   const [totalNights, setTotalNights] = useState(0);
   const [totalDays, setTotalDays] = useState(0);
@@ -43,81 +46,168 @@ const CustomQuotationStep4 = ({
     }
   }, [cities]);
 
-  // Generate initial days array based on total days
-  const generateDaysArray = (daysCount) => {
-    const days = [];
+  // Generate automatic itinerary based on cities
+  // Updated generateDaysArray function
+const generateDaysArray = (cities, daysCount, arrivalCity, departureCity) => {
+  const days = [];
+  
+  if (!cities || cities.length === 0) {
+    // Fallback if no cities data
     for (let i = 1; i <= daysCount; i++) {
       days.push({
         dayTitle: `Day ${i}`,
         dayNote: "",
         aboutCity: "",
         image: null,
-        imageFile: null, // For file object
+        imageFile: null,
       });
     }
     return days;
-  };
+  }
+
+  let currentDay = 1;
+  
+  // Day 1: Arrival Day with transfer from arrival city to first city
+  if (cities.length > 0) {
+    const firstCity = cities[0];
+    days.push({
+      dayTitle: `Day ${currentDay}: Arrival at ${firstCity.cityName}`,
+      dayNote: `Arrive at ${arrivalCity}. Transfer to ${firstCity.cityName}. Check-in at hotel and rest of the day at leisure.`,
+      aboutCity: `Welcome to ${firstCity.cityName}! Starting your journey from ${arrivalCity}, you'll be transferred to the beautiful ${firstCity.cityName}. ${firstCity.cityName} offers...`,
+      image: null,
+      imageFile: null,
+    });
+    currentDay++;
+  }
+
+  // Intermediate days (city transfers)
+  for (let i = 0; i < cities.length; i++) {
+    const currentCity = cities[i];
+    const nights = parseInt(currentCity.nights) || 1;
+    
+    // Add day entries for each night in the city
+    for (let nightCount = 1; nightCount <= nights; nightCount++) {
+      if (i === 0 && nightCount === 1) {
+        // Skip first night as it's already covered in arrival day
+        continue;
+      }
+
+      let dayTitle = `Day ${currentDay}`;
+      let dayNote = "";
+      let aboutCity = `Enjoy your time in ${currentCity.cityName}!`;
+      
+      if (nightCount === 1 && i > 0) {
+        // First day in a new city (transfer day)
+        const previousCity = cities[i - 1];
+        dayTitle += `: Transfer from ${previousCity.cityName} to ${currentCity.cityName}`;
+        dayNote = `After breakfast, check-out from ${previousCity.cityName} and transfer to ${currentCity.cityName}. Check-in at hotel. Rest of the day at leisure.`;
+        aboutCity = `Traveling from ${previousCity.cityName} to ${currentCity.cityName}. Explore the new surroundings of ${currentCity.cityName}.`;
+      } else {
+        // Regular day in the same city
+        dayTitle += `: Exploring ${currentCity.cityName}`;
+        dayNote = `Full day to explore ${currentCity.cityName}. Visit local attractions and enjoy the culture.`;
+      }
+      
+      days.push({
+        dayTitle: dayTitle,
+        dayNote: dayNote,
+        aboutCity: aboutCity,
+        image: null,
+        imageFile: null,
+      });
+      currentDay++;
+    }
+  }
+
+  // Departure Day - transfer from last city to departure city
+  if (cities.length > 0) {
+    const lastCity = cities[cities.length - 1];
+    days.push({
+      dayTitle: `Day ${currentDay}: Departure from ${lastCity.cityName}`,
+      dayNote: `After breakfast, check-out from hotel. Transfer from ${lastCity.cityName} to ${departureCity} for your departure.`,
+      aboutCity: `We hope you enjoyed your stay in ${lastCity.cityName}! Safe travels back to ${departureCity}.`,
+      image: null,
+      imageFile: null,
+    });
+  }
+
+  // Ensure we have exactly daysCount days
+  while (days.length < daysCount) {
+    days.push({
+      dayTitle: `Day ${days.length + 1}`,
+      dayNote: "",
+      aboutCity: "",
+      image: null,
+      imageFile: null,
+    });
+  }
+
+  // Trim if we have more days than needed
+  return days.slice(0, daysCount);
+};
+
+
+
 
   // customquotationStep4.jsx - Updated onSubmit function
-// In your customquotationStep4.jsx - Fix the onSubmit function
-const formik = useFormik({
-  initialValues: {
-    days: generateDaysArray(totalDays || 1),
-  },
-  validationSchema,
-  onSubmit: async (values) => {
-    setUploading(true);
-    
-    try {
-      const formData = new FormData();
+  const formik = useFormik({
+    initialValues: {
+     days: generateDaysArray(cities, totalDays || 1, arrivalCity, departureCity),
+    },
+    validationSchema,
+    onSubmit: async (values) => {
+      setUploading(true);
       
-      // Append basic data as strings
-      formData.append('quotationId', localStorage.getItem('currentQuotationId'));
-      formData.append('stepNumber', '4'); // Keep as string for FormData
-      
-      // Create itinerary data without image files (we'll handle files separately)
-      const itineraryData = values.days.map(day => ({
-        dayTitle: day.dayTitle,
-        dayNote: day.dayNote,
-        aboutCity: day.aboutCity,
-        image: day.image && day.image.startsWith('http') ? day.image : null // Only keep Cloudinary URLs
-      }));
-      
-      formData.append('stepData', JSON.stringify({ 
-        itinerary: itineraryData
-      }));
+      try {
+        const formData = new FormData();
+        
+        // Append basic data as strings
+        formData.append('quotationId', localStorage.getItem('currentQuotationId'));
+        formData.append('stepNumber', '4');
+        
+        // Create itinerary data without image files
+        const itineraryData = values.days.map(day => ({
+          dayTitle: day.dayTitle,
+          dayNote: day.dayNote,
+          aboutCity: day.aboutCity,
+          image: day.image && day.image.startsWith('http') ? day.image : null
+        }));
+        
+        formData.append('stepData', JSON.stringify({ 
+          itinerary: itineraryData
+        }));
 
-      // Append all image files
-      values.days.forEach((day, index) => {
-        if (day.imageFile) {
-          console.log(`📤 Adding image for day ${index + 1}:`, day.imageFile.name);
-          formData.append('itineraryImages', day.imageFile);
-        }
-      });
+        // Append all image files
+        values.days.forEach((day, index) => {
+          if (day.imageFile) {
+            console.log(`📤 Adding image for day ${index + 1}:`, day.imageFile.name);
+            formData.append('itineraryImages', day.imageFile);
+          }
+        });
 
-      console.log("🚀 Sending Step 4 data with", values.days.length, "days and", 
-        values.days.filter(day => day.imageFile).length, "images");
+        console.log("🚀 Sending Step 4 data with", values.days.length, "days and", 
+          values.days.filter(day => day.imageFile).length, "images");
 
-      await onNext(formData);
-      console.log("✅ Step 4 submitted successfully");
-      
-    } catch (error) {
-      console.error('❌ Step 4 upload failed:', error);
-      toast.error('Failed to save itinerary. Please try again.');
-    } finally {
-      setUploading(false);
-    }
-  },
-  enableReinitialize: true,
-});
+        await onNext(formData);
+        console.log("✅ Step 4 submitted successfully");
+        
+      } catch (error) {
+        console.error('❌ Step 4 upload failed:', error);
+        // toast.error('Failed to save itinerary. Please try again.');
+      } finally {
+        setUploading(false);
+      }
+    },
+    enableReinitialize: true,
+  });
 
-  // Update days when totalDays changes
+  // Update days when cities or totalDays changes
   useEffect(() => {
     if (totalDays > 0) {
-      const newDays = generateDaysArray(totalDays);
+      const newDays = generateDaysArray(cities, totalDays);
       formik.setValues({ days: newDays });
     }
-  }, [totalDays]);
+  }, [cities, totalDays]);
 
   const handleImageChange = (event, index) => {
     const file = event.target.files[0];
@@ -137,6 +227,15 @@ const formik = useFormik({
     }
   };
 
+  // Get city info for display
+  const getCitiesSummary = () => {
+    if (!cities || cities.length === 0) return "No cities selected";
+    
+    return cities.map((city, index) => 
+      `${city.cityName} (${city.nights || 1} night${city.nights > 1 ? 's' : ''})`
+    ).join(" → ");
+  };
+
   return (
     <FormikProvider value={formik}>
       <Paper sx={{ p: 3, position: "relative" }}>
@@ -146,11 +245,14 @@ const formik = useFormik({
 
         {/* Days Information */}
         <Box sx={{ mb: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-          <Typography variant="body1">
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            <strong>Tour Route:</strong> {getCitiesSummary()}
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
             <strong>Total Nights:</strong> {totalNights} | <strong>Total Days:</strong> {totalDays}
           </Typography>
           <Typography variant="caption" color="textSecondary">
-            {totalDays} days automatically generated based on {totalNights} nights from previous step
+            Itinerary is automatically generated based on your selected cities. You can customize each day below.
           </Typography>
         </Box>
 

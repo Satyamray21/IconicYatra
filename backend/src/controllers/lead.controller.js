@@ -1,12 +1,12 @@
-import {asyncHandler} from '../utils/asyncHandler.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import { Lead } from '../models/lead.model.js';
-import  LeadSourceOption from '../models/LeadSourceOptions.model.js';
-import {ApiResponse} from '../utils/ApiResponse.js';
-import {ApiError} from '../utils/ApiError.js';
+import LeadSourceOption from '../models/LeadSourceOptions.model.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { ApiError } from '../utils/ApiError.js';
 import { startOfDay, startOfMonth, subMonths } from "date-fns";
 import { getNextLeadId } from "../utils/getNextLeadId.js";
-import {LeadOptions} from  "../models/leadOptions.model.js"
-import {calculateAccommodation} from "../utils/calculateAccommodation.js"
+import { LeadOptions } from "../models/leadOptions.model.js"
+import { calculateAccommodation } from "../utils/calculateAccommodation.js"
 import { logActivity } from "../utils/ActivityLog.js"
 //  Helper for single-value fields
 const handleAddMoreValue = (valueObj) => {
@@ -108,14 +108,6 @@ export const createLead = asyncHandler(async (req, res) => {
   const arrivalLocationToSave = handleAddMoreValue(arrivalLocation);
   const departureCityToSave = handleAddMoreValue(departureCity);
   const departureLocationToSave = handleAddMoreValue(departureLocation);
-  // ⭐ Ensure tourDestination is always an ARRAY
-const tourDestinationToSave = Array.isArray(tourDestination)
-  ? tourDestination
-  : typeof tourDestination === "string"
-  ? tourDestination.includes("-")
-      ? tourDestination.split("-").map((d) => d.trim())
-      : [tourDestination]
-  : [];
 
   // ✅ Handle addMore for arrays
   const servicesRequiredToSave = handleAddMoreArray(servicesRequired);
@@ -125,7 +117,7 @@ const tourDestinationToSave = Array.isArray(tourDestination)
     saveAddMoreValue("source", sourceToSave),
     saveAddMoreValue("agentName", agentNameToSave),
     saveAddMoreValue("referredBy", referredByToSave),
-    saveAddMoreValue("tourDestination", tourDestinationToSave),
+    saveAddMoreValue("tourDestination", tourDestination),
     saveAddMoreValue("servicesRequired", servicesRequiredToSave),
     saveAddMoreValue("arrivalCity", arrivalCityToSave),
     saveAddMoreValue("arrivalLocation", arrivalLocationToSave),
@@ -194,7 +186,7 @@ const tourDestinationToSave = Array.isArray(tourDestination)
 
   const tourDetails = {
     tourType,
-     tourDestination: tourDestinationToSave,
+    tourDestination,
     servicesRequired: Array.isArray(servicesRequired)
       ? servicesRequired
       : [servicesRequired],
@@ -224,13 +216,13 @@ const tourDestinationToSave = Array.isArray(tourDestination)
     leadId,
     status: "Active",
   });
-await logActivity({
-  action: "Created",
-  model: "Lead",
-  referenceId: leadId,
-  description: `Lead ${leadId} created successfully by ${req.user?.name || 'System'}`,
-  performedBy: req.user?.name || "System",
-});
+  await logActivity({
+    action: "Created",
+    model: "Lead",
+    referenceId: leadId,
+    description: `Lead ${leadId} created successfully by ${req.user?.name || 'System'}`,
+    performedBy: req.user?.name || "System",
+  });
 
   return res
     .status(201)
@@ -240,18 +232,17 @@ await logActivity({
 
 
 // view Lead
-export const viewAllLeads = asyncHandler(async (req,res)=>{
-    try{
-        const lead = await Lead.find();
-        res.status(200)
-        .json(new ApiResponse(200,lead,"All leads fetched successfully"))
-    }
-    catch(err)
-    {
-        console.log("Error",err.message);
-        return new ApiError(404,{},"No lead found")
-        
-    }
+export const viewAllLeads = asyncHandler(async (req, res) => {
+  try {
+    const lead = await Lead.find();
+    res.status(200)
+      .json(new ApiResponse(200, lead, "All leads fetched successfully"))
+  }
+  catch (err) {
+    console.log("Error", err.message);
+    return new ApiError(404, {}, "No lead found")
+
+  }
 })
 //update Lead
 export const updateLead = asyncHandler(async (req, res) => {
@@ -410,33 +401,31 @@ export const deleteLead = asyncHandler(async (req, res) => {
   if (!deletedLead) {
     throw new ApiError(404, "Lead not found");
   }
-await logActivity({
-  action: "Deleted",
-  model: "Lead",
-  referenceId: leadId,
-  description: `Lead ${leadId} deleted by ${req.user?.name || 'System'}`,
-  performedBy: req.user?.name || "System",
-});
+  await logActivity({
+    action: "Deleted",
+    model: "Lead",
+    referenceId: leadId,
+    description: `Lead ${leadId} deleted by ${req.user?.name || 'System'}`,
+    performedBy: req.user?.name || "System",
+  });
 
   res.status(200).json(new ApiResponse(200, {}, "Lead deleted successfully"));
 });
 
 //view by LeadId 
-export const viewByLeadId = asyncHandler(async (req,res)=>{
-  const {leadId} = req.params;
-  try{
-    const lead = await Lead.findOne({leadId});
-    if(!lead)
-    {
-      throw new ApiError(404,"Lead not found");
+export const viewByLeadId = asyncHandler(async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    const lead = await Lead.findOne({ leadId });
+    if (!lead) {
+      throw new ApiError(404, "Lead not found");
     }
     res.status(200)
-    .json(new ApiResponse(201,lead,"Lead fetched Successfully By given Id"));
-    
+      .json(new ApiResponse(201, lead, "Lead fetched Successfully By given Id"));
+
   }
-  catch(err)
-  {
-    console.log("Error",err.message);
+  catch (err) {
+    console.log("Error", err.message);
   }
 })
 //change in Status
@@ -477,13 +466,13 @@ export const changeLeadStatus = asyncHandler(async (req, res) => {
 
   lead.status = status;
   await lead.save();
-await logActivity({
-  action: "Status Changed",
-  model: "Lead",
-  referenceId: leadId,
-  description: `Lead ${leadId} status changed from ${currentStatus} to ${status} by ${req.user?.name || 'System'}`,
-  performedBy: req.user?.name || "System",
-});
+  await logActivity({
+    action: "Status Changed",
+    model: "Lead",
+    referenceId: leadId,
+    description: `Lead ${leadId} status changed from ${currentStatus} to ${status} by ${req.user?.name || 'System'}`,
+    performedBy: req.user?.name || "System",
+  });
 
   return res
     .status(200)
@@ -514,4 +503,3 @@ export const addLeadOption = asyncHandler(async (req, res) => {
     .status(201)
     .json(new ApiResponse(201, { fieldName, value }, "Option added successfully"));
 });
-

@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  
 } from "@mui/material";
 import {
   DatePicker,
@@ -98,20 +99,25 @@ const CustomQuotationStep5 = ({
   const [fieldType, setFieldType] = useState(""); // "client" | "vehicle"
 
   // default fallbacks — ensure not null
-  const initialPickupDate =
-    parseSafeDate(vehicleDetails?.pickupDropDetails?.pickupDate) ||
-    parseSafeDate(arrivalDate) ||
-    new Date();
-  const initialDropDate =
-    parseSafeDate(vehicleDetails?.pickupDropDetails?.dropDate) ||
-    parseSafeDate(departureDate) ||
-    new Date(initialPickupDate.getTime() + 24 * 60 * 60 * 1000);
-
   function parseSafeDate(d) {
-    if (!d) return null;
-    const parsed = new Date(d);
-    return isNaN(parsed.getTime()) ? null : parsed;
-  }
+  if (!d) return null;
+  if (d instanceof Date) return d;
+  const parsed = new Date(d);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+// Update the initialPickupDate and initialDropDate logic:
+const initialPickupDate = parseSafeDate(
+  vehicleDetails?.pickupDropDetails?.pickupDate || 
+  vehicleDetails?.pickupDate || // Additional fallback
+  arrivalDate
+) || new Date();
+const initialDropDate = parseSafeDate(
+  vehicleDetails?.pickupDropDetails?.dropDate || 
+  vehicleDetails?.dropDate || // Additional fallback
+  departureDate
+) || new Date(initialPickupDate.getTime() + 24 * 60 * 60 * 1000);
+
 
   // initial vehicleType fallback
   const initialVehicleType =
@@ -120,80 +126,82 @@ const CustomQuotationStep5 = ({
       : vehicleDetails?.basicsDetails?.vehicleType || vehicleTypes[0];
 
   /* -------------------- Formik -------------------- */
-  const formik = useFormik({
-    enableReinitialize: true,
-    initialValues: {
-      clientName: clientName || vehicleDetails?.basicsDetails?.clientName || "",
-      vehicleType: initialVehicleType,
-      tripType: vehicleDetails?.basicsDetails?.tripType || "One Way",
-      noOfDays: vehicleDetails?.basicsDetails?.noOfDays || 1,
-      // manual flag to prevent overwriting days when user edits
-      noOfDaysManuallyEdited: false,
+  
+const formik = useFormik({
+  enableReinitialize: true,
+  initialValues: {
+    clientName: clientName || vehicleDetails?.basicsDetails?.clientName || "",
+    vehicleType: initialVehicleType,
+    tripType: vehicleDetails?.basicsDetails?.tripType || "One Way",
+    noOfDays: vehicleDetails?.basicsDetails?.noOfDays || 
+              parseInt(vehicleDetails?.basicsDetails?.noOfDays) || 1, // Parse string
+    noOfDaysManuallyEdited: false,
 
-      perDayCost:
-        vehicleDetails?.costDetails?.perDayCost ?? vehicleDetails?.basicsDetails?.perDayCost ?? "",
+    perDayCost: vehicleDetails?.costDetails?.perDayCost ?? 
+                vehicleDetails?.basicsDetails?.perDayCost ?? 
+                "",
 
-      ratePerKm: vehicleDetails?.costDetails?.ratePerKm ?? "",
-      kmPerDay: vehicleDetails?.costDetails?.kmPerDay ?? "",
-      driverAllowance: vehicleDetails?.costDetails?.driverAllowance ?? "",
-      tollParking: vehicleDetails?.costDetails?.tollParking ?? "",
-      totalCost: vehicleDetails?.costDetails?.totalCost ?? 0,
+    ratePerKm: vehicleDetails?.costDetails?.ratePerKm ?? "",
+    kmPerDay: vehicleDetails?.costDetails?.kmPerDay ?? "",
+    driverAllowance: vehicleDetails?.costDetails?.driverAllowance ?? "",
+    tollParking: vehicleDetails?.costDetails?.tollParking ?? "",
+    totalCost: vehicleDetails?.costDetails?.totalCost ?? 0,
 
-      pickupDate: initialPickupDate,
-      pickupTime:
-        parseTimeStringToDate(vehicleDetails?.pickupDropDetails?.pickupTime) ||
-        parseTimeStringToDate("12:00"),
-      pickupLocation:
-        vehicleDetails?.pickupDropDetails?.pickupLocation || arrivalCity || "TBD",
+    pickupDate: initialPickupDate,
+    pickupTime: parseTimeStringToDate(vehicleDetails?.pickupDropDetails?.pickupTime) ||
+                parseTimeStringToDate("12:00"),
+    pickupLocation: vehicleDetails?.pickupDropDetails?.pickupLocation || 
+                   arrivalCity || 
+                   "TBD",
 
-      dropDate: initialDropDate,
-      dropTime:
-        parseTimeStringToDate(vehicleDetails?.pickupDropDetails?.dropTime) ||
-        parseTimeStringToDate("12:00"),
-      dropLocation:
-        vehicleDetails?.pickupDropDetails?.dropLocation || departureCity || "TBD",
-    },
+    dropDate: initialDropDate,
+    dropTime: parseTimeStringToDate(vehicleDetails?.pickupDropDetails?.dropTime) ||
+              parseTimeStringToDate("12:00"),
+    dropLocation: vehicleDetails?.pickupDropDetails?.dropLocation || 
+                 departureCity || 
+                 "TBD",
+  },
 
-    validationSchema: getValidationSchema(transport),
+  validationSchema: getValidationSchema(transport),
 
-    onSubmit: (values) => {
-      // Ensure required fields are present (double-check)
-      if (!values.clientName || !values.vehicleType || !values.tripType) {
-        // Let Yup handle these but short-circuit if missing
-        return;
-      }
+  onSubmit: (values) => {
+    // Ensure required fields are present (double-check)
+    if (!values.clientName || !values.vehicleType || !values.tripType) {
+      // Let Yup handle these but short-circuit if missing
+      return;
+    }
 
-      // Prepare formatted payload — backend expects ISO dates and "HH:mm" times
-      const payload = {
-        basicsDetails: {
-          clientName: values.clientName.trim(),
-          vehicleType: values.vehicleType,
-          tripType: values.tripType,
-          noOfDays: Number(values.noOfDays) || 1,
-          perDayCost: values.perDayCost === "" ? 0 : Number(values.perDayCost),
-        },
-        costDetails: {
-          perDayCost: values.perDayCost === "" ? 0 : Number(values.perDayCost),
-          ratePerKm: values.ratePerKm === "" ? "" : Number(values.ratePerKm),
-          kmPerDay: values.kmPerDay === "" ? "" : Number(values.kmPerDay),
-          driverAllowance: values.driverAllowance === "" ? 0 : Number(values.driverAllowance),
-          tollParking: values.tollParking === "" ? 0 : Number(values.tollParking),
-          totalCost: Number(values.totalCost) || 0,
-        },
-        pickupDropDetails: {
-          pickupDate: safeDateToISOString(values.pickupDate),
-          pickupTime: formatTimeForSubmit(values.pickupTime),
-          pickupLocation: (values.pickupLocation || "TBD").toString(),
+    // Prepare formatted payload — backend expects ISO dates and "HH:mm" times
+    const payload = {
+      basicsDetails: {
+        clientName: values.clientName.trim(),
+        vehicleType: values.vehicleType,
+        tripType: values.tripType,
+        noOfDays: Number(values.noOfDays) || 1,
+        perDayCost: values.perDayCost === "" ? 0 : Number(values.perDayCost),
+      },
+      costDetails: {
+        perDayCost: values.perDayCost === "" ? 0 : Number(values.perDayCost),
+        ratePerKm: values.ratePerKm === "" ? "" : Number(values.ratePerKm),
+        kmPerDay: values.kmPerDay === "" ? "" : Number(values.kmPerDay),
+        driverAllowance: values.driverAllowance === "" ? 0 : Number(values.driverAllowance),
+        tollParking: values.tollParking === "" ? 0 : Number(values.tollParking),
+        totalCost: Number(values.totalCost) || 0,
+      },
+      pickupDropDetails: {
+        pickupDate: safeDateToISOString(values.pickupDate),
+        pickupTime: formatTimeForSubmit(values.pickupTime),
+        pickupLocation: (values.pickupLocation || "TBD").toString(),
 
-          dropDate: safeDateToISOString(values.dropDate),
-          dropTime: formatTimeForSubmit(values.dropTime),
-          dropLocation: (values.dropLocation || "TBD").toString(),
-        },
-      };
+        dropDate: safeDateToISOString(values.dropDate),
+        dropTime: formatTimeForSubmit(values.dropTime),
+        dropLocation: (values.dropLocation || "TBD").toString(),
+      },
+    };
 
-      onNext(payload);
-    },
-  });
+    onNext(payload);
+  },
+});
 
   /* -------------------- Effects -------------------- */
 
@@ -272,6 +280,32 @@ const CustomQuotationStep5 = ({
     }
     setOpenDialog(false);
   };
+
+  // Add debug logging
+  useEffect(() => {
+    console.log('Step 5 Received Props:', {
+      clientName,
+      arrivalCity,
+      departureCity,
+      arrivalDate,
+      departureDate,
+      transport,
+      vehicleDetails,
+      cities
+    });
+    
+    console.log('Vehicle Details from API:', vehicleDetails);
+    console.log('Pickup Drop Details:', vehicleDetails?.pickupDropDetails);
+    
+    // Log initial form values
+    console.log('Initial form values:', {
+      pickupDate: initialPickupDate,
+      dropDate: initialDropDate,
+      pickupLocation: vehicleDetails?.pickupDropDetails?.pickupLocation,
+      dropLocation: vehicleDetails?.pickupDropDetails?.dropLocation,
+      noOfDays: vehicleDetails?.basicsDetails?.noOfDays
+    });
+  }, []);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
