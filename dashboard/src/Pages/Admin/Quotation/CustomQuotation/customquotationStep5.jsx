@@ -22,17 +22,7 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
-/**
- * CustomQuotationStep5 - Optimized & Backend-compatible
- *
- * - Auto-calculates noOfDays from pickup/drop (unless user manually edits)
- * - Vehicle Type dropdown fixed and supports "Add New"
- * - perDayCost takes priority over ratePerKm * kmPerDay
- * - Form validation matches backend required fields
- * - Ensures submitted payload never sends null/empty where backend expects required data
- */
 
-/* -------------------- Helpers -------------------- */
 const parseTimeStringToDate = (time) => {
   // Accepts Date, "HH:mm" string, or empty — returns Date instance or null
   if (!time) return null;
@@ -221,7 +211,7 @@ const formik = useFormik({
 
     // compute difference in days (drop - pickup)
     const diff = Math.ceil((drop - pickup) / (1000 * 60 * 60 * 24));
-    const days = diff > 0 ? diff : 1;
+    const days = diff > 0 ? diff + 1 : 1;
 
     if (!formik.values.noOfDaysManuallyEdited) {
       formik.setFieldValue("noOfDays", days, false);

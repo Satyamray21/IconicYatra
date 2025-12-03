@@ -181,6 +181,7 @@ const CustomQuotationMain = () => {
             numberOfRooms: accommodation?.noOfRooms || 1,
             roomType: accommodation?.hotelType?.[0] || "Standard",
             sharingType: accommodation?.sharingType || "Double",
+            mattress:accommodation?.noOfMattress || 0,
             showCostPerAdult: false,
           },
           companyMargin: { marginPercent: 0, marginAmount: 0 },
