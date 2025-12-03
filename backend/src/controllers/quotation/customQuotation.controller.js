@@ -209,24 +209,37 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
 
     // ✅ STEP 4 - Itinerary with Multiple Images
     else if (stepNumber === 4) {
-      console.log("🗓 Step 4 - Updating Itinerary Days + Images");
+  console.log("🗓 Step 4 - Updating Itinerary Days + Images");
 
-      const processedItinerary = [...(stepData.itinerary || [])];
-      const itineraryFiles = files.itineraryImages || [];
+  const processedItinerary = [...(stepData.itinerary || [])];
 
-      for (let i = 0; i < processedItinerary.length; i++) {
-        const file = itineraryFiles[i];
-        if (file) {
-          console.log(`☁️ Uploading image for day ${i + 1}`);
-          const uploadResult = await uploadOnCloudinary(file.path);
-          if (uploadResult?.url) processedItinerary[i].image = uploadResult.url;
-        } else if (!processedItinerary[i].image) {
-          processedItinerary[i].image = null;
-        }
+  // FIX: Collect all itineraryImages files correctly
+  const itineraryFiles = Array.isArray(files.itineraryImages)
+    ? files.itineraryImages
+    : Object.values(files).filter((f) => f.fieldname === "itineraryImages");
+
+  console.log("📸 Total itineraryImages received:", itineraryFiles.length);
+
+  for (let i = 0; i < processedItinerary.length; i++) {
+    const file = itineraryFiles[i];
+
+    if (file) {
+      console.log(`☁️ Uploading image for day ${i + 1}:`, file.originalname);
+      const uploaded = await uploadOnCloudinary(file.path);
+
+      if (uploaded?.url) {
+        processedItinerary[i].image = uploaded.url;
       }
-
-      quotation.tourDetails.itinerary = processedItinerary;
+    } else {
+      if (!processedItinerary[i].image) {
+        processedItinerary[i].image = null;
+      }
     }
+  }
+
+  quotation.tourDetails.itinerary = processedItinerary;
+}
+
 
     // ✅ STEP 1, 2, 5, 6 - Standard updates
     else if ([1, 2, 5, 6].includes(stepNumber)) {

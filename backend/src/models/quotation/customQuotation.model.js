@@ -67,6 +67,8 @@ const customQuotationSchema = new mongoose.Schema(
           roomType: { type: String, required: true },
           sharingType: { type: String, required: true },
           showCostPerAdult: { type: Boolean, default: false },
+          mattress: { type: Number, default: 0 },
+
         },
 
         companyMargin: {

@@ -364,6 +364,8 @@ const CustomQuotationMain = () => {
             clientName={formData.clientDetails.clientName}
             sector={formData.clientDetails.sector}
             cities={formData.pickupDrop}
+            arrivalCity={formData.tourDetails?.arrivalCity}
+           departureCity={formData.tourDetails?.departureCity}
             tourDetails={formData.tourDetails}
             onNext={handleStep4}
           />
