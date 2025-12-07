@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { itinerarySchema } from "../../common/dayWise.js";
 import { vehicleDetailsSchema } from "../../common/vehicleDetails.js";
 import { policySchema } from "../../common/policy.js";
+
 const packageCalculationSchema = new mongoose.Schema({
   baseCost: { type: Number, default: 0 },
   afterMargin: { type: Number, default: 0 },
@@ -10,8 +11,16 @@ const packageCalculationSchema = new mongoose.Schema({
   gstPercentage: { type: Number, default: 0 },
   finalTotal: { type: Number, default: 0 }
 });
+
 const customQuotationSchema = new mongoose.Schema(
   {
+    // ⭐ QUOTATION STATUS
+    status: {
+      type: String,
+      enum: ["In Progress", "Confirmed", "Completed"],
+      default: "In Progress"
+    },
+
     clientDetails: {
       clientName: { type: String, required: true },
       tourType: { type: String, enum: ["Domestic", "International"] },
@@ -39,6 +48,7 @@ const customQuotationSchema = new mongoose.Schema(
       itinerary: [itinerarySchema],
       vehicleDetails: vehicleDetailsSchema,
       policies: policySchema,
+
       quotationDetails: {
         adults: { type: Number, required: true },
         children: { type: Number, default: 0 },
@@ -68,7 +78,6 @@ const customQuotationSchema = new mongoose.Schema(
           sharingType: { type: String, required: true },
           showCostPerAdult: { type: Boolean, default: false },
           mattress: { type: Number, default: 0 },
-
         },
 
         companyMargin: {
@@ -86,16 +95,45 @@ const customQuotationSchema = new mongoose.Schema(
           },
           applyGST: { type: Boolean, default: false },
         },
+
         packageCalculations: {
           standard: packageCalculationSchema,
           deluxe: packageCalculationSchema,
           superior: packageCalculationSchema,
         },
+
         signatureDetails: {
           regardsText: { type: String, default: "Best Regards" },
           signedBy: { type: String },
         },
       },
+    },
+
+    // ⭐ FINALIZED QUOTATION BLOCK (Step 7)
+    finalizedQuotation: {
+      vendorType: {
+        type: String,
+        enum: ["Single Vendor", "Multiple Vendor"],
+      },
+
+      hotelVendor: {
+        packageType: { type: String }, // Standard / Deluxe / Superior
+        vendorName: { type: String },
+        nights: { type: String },
+        amount: { type: Number },
+        maxLimit: { type: Number } // ₹ 50,000 etc.
+      },
+
+      vehicleVendor: {
+        vendorName: { type: String },
+        amount: { type: Number },
+      },
+
+      packageSummary: {
+        standard: { totalCost: { type: Number, default: 0 } },
+        deluxe: { totalCost: { type: Number, default: 0 } },
+        superior: { totalCost: { type: Number, default: 0 } },
+      }
     },
 
     quotationId: {

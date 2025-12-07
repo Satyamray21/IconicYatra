@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   RadioGroup,
   FormControlLabel,
   Radio,
@@ -21,34 +22,49 @@ import {
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import AddIcon from "@mui/icons-material/Add";
-
-
-import BankDetailsDialog from "./BankDetailsDialog"; // Update the import path as per your project structure
-import AddBankDialog from "./AddBankDialog"; // Update the import path as per your project structure
+import BankDetailsDialog from "./BankDetailsDialog";
+import AddBankDialog from "./AddBankDialog";
 import AssociateDetailForm from "../../../Associates/Form/AssociatesForm";
-const HotelVendorDialog = ({ open, onClose }) => {
-  const [vendorType, setVendorType] = useState("single");
+import { useSelector } from "react-redux";
+
+/**
+ * Fixed HotelVendorDialog.jsx
+ * - Uses "Single Vendor" / "Multiple Vendor"
+ * - Formik integrated correctly with MUI Select (formik.setFieldValue)
+ * - Add New Vendor handled via sentinel value "__add_new_vendor__"
+ * - Vehicle select uses controlled state updates
+ * - Builds step7 payload exactly as backend expects
+ */
+
+const HotelVendorDialog = ({ open, onClose, finalizedPackage, onConfirm }) => {
+  const { list: associates = [] } = useSelector((state) => state.associate);
+
+  // step control
+  const [hotelStepOpen, setHotelStepOpen] = useState(true);
+  const [vehicleStepOpen, setVehicleStepOpen] = useState(false);
+  const [bankStepOpen, setBankStepOpen] = useState(false);
+
+  // add dialogs
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
-  const [vehicleVendorDialogOpen, setVehicleVendorDialogOpen] = useState(false);
-  const [bankDetailsDialogOpen, setBankDetailsDialogOpen] = useState(false);
   const [addBankDialogOpen, setAddBankDialogOpen] = useState(false);
-  const [vendors, setVendors] = useState(["Vendor 1", "Vendor 2"]);
-  const [vehicleVendors, setVehicleVendors] = useState(["Vehicle Vendor 1", "Vehicle Vendor 2", "Vehicle Vendor 3"]);
+
+  // lists
+  const [vendors, setVendors] = useState([]);
+  const [vehicleVendors, setVehicleVendors] = useState([]);
+
+  // vehicle vendor form state
   const [vehicleVendorForm, setVehicleVendorForm] = useState({
     vehicleVendorName: "",
+    amount: "",
     showAllVehicle: false,
   });
 
-  // Bank Details Dialog States
+  // bank fields
   const [accountType, setAccountType] = useState("company");
   const [accountName, setAccountName] = useState("");
-  const [accountOptions, setAccountOptions] = useState([
-    { value: "account1", label: "Account 1" },
-    { value: "account2", label: "Account 2" },
-    { value: "account3", label: "Account 3" },
-  ]);
+  const [accountOptions, setAccountOptions] = useState([]);
 
-  // Add Bank Dialog States
+  // new bank object (for AddBankDialog)
   const [newBankDetails, setNewBankDetails] = useState({
     bankName: "",
     branchName: "",
@@ -58,155 +74,81 @@ const HotelVendorDialog = ({ open, onClose }) => {
     openingBalance: "",
   });
 
+  // initial hotel form values
+  const initialHotelValues = {
+    vendorType: "Single Vendor", // default value must match schema enum
+    vendorName: "",
+    amount: "",
+    nights: "",
+    maxLimit: 50000,
+    showAll: false,
+    same: false,
+  };
+
+  const hotelAssoc = associates.filter(
+    (item) => item?.personalDetails?.associateType === "Hotel Vendor"
+  );
+  const vehicleAssoc = associates.filter(
+    (item) => item?.personalDetails?.associateType === "Vehicle Vendor"
+  );
+
+  useEffect(() => {
+    setVendors(hotelAssoc.map((v) => v.personalDetails.fullName));
+    setVehicleVendors(vehicleAssoc.map((v) => v.personalDetails.fullName));
+    // example account options — replace with actual accounts if available
+    setAccountOptions([
+      { value: "account1", label: "Account 1" },
+      { value: "account2", label: "Account 2" },
+    ]);
+  }, [associates]);
+
+  // Formik
   const formik = useFormik({
-    initialValues: {
-      vendorType: "single",
-      vendorName: "",
-      amount: "",
-      showAll: false,
-      same: false,
-    },
+    initialValues: initialHotelValues,
+    enableReinitialize: true,
     validationSchema: Yup.object({
       vendorType: Yup.string().required("Required"),
       vendorName: Yup.string().when("vendorType", {
-        is: "single",
+        is: "Single Vendor",
         then: (schema) => schema.required("Vendor name is required"),
+        otherwise: (schema) => schema.notRequired(),
       }),
+      amount: Yup.number().min(0).nullable(),
+      nights: Yup.number().min(0).nullable(),
+      maxLimit: Yup.number().min(0).nullable(),
     }),
     onSubmit: (values) => {
-      console.log("Hotel Vendor Form Data:", values);
-      // Close hotel vendor dialog and open vehicle vendor dialog
-      onClose();
-      setVehicleVendorDialogOpen(true);
+      // move to vehicle step after hotel confirm
+      setHotelStepOpen(false);
+      setVehicleStepOpen(true);
     },
   });
 
-  const handleVendorTypeChange = (e) => {
-    const value = e.target.value;
-    setVendorType(value);
-    formik.setFieldValue("vendorType", value);
-  };
-
-  const handleAddVendor = (newVendorName) => {
-    if (newVendorName && !vendors.includes(newVendorName)) {
-      const updatedVendors = [...vendors, newVendorName];
-      setVendors(updatedVendors);
-      formik.setFieldValue("vendorName", newVendorName);
-    }
-    setAddVendorDialogOpen(false);
-  };
-
-  const handleAddVehicleVendor = (newVendorName) => {
-    if (newVendorName && !vehicleVendors.includes(newVendorName)) {
-      const updatedVendors = [...vehicleVendors, newVendorName];
-      setVehicleVendors(updatedVendors);
-      setVehicleVendorForm(prev => ({
-        ...prev,
-        vehicleVendorName: newVendorName
-      }));
-    }
-    setAddVendorDialogOpen(false);
-  };
-
-  const handleVehicleVendorChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setVehicleVendorForm(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const handleVehicleVendorConfirm = () => {
-    console.log("Vehicle Vendor Form Data:", vehicleVendorForm);
-    // Close vehicle vendor dialog and open bank details dialog
-    setVehicleVendorDialogOpen(false);
-    setBankDetailsDialogOpen(true);
-  };
-
-  const handleVehicleVendorCancel = () => {
-    setVehicleVendorDialogOpen(false);
-  };
-
-  const handleBankDetailsConfirm = () => {
-    console.log("Bank Details confirmed");
-    console.log("Account Type:", accountType);
-    console.log("Account Name:", accountName);
-    setBankDetailsDialogOpen(false);
-    // You can add additional logic here for what happens after bank details confirmation
-  };
-
-  const handleBankDetailsCancel = () => {
-    setBankDetailsDialogOpen(false);
-  };
-
-  const handleAddBankOpen = () => {
-    // Open the Add Bank dialog
-    setAddBankDialogOpen(true);
-  };
-
-  const handleNewBankChange = (field, value) => {
-    setNewBankDetails(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleAddBank = () => {
-    console.log("New Bank Details:", newBankDetails);
-    
-    // Create a new account option from the bank details
-    const newAccountOption = {
-      value: newBankDetails.accountNumber,
-      label: `${newBankDetails.bankName} - ${newBankDetails.accountHolderName}`
-    };
-
-    // Add the new account to the options
-    setAccountOptions(prev => [...prev, newAccountOption]);
-    
-    // Set the newly added account as selected
-    setAccountName(newAccountOption.value);
-    
-    // Reset the form and close the dialog
-    setNewBankDetails({
-      bankName: "",
-      branchName: "",
-      accountHolderName: "",
-      accountNumber: "",
-      ifscCode: "",
-      openingBalance: "",
-    });
-    
-    setAddBankDialogOpen(false);
-  };
-
-  const handleAddBankCancel = () => {
-    // Reset the form and close the dialog
-    setNewBankDetails({
-      bankName: "",
-      branchName: "",
-      accountHolderName: "",
-      accountNumber: "",
-      ifscCode: "",
-      openingBalance: "",
-    });
-    setAddBankDialogOpen(false);
-  };
-
-  const renderVendorSelect = (name, value, onChange) => (
+  // ---- Helpers to render selects with Add option ----
+  const renderVendorSelect = (name, value) => (
     <Select
       name={name}
       value={value}
-      onChange={onChange}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === "__add_new_vendor__") {
+          // open add vendor dialog (keeps select open/unchanged)
+          setAddVendorDialogOpen(true);
+          return;
+        }
+        // update formik value properly
+        formik.setFieldValue(name, val);
+      }}
       fullWidth
       displayEmpty
     >
-      <MenuItem value="">Hotel Vendor Name</MenuItem>
+      <MenuItem value="">Select Hotel Vendor</MenuItem>
       {vendors.map((vendor) => (
         <MenuItem key={vendor} value={vendor}>
           {vendor}
         </MenuItem>
       ))}
-      <MenuItem onClick={() => setAddVendorDialogOpen(true)}>
+      <MenuItem value="__add_new_vendor__">
         <ListItemIcon>
           <AddIcon fontSize="small" />
         </ListItemIcon>
@@ -219,17 +161,24 @@ const HotelVendorDialog = ({ open, onClose }) => {
     <Select
       name="vehicleVendorName"
       value={vehicleVendorForm.vehicleVendorName}
-      onChange={handleVehicleVendorChange}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === "__add_new_vendor__") {
+          setAddVendorDialogOpen(true);
+          return;
+        }
+        setVehicleVendorForm((prev) => ({ ...prev, vehicleVendorName: val }));
+      }}
       fullWidth
       displayEmpty
     >
-      <MenuItem value="">Vehicle Vendor</MenuItem>
+      <MenuItem value="">Select Vehicle Vendor</MenuItem>
       {vehicleVendors.map((vendor) => (
         <MenuItem key={vendor} value={vendor}>
           {vendor}
         </MenuItem>
       ))}
-      <MenuItem onClick={() => setAddVendorDialogOpen(true)}>
+      <MenuItem value="__add_new_vendor__">
         <ListItemIcon>
           <AddIcon fontSize="small" />
         </ListItemIcon>
@@ -238,61 +187,116 @@ const HotelVendorDialog = ({ open, onClose }) => {
     </Select>
   );
 
+  // ---- Handlers ----
+  const handleVendorTypeChange = (e) => {
+    const value = e.target.value;
+    formik.setFieldValue("vendorType", value);
+    // optionally clear vendorName when switching types to avoid stale values:
+    // formik.setFieldValue("vendorName", "");
+  };
+
+  const handleAddVendorSuccess = (newVendor) => {
+    const name = newVendor.name || newVendor;
+    if (name && !vendors.includes(name)) {
+      setVendors((prev) => [...prev, name]);
+      // set it as selected in formik if currently on hotel step
+      if (hotelStepOpen) formik.setFieldValue("vendorName", name);
+      // if vehicle dialog open, set vehicle vendor
+      if (vehicleStepOpen) setVehicleVendorForm((p) => ({ ...p, vehicleVendorName: name }));
+    }
+    setAddVendorDialogOpen(false);
+  };
+
+  const handleVehicleConfirm = () => {
+    setVehicleStepOpen(false);
+    setBankStepOpen(true);
+  };
+
+  const handleBankConfirm = () => {
+    // build payload following backend schema exactly
+    const step7Data = {
+      finalizedPackage: finalizedPackage || null,
+      vendorType: formik.values.vendorType, // "Single Vendor" | "Multiple Vendor"
+      hotelVendor: {
+        packageType: finalizedPackage || null,
+        vendorName: formik.values.vendorName || "",
+        nights: formik.values.nights ? Number(formik.values.nights) : 0,
+        amount: formik.values.amount ? Number(formik.values.amount) : 0,
+        maxLimit: formik.values.maxLimit ? Number(formik.values.maxLimit) : 0,
+      },
+      vehicleVendor: {
+        vendorName: vehicleVendorForm.vehicleVendorName || "",
+        amount: vehicleVendorForm.amount ? Number(vehicleVendorForm.amount) : 0,
+      },
+      // packageSummary will be attached by parent (FinalizeDialog)
+      // bank details (optional; included for frontend reference)
+      bankDetails: {
+        accountType,
+        accountName,
+      },
+    };
+
+    // debug log (remove in production)
+    // console.log("STEP7 payload ->", step7Data);
+
+    if (onConfirm) onConfirm(step7Data);
+
+    // reset/close
+    setBankStepOpen(false);
+    setVehicleStepOpen(false);
+    setHotelStepOpen(true);
+    if (onClose) onClose();
+  };
+
+  const handleAddBank = () => {
+    const newOption = {
+      value: newBankDetails.accountNumber,
+      label: `${newBankDetails.bankName} - ${newBankDetails.accountHolderName}`,
+    };
+    setAccountOptions((prev) => [...prev, newOption]);
+    setAccountName(newOption.value);
+    setNewBankDetails({
+      bankName: "",
+      branchName: "",
+      accountHolderName: "",
+      accountNumber: "",
+      ifscCode: "",
+      openingBalance: "",
+    });
+    setAddBankDialogOpen(false);
+  };
+
+  // ---- Render ----
   return (
     <>
-      {/* Hotel Vendor Dialog */}
-      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold", color: "#1976d2" }}>
-          Select Hotel Vendor
-        </DialogTitle>
+      {/* HOTEL STEP */}
+      <Dialog open={open && hotelStepOpen} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: "bold", color: "#1976d2" }}>Select Hotel Vendor</DialogTitle>
         <DialogContent>
-          {/* Vendor Type */}
           <Box sx={{ mb: 2 }}>
-            <FormLabel sx={{ fontWeight: "bold", color: "#34495e" }}>
-              *Vendor Type
-            </FormLabel>
-            <RadioGroup
-              row
-              name="vendorType"
-              value={vendorType}
-              onChange={handleVendorTypeChange}
-            >
-              <FormControlLabel
-                value="single"
-                control={<Radio />}
-                label="Single Vendor"
-              />
-              <FormControlLabel
-                value="multiple"
-                control={<Radio />}
-                label="Multiple Vendor"
-              />
+            <FormLabel sx={{ fontWeight: "bold", color: "#34495e" }}>*Vendor Type</FormLabel>
+            <RadioGroup row name="vendorType" value={formik.values.vendorType} onChange={handleVendorTypeChange}>
+              <FormControlLabel value="Single Vendor" control={<Radio />} label="Single Vendor" />
+              <FormControlLabel value="Multiple Vendor" control={<Radio />} label="Multiple Vendor" />
             </RadioGroup>
           </Box>
 
           <Divider sx={{ mb: 2 }} />
 
-          {/* Conditional Rendering */}
-          {vendorType === "single" ? (
+          {formik.values.vendorType === "Single Vendor" ? (
             <>
-              <Typography
-                variant="body1"
-                sx={{ fontWeight: 600, color: "#e74c3c", mb: 1 }}
-              >
+              <Typography variant="body1" sx={{ fontWeight: 600, color: "#e74c3c", mb: 1 }}>
                 *Hotel Vendor
               </Typography>
+
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                {renderVendorSelect(
-                  "vendorName",
-                  formik.values.vendorName,
-                  formik.handleChange
-                )}
+                {renderVendorSelect("vendorName", formik.values.vendorName)}
                 <FormControlLabel
                   control={
                     <Checkbox
                       name="showAll"
                       checked={formik.values.showAll}
-                      onChange={formik.handleChange}
+                      onChange={(e) => formik.setFieldValue("showAll", e.target.checked)}
                     />
                   }
                   label="Show All"
@@ -301,142 +305,89 @@ const HotelVendorDialog = ({ open, onClose }) => {
             </>
           ) : (
             <>
-              <Typography
-                variant="body1"
-                sx={{ color: "#f39c12", fontWeight: "bold", mb: 1 }}
-              >
+              <Typography variant="body1" sx={{ color: "#f39c12", fontWeight: "bold", mb: 1 }}>
                 Standard
               </Typography>
-              <Typography
-                variant="body2"
-                sx={{ color: "#e74c3c", mb: 1, fontWeight: "bold" }}
-              >
+              <Typography variant="body2" sx={{ color: "#e74c3c", mb: 1, fontWeight: "bold" }}>
                 Max Amount Limit ₹ 50,000
               </Typography>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Typography sx={{ fontWeight: "bold", color: "#34495e" }}>
-                  *Sikkim Resto Aritar (5N)
-                </Typography>
+
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography sx={{ fontWeight: "bold", color: "#34495e" }}>*Sikkim Resto Aritar (5N)</Typography>
                 <FormControlLabel
                   control={
-                    <Checkbox
-                      name="same"
-                      checked={formik.values.same}
-                      onChange={formik.handleChange}
-                    />
+                    <Checkbox name="same" checked={formik.values.same} onChange={(e) => formik.setFieldValue("same", e.target.checked)} />
                   }
                   label="Same"
                 />
               </Box>
 
               <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1 }}>
-                {renderVendorSelect(
-                  "vendorName",
-                  formik.values.vendorName,
-                  formik.handleChange
-                )}
+                {renderVendorSelect("vendorName", formik.values.vendorName)}
                 <TextField
                   name="amount"
                   label="Amount"
                   value={formik.values.amount}
-                  onChange={formik.handleChange}
+                  onChange={(e) => formik.setFieldValue("amount", e.target.value)}
                   type="number"
                   sx={{ width: "40%" }}
                 />
               </Box>
+
               <FormControlLabel
-                control={
-                  <Checkbox
-                    name="showAll"
-                    checked={formik.values.showAll}
-                    onChange={formik.handleChange}
-                  />
-                }
+                control={<Checkbox name="showAll" checked={formik.values.showAll} onChange={(e) => formik.setFieldValue("showAll", e.target.checked)} />}
                 label="Show All"
                 sx={{ mt: 1 }}
               />
             </>
           )}
 
-          {/* Buttons */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              gap: 2,
-              mt: 3,
-            }}
-          >
-            <Button
-              variant="contained"
-              sx={{ background: "#90caf9", color: "#fff" }}
-              disabled={!formik.isValid}
-              onClick={formik.handleSubmit}
-            >
-              Confirm
+          {/* nights / maxLimit inputs */}
+          <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+            <TextField
+              label="Nights"
+              value={formik.values.nights}
+              onChange={(e) => formik.setFieldValue("nights", e.target.value)}
+              type="number"
+              sx={{ width: "150px" }}
+            />
+            <TextField
+              label="Max Limit (₹)"
+              value={formik.values.maxLimit}
+              onChange={(e) => formik.setFieldValue("maxLimit", e.target.value)}
+              type="number"
+              sx={{ width: "200px" }}
+            />
+          </Box>
+
+          <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 3 }}>
+            <Button variant="contained" sx={{ background: "#90caf9", color: "#fff" }} onClick={() => formik.handleSubmit()}>
+              Confirm (Hotel)
             </Button>
-            <Button
-              variant="contained"
-              sx={{ background: "#e67e22", color: "#fff" }}
-              onClick={onClose}
-            >
+            <Button variant="contained" sx={{ background: "#e67e22", color: "#fff" }} onClick={onClose}>
               Cancel
             </Button>
           </Box>
         </DialogContent>
       </Dialog>
 
-      {/* Add New Vendor Form Dialog */}
-      <Dialog 
-        open={addVendorDialogOpen} 
-        onClose={() => setAddVendorDialogOpen(false)} 
-        maxWidth="md" 
-        fullWidth
-      >
+      {/* ADD VENDOR DIALOG */}
+      <Dialog open={addVendorDialogOpen} onClose={() => setAddVendorDialogOpen(false)} maxWidth="md" fullWidth>
         <AssociateDetailForm
           onClose={() => setAddVendorDialogOpen(false)}
-          onSuccess={(newVendor) => {
-            // Determine which vendor list to update based on which dialog is open
-            if (vehicleVendorDialogOpen) {
-              handleAddVehicleVendor(newVendor.name || newVendor);
-            } else {
-              handleAddVendor(newVendor.name || newVendor);
-            }
-          }}
+          onSuccess={(newVendor) => handleAddVendorSuccess(newVendor)}
         />
       </Dialog>
 
-      {/* Vehicle Vendor Dialog */}
-      <Dialog open={vehicleVendorDialogOpen} onClose={() => setVehicleVendorDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold", color: "#1976d2", textAlign: "center" }}>
-          Vehicle Vendor
-        </DialogTitle>
+      {/* VEHICLE STEP */}
+      <Dialog open={vehicleStepOpen} onClose={() => setVehicleStepOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: "bold", color: "#1976d2", textAlign: "center" }}>Vehicle Vendor</DialogTitle>
         <DialogContent>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              fontWeight: "bold", 
-              color: "#e74c3c", 
-              mb: 2,
-              display: "flex",
-              alignItems: "center",
-              gap: 1
-            }}
-          >
-            ***Vehicle Vendor**
-          </Typography>
-          
           <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-            <Checkbox 
+            <Checkbox
               name="showAllVehicle"
               checked={vehicleVendorForm.showAllVehicle}
-              onChange={handleVehicleVendorChange}
+              onChange={(e) => setVehicleVendorForm((p) => ({ ...p, showAllVehicle: e.target.checked }))}
             />
             <Typography variant="body2" sx={{ fontWeight: "medium" }}>
               Show All
@@ -445,65 +396,49 @@ const HotelVendorDialog = ({ open, onClose }) => {
 
           {renderVehicleVendorSelect()}
 
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              label="Amount"
+              name="amount"
+              value={vehicleVendorForm.amount}
+              onChange={(e) => setVehicleVendorForm((p) => ({ ...p, amount: e.target.value }))}
+              type="number"
+              fullWidth
+            />
+          </Box>
+
           <Divider sx={{ mb: 3, mt: 2 }} />
 
-          {/* Buttons */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              gap: 2,
-            }}
-          >
-            <Button
-              variant="contained"
-              sx={{ 
-                background: "#90caf9", 
-                color: "#fff",
-                "&:hover": {
-                  background: "#64b5f6",
-                }
-              }}
-              onClick={handleVehicleVendorConfirm}
-            >
-              Confirm
+          <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
+            <Button variant="contained" sx={{ background: "#90caf9", color: "#fff" }} onClick={handleVehicleConfirm}>
+              Confirm (Vehicle)
             </Button>
-            <Button
-              variant="contained"
-              sx={{ 
-                background: "#e67e22", 
-                color: "#fff",
-                "&:hover": {
-                  background: "#d35400",
-                }
-              }}
-              onClick={handleVehicleVendorCancel}
-            >
+            <Button variant="contained" sx={{ background: "#e67e22", color: "#fff" }} onClick={() => setVehicleStepOpen(false)}>
               Cancel
             </Button>
           </Box>
         </DialogContent>
       </Dialog>
 
-      {/* Bank Details Dialog */}
+      {/* BANK STEP */}
       <BankDetailsDialog
-        open={bankDetailsDialogOpen}
-        onClose={handleBankDetailsCancel}
+        open={bankStepOpen}
+        onClose={() => setBankStepOpen(false)}
         accountType={accountType}
         setAccountType={setAccountType}
         accountName={accountName}
         setAccountName={setAccountName}
         accountOptions={accountOptions}
-        onAddBankOpen={handleAddBankOpen}
-        onConfirm={handleBankDetailsConfirm}
+        onAddBankOpen={() => setAddBankDialogOpen(true)}
+        onConfirm={handleBankConfirm}
       />
 
-      {/* Add Bank Dialog */}
+      {/* ADD BANK */}
       <AddBankDialog
         open={addBankDialogOpen}
-        onClose={handleAddBankCancel}
+        onClose={() => setAddBankDialogOpen(false)}
         newBankDetails={newBankDetails}
-        onNewBankChange={handleNewBankChange}
+        onNewBankChange={(field, value) => setNewBankDetails((p) => ({ ...p, [field]: value }))}
         onAddBank={handleAddBank}
       />
     </>

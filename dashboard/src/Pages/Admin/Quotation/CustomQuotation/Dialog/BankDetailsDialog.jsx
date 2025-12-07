@@ -40,42 +40,22 @@ const BankDetailsDialog = ({
               value={accountType}
               onChange={(e) => setAccountType(e.target.value)}
             >
-              <MuiFormControlLabel
-                value="company"
-                control={<Radio />}
-                label="Company Account"
-              />
-              <MuiFormControlLabel
-                value="other"
-                control={<Radio />}
-                label="Other Accounts"
-              />
+              <MuiFormControlLabel value="company" control={<Radio />} label="Company Account" />
+              <MuiFormControlLabel value="other" control={<Radio />} label="Other Accounts" />
             </MuiRadioGroup>
           </FormControl>
 
           {accountType === "company" ? (
             <>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                Account Name : Iconic Yatra
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                Account Number : 0
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                IFSC Code :
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                Bank Name :
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                Branch Name :
-              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>Account Name : Iconic Yatra</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>Account Number : 0</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>IFSC Code :</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>Bank Name :</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>Branch Name :</Typography>
             </>
           ) : (
             <>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                *Account Name
-              </Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>*Account Name</Typography>
               <FormControl fullWidth margin="normal">
                 <InputLabel>Account Name</InputLabel>
                 <Select
@@ -103,17 +83,13 @@ const BankDetailsDialog = ({
       </DialogContent>
       <DialogActions>
         <Button
-          onClick={onConfirm}
+          onClick={() => { if (onConfirm) onConfirm(); }}
           variant="contained"
           sx={{ bgcolor: "skyblue", "&:hover": { bgcolor: "deepskyblue" } }}
         >
           Confirm
         </Button>
-        <Button
-          onClick={onClose}
-          variant="contained"
-          sx={{ bgcolor: "darkorange", "&:hover": { bgcolor: "orange" } }}
-        >
+        <Button onClick={onClose} variant="contained" sx={{ bgcolor: "darkorange", "&:hover": { bgcolor: "orange" } }}>
           Cancel
         </Button>
       </DialogActions>
