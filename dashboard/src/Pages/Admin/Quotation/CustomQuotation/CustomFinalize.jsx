@@ -63,7 +63,7 @@ import {
 } from "@mui/icons-material";
 
 import EmailQuotationDialog from "../VehicleQuotation/Dialog/EmailQuotationDialog";
-import MakePaymentDialog from "../VehicleQuotation/Dialog/MakePaymentDialog";
+import PaymentsForm from "../../Payments/Form/PaymentsForm";
 import FinalizeDialog from "./Dialog/FinalizeDialog";
 import HotelVendorDialog from "./Dialog/HotelVendor";
 import AddBankDialog from "../VehicleQuotation/Dialog/AddBankDialog";
@@ -74,19 +74,46 @@ import InvoicePDF from "./Dialog/PDF/Invoice";
 import QuotationPDFDialog from "./Dialog/PDF/PreviewPdf";
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {getCustomQuotationById} from "../../../../features/quotation/customQuotationSlice";
+import axios from "../../../../utils/axios";
 // Transaction Summary Dialog Component
-const TransactionSummaryDialog = ({ open, onClose }) => {
+const TransactionSummaryDialog = ({ open, onClose, quotationId }) => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   const tableHeaders = [
     "Sr No.",
     "Receipt",
     "Invoice",
     "Party Name",
     "Transaction Remark",
-    "Transaction...",
+    "Transaction Mode",
     "Dr/Cr",
     "Amount",
   ];
+
+  // Fetch transaction history when dialog opens
+ useEffect(() => {
+  if (!open || !quotationId) return;
+
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      const { data } = await axios.get(
+        `/payment/history/custom/${quotationId}`
+      );
+      setRows(data?.data || []);
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchTransactions();
+}, [open, quotationId]);
+
 
   return (
     <Dialog
@@ -97,17 +124,14 @@ const TransactionSummaryDialog = ({ open, onClose }) => {
       PaperProps={{ sx: { minHeight: "400px" } }}
     >
       <DialogTitle>
-        <Typography variant="h6" component="div" fontWeight="bold">
+        <Typography variant="h6" fontWeight="bold">
           Transaction Summary
         </Typography>
       </DialogTitle>
+
       <DialogContent>
-        <TableContainer
-          component={Paper}
-          variant="outlined"
-          sx={{ border: "1px solid #e0e0e0" }}
-        >
-          <Table sx={{ minWidth: 800 }} aria-label="transaction summary table">
+        <TableContainer component={Paper} variant="outlined">
+          <Table sx={{ minWidth: 900 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
                 {tableHeaders.map((header, index) => (
@@ -126,20 +150,56 @@ const TransactionSummaryDialog = ({ open, onClose }) => {
                 ))}
               </TableRow>
             </TableHead>
+
             <TableBody>
-              <TableRow>
-                <TableCell
-                  colSpan={tableHeaders.length}
-                  align="center"
-                  sx={{
-                    height: 120,
-                    color: "text.secondary",
-                    fontStyle: "italic",
-                  }}
-                >
-                  No data
-                </TableCell>
-              </TableRow>
+              {/* Loading State */}
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={tableHeaders.length} align="center">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {/* No Data */}
+              {!loading && rows.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={tableHeaders.length}
+                    align="center"
+                    sx={{ height: 120, color: "text.secondary", fontStyle: "italic" }}
+                  >
+                    No transaction history found
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {/* Render Rows */}
+              {!loading &&
+                rows.length > 0 &&
+                rows.map((row, index) => (
+                  <TableRow key={row._id}>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>{row.receiptNumber}</TableCell>
+                    <TableCell>{row.invoiceId}</TableCell>
+                    <TableCell>{row.partyName}</TableCell>
+                    <TableCell>{row.particulars}</TableCell>
+                    <TableCell>{row.paymentMode}</TableCell>
+                    <TableCell>{row.drCr}</TableCell>
+                    <TableCell>₹ {row.amount}</TableCell>
+                  </TableRow>
+                ))}
+
+              {/* Total Amount */}
+              {!loading && rows.length > 0 && (
+                <TableRow sx={{ backgroundColor: "#fafafa" }}>
+                  <TableCell colSpan={6} />
+                  <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    ₹ {rows.reduce((sum, r) => sum + Number(r.amount || 0), 0)}
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </TableContainer>
@@ -147,6 +207,8 @@ const TransactionSummaryDialog = ({ open, onClose }) => {
     </Dialog>
   );
 };
+
+
 
 // Invoice PDF Dialog Component
 const InvoicePdfDialog = ({ open, onClose, quotation, invoiceData }) => {
@@ -236,6 +298,7 @@ const InvoicePdfDialog = ({ open, onClose, quotation, invoiceData }) => {
 
 const CustomFinalize = () => {
   // State
+   const navigate = useNavigate();
    const dispatch = useDispatch();
   const [activeInfo, setActiveInfo] = useState(null);
   const [openFinalize, setOpenFinalize] = useState(false);
@@ -933,8 +996,14 @@ const formatTime = (timeString) => {
         handlePreviewPdf();
         break;
       case "Make Payment":
-        handlePaymentOpen();
-        break;
+    navigate("/payments-form", {
+        state: {
+            quotationId: selectedQuotation?._id,
+            quotationType: "custom", // hotel/custom/vehicle/flight/full
+        }
+    });
+    break;
+
       case "Add Flight":
         handleAddFlightOpen();
         break;
@@ -2020,13 +2089,15 @@ const formatTime = (timeString) => {
         onClose={handleEmailClose}
         customer={quotation.customer}
       />
-      <MakePaymentDialog
+      <PaymentsForm
         open={openPaymentDialog}
         onClose={handlePaymentClose}
       />
       <TransactionSummaryDialog
         open={openTransactionDialog}
         onClose={() => setOpenTransactionDialog(false)}
+        quotationId={selectedQuotation?._id}
+
       />
 
       {/* Invoice PDF Dialog */}

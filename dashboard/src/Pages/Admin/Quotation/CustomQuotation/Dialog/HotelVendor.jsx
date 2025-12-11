@@ -92,15 +92,18 @@ const HotelVendorDialog = ({ open, onClose, finalizedPackage, onConfirm }) => {
     (item) => item?.personalDetails?.associateType === "Vehicle Vendor"
   );
 
-  useEffect(() => {
-    setVendors(hotelAssoc.map((v) => v.personalDetails.fullName));
-    setVehicleVendors(vehicleAssoc.map((v) => v.personalDetails.fullName));
-    // example account options — replace with actual accounts if available
-    setAccountOptions([
-      { value: "account1", label: "Account 1" },
-      { value: "account2", label: "Account 2" },
-    ]);
-  }, [associates]);
+ useEffect(() => {
+  if (!open) return; // update only when dialog opens
+
+  setVendors(hotelAssoc.map((v) => v.personalDetails.fullName));
+  setVehicleVendors(vehicleAssoc.map((v) => v.personalDetails.fullName));
+
+  setAccountOptions([
+    { value: "account1", label: "Account 1" },
+    { value: "account2", label: "Account 2" },
+  ]);
+}, [associates, open]);
+
 
   // Formik
   const formik = useFormik({

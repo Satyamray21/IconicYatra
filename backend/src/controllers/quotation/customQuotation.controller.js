@@ -157,7 +157,13 @@ export const updateQuotationStep = asyncHandler(async (req, res) => {
     });
   }
 
+else if (stepNumber === 2) {
+  if (!Array.isArray(stepData)) {
+    throw new ApiError(400, "Step 2 expects an array of cities");
+  }
 
+  quotation.pickupDrop = stepData; // [{cityName, nights}]
+}
   // -------------------------------
   // ⭐ STEP 4 – ITINERARY + IMAGES
   // -------------------------------
