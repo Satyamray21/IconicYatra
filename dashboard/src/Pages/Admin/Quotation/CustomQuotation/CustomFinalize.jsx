@@ -91,29 +91,43 @@ const TransactionSummaryDialog = ({ open, onClose, quotationId }) => {
     "Transaction Mode",
     "Dr/Cr",
     "Amount",
+    "Company Paid",
+    "Received from Client",
+    "Profit / Loss",
   ];
 
   // Fetch transaction history when dialog opens
- useEffect(() => {
-  if (!open || !quotationId) return;
+  useEffect(() => {
+    if (!open || !quotationId) return;
 
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
-      const { data } = await axios.get(
-        `/payment/history/custom/${quotationId}`
-      );
-      setRows(data?.data || []);
-    } catch (err) {
-      console.error("Error fetching transactions:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true);
+        const { data } = await axios.get(
+          `/payment/history/custom/${quotationId}`
+        );
+        setRows(data?.data || []);
+      } catch (err) {
+        console.error("Error fetching transactions:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  fetchTransactions();
-}, [open, quotationId]);
+    fetchTransactions();
+  }, [open, quotationId]);
 
+  // Helper functions for totals
+  const totalAmount = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const totalCompanyPaid = rows.reduce(
+    (sum, r) => sum + (r.drCr === "Dr" ? Number(r.amount || 0) : 0),
+    0
+  );
+  const totalReceived = rows.reduce(
+    (sum, r) => sum + (r.drCr === "Cr" ? Number(r.amount || 0) : 0),
+    0
+  );
+  const totalProfitLoss = totalReceived - totalCompanyPaid;
 
   return (
     <Dialog
@@ -131,7 +145,7 @@ const TransactionSummaryDialog = ({ open, onClose, quotationId }) => {
 
       <DialogContent>
         <TableContainer component={Paper} variant="outlined">
-          <Table sx={{ minWidth: 900 }}>
+          <Table sx={{ minWidth: 1000 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
                 {tableHeaders.map((header, index) => (
@@ -152,7 +166,7 @@ const TransactionSummaryDialog = ({ open, onClose, quotationId }) => {
             </TableHead>
 
             <TableBody>
-              {/* Loading State */}
+              {/* Loading */}
               {loading && (
                 <TableRow>
                   <TableCell colSpan={tableHeaders.length} align="center">
@@ -177,27 +191,38 @@ const TransactionSummaryDialog = ({ open, onClose, quotationId }) => {
               {/* Render Rows */}
               {!loading &&
                 rows.length > 0 &&
-                rows.map((row, index) => (
-                  <TableRow key={row._id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{row.receiptNumber}</TableCell>
-                    <TableCell>{row.invoiceId}</TableCell>
-                    <TableCell>{row.partyName}</TableCell>
-                    <TableCell>{row.particulars}</TableCell>
-                    <TableCell>{row.paymentMode}</TableCell>
-                    <TableCell>{row.drCr}</TableCell>
-                    <TableCell>₹ {row.amount}</TableCell>
-                  </TableRow>
-                ))}
+                rows.map((row, index) => {
+                  const companyPaid = row.drCr === "Dr" ? row.amount : 0;
+                  const receivedFromClient = row.drCr === "Cr" ? row.amount : 0;
+                  const profitLoss = receivedFromClient - companyPaid;
 
-              {/* Total Amount */}
+                  return (
+                    <TableRow key={row._id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{row.receiptNumber}</TableCell>
+                      <TableCell>{row.invoiceId}</TableCell>
+                      <TableCell>{row.partyName}</TableCell>
+                      <TableCell>{row.particulars}</TableCell>
+                      <TableCell>{row.paymentMode}</TableCell>
+                      <TableCell>{row.drCr}</TableCell>
+                      <TableCell>₹ {row.amount}</TableCell>
+                      <TableCell>₹ {companyPaid}</TableCell>
+                      <TableCell>₹ {receivedFromClient}</TableCell>
+                      <TableCell>₹ {profitLoss}</TableCell>
+                    </TableRow>
+                  );
+                })}
+
+              {/* Totals */}
               {!loading && rows.length > 0 && (
                 <TableRow sx={{ backgroundColor: "#fafafa" }}>
-                  <TableCell colSpan={6} />
-                  <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>
-                    ₹ {rows.reduce((sum, r) => sum + Number(r.amount || 0), 0)}
+                  <TableCell colSpan={7} sx={{ fontWeight: "bold" }}>
+                    Totals
                   </TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>₹ {totalAmount}</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>₹ {totalCompanyPaid}</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>₹ {totalReceived}</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>₹ {totalProfitLoss}</TableCell>
                 </TableRow>
               )}
             </TableBody>
